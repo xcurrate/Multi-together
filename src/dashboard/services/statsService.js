@@ -26,22 +26,24 @@ module.exports = function createStatsService({ state, runtimeStatsService, confi
         const accountStats = runtimeStatsService.ensureAccountStats(state, config.token);
         const snapshotAccountId = runtimeStatsService.getAccountIdFromToken(config.token);
         const activeAccountId = runtimeStatsService.getAccountIdFromToken(state.activeToken || state.config?.token);
+        const runtime = state.accountRuntimes?.get(snapshotAccountId);
+        const runtimeState = runtime?.state || state;
         const commandStats = accountStats.commands || { total: 0, byType: {}, recent: [], last: null };
         const captchaStats = accountStats.captcha || { detected: 0, solved: 0, lastDetectedAt: null, lastSolvedAt: null };
-        const uptimeMs = runtimeStatsService.getUptimeMs(state, config.token, {
-            sync: snapshotAccountId === activeAccountId
+        const uptimeMs = runtimeStatsService.getUptimeMs(runtimeState, config.token, {
+            sync: snapshotAccountId === activeAccountId || !!runtime
         });
-        const { statusText, statusClass } = configManager.computeStatus(config);
+        const { statusText, statusClass } = configManager.computeStatus(runtimeState.config || config);
 
         return {
             status: {
                 text: statusText,
                 className: statusClass,
-                activeChannelId: state.activeChannelId || '-',
+                activeChannelId: runtimeState.activeChannelId || '-',
                 channelsTotal: Array.isArray(config.channels) ? config.channels.length : 0,
-                running: !!config.botStatus?.running,
-                paused: !!config.botStatus?.paused,
-                captchaActive: !!state.hasActiveCaptcha,
+                running: !!runtimeState.config?.botStatus?.running,
+                paused: !!runtimeState.config?.botStatus?.paused,
+                captchaActive: !!runtimeState.hasActiveCaptcha,
                 autosolver: !!config.autosolver,
                 telegram: !!(config.settings?.telegram?.token && config.settings?.telegram?.chatId)
             },
@@ -54,7 +56,7 @@ module.exports = function createStatsService({ state, runtimeStatsService, confi
             captcha: {
                 detected: captchaStats.detected || 0,
                 solved: captchaStats.solved || 0,
-                active: !!state.hasActiveCaptcha,
+                active: !!runtimeState.hasActiveCaptcha,
                 lastDetectedAt: captchaStats.lastDetectedAt || null,
                 lastSolvedAt: captchaStats.lastSolvedAt || null
             },

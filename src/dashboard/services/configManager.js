@@ -21,6 +21,9 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.safety = config.safety || { cctv: false };
         config.tiketandhb = config.tiketandhb || { channelId: "" };
         config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true };
+        config.multiAccount = config.multiAccount || { enabled: true, maxAccounts: 4 };
+        config.multiAccount.enabled = config.multiAccount.enabled !== false;
+        config.multiAccount.maxAccounts = Math.max(1, Math.min(4, parseInt(config.multiAccount.maxAccounts, 10) || 4));
 
         config.settings.twoCaptchaKey = config.settings.twoCaptchaKey || "";
         config.settings.control = config.settings.control || { start: 'wcash', pause: 'wbuy 1', allowIds: [] };
@@ -54,6 +57,9 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.port = this.toInt(body.port, config.port);
         config.macrodroidId = body.macrodroidId || '';
         config.autosolver = this.toBool(body.autosolver);
+        config.multiAccount = config.multiAccount || {};
+        config.multiAccount.enabled = true;
+        config.multiAccount.maxAccounts = Math.max(1, Math.min(4, this.toInt(body.maxAccounts, config.multiAccount.maxAccounts || 4)));
 
         const channels = [body.chan1, body.chan2, body.chan3]
             .filter(ch => ch && String(ch).trim() !== '')

@@ -1,5 +1,6 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 const { removeInvisibleChars } = require('../utils');
 const statsService = require('../services/stats');
 
@@ -48,7 +49,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
         try {
             captchaAsu.setSolverOrder(primary, fallbacks);
         } catch (e) {
-            log.warn(`[Captcha] Gagal set solver order: ${e.message}`);
+            log.warn(`${accountPrefix(state)}[Captcha] Gagal set solver order: ${e.message}`);
         }
 
         return captchaAsu;
@@ -64,7 +65,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
         },
 
         async submitKeOwO(solvedToken) {
-            log.info("Memulai proses auto-login (OAuth2) ke web OwO...");
+            log.info(`${accountPrefix(state)}Memulai proses auto-login (OAuth2) ke web OwO...`);
             const discordToken = state.activeToken;
             if (!discordToken) throw new Error("Discord token tidak ditemukan di state.activeToken.");
 
@@ -98,7 +99,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
 
             if (authCheckResp.status !== 200) throw new Error(`Sesi ditolak oleh OwO (HTTP ${authCheckResp.status})`);
 
-            log.info("Sesi valid! Menyerahkan Token hCaptcha ke OwO...");
+            log.info(`${accountPrefix(state)}Sesi valid! Menyerahkan Token hCaptcha ke OwO...`);
 
             const verifyResp = await fetch("https://owobot.com/api/captcha/verify", {
                 method: "POST",
@@ -111,7 +112,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
             });
 
             if (verifyResp.status === 200) {
-                log.success("🎉 Verifikasi Captcha di server OwO BERHASIL!");
+                log.success(`${accountPrefix(state)}🎉 Verifikasi Captcha di server OwO BERHASIL!`);
                 return true;
             } else {
                 const errorText = await verifyResp.text();
@@ -123,7 +124,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
             if (this.isHandlingProcess) return;
             this.isHandlingProcess = true;
 
-            log.captcha("⛔ CAPTCHA! Bot Paused.");
+            log.captcha(`${accountPrefix(state)}⛔ CAPTCHA! Bot Paused.`);
             recordCaptchaDetected();
             state.config.botStatus.paused = true;
             state.config.botStatus.running = false;
@@ -161,15 +162,15 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
                             signal: state.captchaSolverAbortController?.signal
                         });
 
-                        log.success("✅ Captcha sukses dipecahkan oleh CaptchaAsu!");
+                        log.success(`${accountPrefix(state)}✅ Captcha sukses dipecahkan oleh CaptchaAsu!`);
                         await this.submitKeOwO(solvedToken);
                         await this.resume();
 
                     } catch (error) {
                         if (error.name === 'AbortError' || shouldStopSolving(solveRunId)) {
-                            log.info("🛑 Bypass otomatis dibatalkan karena CAPTCHA selesai manual.");
+                            log.info(`${accountPrefix(state)}🛑 Bypass otomatis dibatalkan karena CAPTCHA selesai manual.`);
                         } else {
-                            log.error(`❌ CaptchaAsu Gagal: ${error.message}`);
+                            log.error(`${accountPrefix(state)}❌ CaptchaAsu Gagal: ${error.message}`);
                             telegramService.send(`❌ <b>Bypass Gagal!</b>\n${error.message}`);
 
                             if (macrodroidService) {
@@ -184,7 +185,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
                     }
 
                 } else {
-                    log.info("⏸️ Autosolver OFF. Silakan selesaikan Captcha secara manual.");
+                    log.info(`${accountPrefix(state)}⏸️ Autosolver OFF. Silakan selesaikan Captcha secara manual.`);
                     telegramService.send(`ℹ️ <b>Autosolver OFF!</b>\nSilakan selesaikan Captcha secara manual.`);
 
                     if (macrodroidService) {
@@ -194,7 +195,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
                 }
 
             } else {
-                log.warn("⚠️ Captcha spam terdeteksi, trigger ditahan.");
+                log.warn(`${accountPrefix(state)}⚠️ Captcha spam terdeteksi, trigger ditahan.`);
                 this.isHandlingProcess = false;
             }
         },
@@ -204,7 +205,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
             state.captchaSolveRunId = (state.captchaSolveRunId || 0) + 1;
             abortActiveSolver();
 
-            log.success("✅ Resuming Bot...");
+            log.success(`${accountPrefix(state)}✅ Resuming Bot...`);
             telegramService.send("🎉 <b>Captcha Selesai!</b>\nAkun terbebas.");
 
             if (macrodroidService) {

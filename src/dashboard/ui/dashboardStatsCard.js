@@ -22,11 +22,6 @@ function getDashboardStatsCard(snapshot) {
         return `
         <div class="dashboard-grid" id="statsGrid">
             <div class="stat-card">
-                <div class="stat-label">Total Command</div>
-                <div class="stat-value" data-stat="commandTotal">${snapshot.commands.total}</div>
-                <div class="stat-note" data-stat="lastCommand">${escapeHtml(lastCommand)}</div>
-            </div>
-            <div class="stat-card">
                 <div class="stat-label">Captcha</div>
                 <div class="stat-value" data-stat="captchaSolved">${snapshot.captcha.solved}/${snapshot.captcha.detected}</div>
                 <div class="stat-note" data-stat="captchaStatus">${snapshot.captcha.active ? 'Aktif - butuh perhatian' : 'Aman, tidak aktif'}</div>
@@ -40,6 +35,11 @@ function getDashboardStatsCard(snapshot) {
                 <div class="stat-label">Status Info</div>
                 <div class="stat-value" data-stat="statusText" style="font-size: 18px;">${escapeHtml(snapshot.status.text)}</div>
                 <div class="stat-note" data-stat="statusNote">Channel aktif: ${escapeHtml(snapshot.status.activeChannelId)}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Command</div>
+                <div class="stat-value" data-stat="commandTotal">${snapshot.commands.total}</div>
+                <div class="stat-note" data-stat="lastCommand">${escapeHtml(lastCommand)}</div>
             </div>
         </div>
 

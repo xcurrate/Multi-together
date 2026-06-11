@@ -1,4 +1,5 @@
 const log = require('../../logger');
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 const { randomInt } = require('../utils');
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -75,7 +76,7 @@ module.exports = (state, commandSender) => ({
             if (state.config.botStatus.paused || !state.config.settings?.battle) return;
             await commandSender.send('wh', 'Hunt');
         } catch (error) {
-            log.error(`❌ Gagal Battle/Hunt: ${error.message || error}`);
+            log.error(`${accountPrefix(state)}❌ Gagal Battle/Hunt: ${error.message || error}`);
         } finally {
             state.isBusy = false;
 
@@ -93,7 +94,7 @@ module.exports = (state, commandSender) => ({
         try {
             await commandSender.send('wpray', 'Pray');
         } catch (error) {
-            log.error(`❌ Gagal Pray: ${error.message || error}`);
+            log.error(`${accountPrefix(state)}❌ Gagal Pray: ${error.message || error}`);
         } finally {
             const d = randomInt(
                 state.config.delays.pray.min,
@@ -118,7 +119,7 @@ module.exports = (state, commandSender) => ({
         try {
             await commandSender.send(text, 'Custom1');
         } catch (error) {
-            log.error(`❌ Gagal Custom1: ${error.message || error}`);
+            log.error(`${accountPrefix(state)}❌ Gagal Custom1: ${error.message || error}`);
         } finally {
             state.isBusy = false;
 
@@ -138,7 +139,7 @@ module.exports = (state, commandSender) => ({
         try {
             await commandSender.send(text, 'Custom2');
         } catch (error) {
-            log.error(`❌ Gagal Custom2: ${error.message || error}`);
+            log.error(`${accountPrefix(state)}❌ Gagal Custom2: ${error.message || error}`);
         } finally {
             const min = state.config.delays.custom2?.min || 60000;
             const max = state.config.delays.custom2?.max || 120000;
@@ -161,42 +162,52 @@ module.exports = (state, commandSender) => ({
         };
 
         if (isFirstLoopStartup) {
-            log.info('⏳ First loop startup: command awal loop diantrikan per 5 detik.');
+            log.info(`${accountPrefix(state)}⏳ First loop startup: command awal loop diantrikan per 5 detik.`);
         }
 
-        if (state.config.settings?.battle)
-            setTimeout(() => this._resumeLoop('battle', () => this.battle()), bump());
+        const scheduleStartup = (key, fn) => {
+            state.loops[key] = setTimeout(() => {
+                state.loops[key] = null;
+                this._resumeLoop(key, fn);
+            }, bump());
+        };
 
-        if (state.config.settings?.hunt)
-            setTimeout(() => this._resumeLoop('hunt', () => this.hunt()), bump());
+        if (state.config.settings?.battle)
+            scheduleStartup('battle', () => this.battle());
+
+        if (state.config.settings?.hunt && typeof this.hunt === 'function')
+            scheduleStartup('hunt', () => this.hunt());
 
         if (state.config.settings?.pray)
-            setTimeout(() => this._resumeLoop('pray', () => this.pray()), bump());
+            scheduleStartup('pray', () => this.pray());
 
         if (state.config.settings?.custom) {
             if (state.config.settings.text1?.trim())
-                setTimeout(() => this._resumeLoop('custom1', () => this.custom1()), bump());
+                scheduleStartup('custom1', () => this.custom1());
 
             if (state.config.settings.text2?.trim())
-                setTimeout(() => this._resumeLoop('custom2', () => this.custom2()), bump());
+                scheduleStartup('custom2', () => this.custom2());
         }
 
-        log.success('🔄 Semua loop dimulai / resume');
+        log.success(`${accountPrefix(state)}🔄 Semua loop dimulai / resume`);
     },
 
     stopAll() {
+        let stopped = false;
         Object.keys(state.loops || {}).forEach(key => {
             if (state.loops[key]) {
                 clearTimeout(state.loops[key]);
                 state.loops[key] = null;
+                stopped = true;
             }
         });
 
         if (state.responseTimeout) {
             clearTimeout(state.responseTimeout);
             state.responseTimeout = null;
+            stopped = true;
         }
 
-        log.info('⏹️ Semua loop dihentikan');
+        if (stopped) log.info(`${accountPrefix(state)}⏹️ Semua loop dihentikan`);
     }
 });

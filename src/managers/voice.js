@@ -1,5 +1,6 @@
 const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 const log = require('../../logger');
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 
 const VOICE_CHANNEL_TYPES = new Set(['GUILD_VOICE', 'GUILD_STAGE_VOICE', 2, 13]);
 
@@ -30,7 +31,7 @@ module.exports = (state, configManager) => ({
             try {
                 voiceChannel = await state.client.channels.fetch(channelId);
             } catch (err) {
-                log.warn(`⚠️ Gagal fetch Voice Channel ${channelId}: ${err.message}`);
+                log.warn(`${accountPrefix(state)}⚠️ Gagal fetch Voice Channel ${channelId}: ${err.message}`);
             }
         }
 
@@ -42,17 +43,21 @@ module.exports = (state, configManager) => ({
         const { persist = false, source = 'manual' } = options;
 
         if (!state.client?.isReady()) {
-            log.warn('⚠️ Client belum ready, join VC dibatalkan.');
+            log.warn(`${accountPrefix(state)}⚠️ Client belum ready, join VC dibatalkan.`);
             return null;
         }
 
         const voiceChannel = await this.resolveVoiceChannel(targetChannelId);
         if (!voiceChannel) {
-            log.error('❌ Voice Channel tidak ditemukan atau ID salah!');
+            log.error(`${accountPrefix(state)}❌ Voice Channel tidak ditemukan atau ID salah!`);
             return null;
         }
 
-        const existingConnection = getVoiceConnection(voiceChannel.guild.id);
+        const group = state.accountId || 'default';
+        const existingConnection = getVoiceConnection(voiceChannel.guild.id, group);
+        if (existingConnection && state.lastVoiceChannelId === voiceChannel.id) {
+            return { connection: existingConnection, voiceChannel };
+        }
         if (existingConnection) existingConnection.destroy();
 
         const connection = joinVoiceChannel({
@@ -60,7 +65,8 @@ module.exports = (state, configManager) => ({
             guildId: voiceChannel.guild.id,
             adapterCreator: voiceChannel.guild.voiceAdapterCreator,
             selfDeaf: true,
-            selfMute: true
+            selfMute: true,
+            group
         });
 
         state.lastVoiceChannelId = voiceChannel.id;
@@ -71,19 +77,18 @@ module.exports = (state, configManager) => ({
             configManager.save();
         }
 
-        log.success(`🔊 Berhasil join VC (${source}): ${voiceChannel.name}`);
+        log.success(`${accountPrefix(state)}🔊 Berhasil join VC (${source}): ${voiceChannel.name}`);
         return { connection, voiceChannel };
     },
 
     async joinConfigured(source = 'auto') {
         const { enabled, channelId } = this.getSettings();
         if (!enabled) {
-            log.info('🔇 Auto Join VC nonaktif.');
             return null;
         }
 
         if (!channelId) {
-            log.warn('⚠️ Auto Join VC aktif, tapi Voice Channel ID belum diatur.');
+            log.warn(`${accountPrefix(state)}⚠️ Auto Join VC aktif, tapi Voice Channel ID belum diatur.`);
             return null;
         }
 
@@ -91,7 +96,7 @@ module.exports = (state, configManager) => ({
     },
 
     leave(guildId) {
-        const connection = getVoiceConnection(guildId);
+        const connection = getVoiceConnection(guildId, state.accountId || 'default');
         if (!connection) return false;
         connection.destroy();
         return true;

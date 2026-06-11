@@ -1,5 +1,6 @@
 const https = require('https');
 const log = require('../../logger');
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 
 module.exports = (state) => ({
     send: (text) => {
@@ -7,7 +8,7 @@ module.exports = (state) => ({
         if (!token || !chatId) return;
 
         const url = `https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatId}&text=${encodeURIComponent(text)}&parse_mode=HTML`;
-        https.get(url).on('error', (e) => log.error(`Telegram error: ${e.message}`));
+        https.get(url).on('error', (e) => log.error(`${accountPrefix(state)}Telegram error: ${e.message}`));
     },
 
     sendTicketNotification: (tickets, isOutOfTickets = false) => {

@@ -163,6 +163,7 @@ const createHuntbotState = () => ({
 module.exports = function createAccountRuntime({ config, filePath, sharedStats }) {
     const accountId = getAccountIdFromToken(config.token);
     const state = createRuntimeState({ config, sharedStats });
+    state.accountId = accountId;
     const configManager = createRuntimeConfigManager(state, filePath);
     const telegramService = createTelegramService(state);
     const macrodroidService = createMacrodroidService(state);
@@ -194,6 +195,53 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
 
     let readyLoopWatcher = null;
+    let runtimeRunning = false;
+    let loopsActive = false;
+    let loopConfigSignature = '';
+
+    const getLoopConfigSignature = (nextConfig = state.config) => safeJsonStringify({
+        channels: nextConfig.channels || [],
+        delays: nextConfig.delays || {},
+        commands: {
+            battle: nextConfig.settings?.battle,
+            hunt: nextConfig.settings?.hunt,
+            pray: nextConfig.settings?.pray,
+            custom: nextConfig.settings?.custom,
+            text1: nextConfig.settings?.text1,
+            text2: nextConfig.settings?.text2
+        },
+        rotation: nextConfig.settings?.channelRotation || {}
+    });
+
+    const originalLoopStartAll = loopManager.startAll.bind(loopManager);
+    const originalLoopStopAll = loopManager.stopAll.bind(loopManager);
+    loopManager.startAll = () => {
+        originalLoopStartAll();
+        loopsActive = true;
+        loopConfigSignature = getLoopConfigSignature();
+    };
+    loopManager.stopAll = () => {
+        originalLoopStopAll();
+        loopsActive = false;
+    };
+
+    const joinConfiguredVoice = (source) => {
+        if (!state.client?.isReady()) return;
+        voiceManager.joinConfigured(source).catch(err => log.error(`[account:${accountId}] ❌ Auto Join VC gagal: ${err.message}`));
+    };
+
+    const activateReadyRuntime = (source = 'start') => {
+        if (!state.client?.isReady()) return false;
+        const nextLoopSignature = getLoopConfigSignature();
+        if (!loopsActive || nextLoopSignature !== loopConfigSignature) {
+            loopManager.startAll();
+            loopConfigSignature = nextLoopSignature;
+            loopsActive = true;
+        }
+        channelManager.scheduleRotation();
+        joinConfiguredVoice(source);
+        return true;
+    };
 
     const startLoopsWhenReady = () => {
         if (readyLoopWatcher) clearInterval(readyLoopWatcher);
@@ -204,8 +252,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
                 return;
             }
             if (state.client?.isReady()) {
-                loopManager.startAll();
-                channelManager.scheduleRotation();
+                activateReadyRuntime('ready');
                 clearInterval(readyLoopWatcher);
                 readyLoopWatcher = null;
             }
@@ -225,19 +272,30 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             return state.client?.user?.tag || accountId;
         },
         start() {
+            const wasRuntimeRunning = runtimeRunning;
+            const statusChanged = !state.config.botStatus?.running || !!state.config.botStatus?.paused;
+            runtimeRunning = true;
             state.config.botStatus = { running: true, paused: false };
+            if (statusChanged) configManager.save();
             if (!state.client?.isReady()) {
-                log.info(`🚀 Menjalankan akun paralel: ${accountId}`);
-                clientManager.initialize();
+                if (!wasRuntimeRunning) log.info(`[account:${accountId}] 🚀 Menjalankan akun paralel: ${accountId}`);
+                if (!wasRuntimeRunning || !state.client) clientManager.initialize();
                 startLoopsWhenReady();
-            } else {
-                loopManager.startAll();
-                channelManager.scheduleRotation();
+            } else if (!wasRuntimeRunning || !loopsActive) {
+                if (!wasRuntimeRunning) log.info(`[account:${accountId}] ▶️ Melanjutkan loop akun paralel: ${accountId}`);
+                activateReadyRuntime(wasRuntimeRunning ? 'reconcile' : 'start');
             }
         },
         pause() {
+            const wasRuntimeRunning = runtimeRunning;
+            const statusChanged = !!state.config.botStatus?.running || !state.config.botStatus?.paused;
+            runtimeRunning = false;
             state.config.botStatus = { running: false, paused: true };
+            if (statusChanged) configManager.save();
+            if (!wasRuntimeRunning && !loopsActive) return;
+            if (wasRuntimeRunning) log.info(`[account:${accountId}] ⏸ Menjeda akun paralel: ${accountId}`);
             loopManager.stopAll();
+            loopsActive = false;
             channelManager.stopRotation();
         },
         destroy() {
@@ -250,11 +308,41 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             }
         },
         reloadConfig(nextConfig) {
+            const oldConfig = state.config;
             const oldToken = state.activeToken;
+            const oldLoopSignature = getLoopConfigSignature(oldConfig);
+            const oldVoice = safeJsonStringify(oldConfig.settings?.voice || {});
+            const oldChannels = safeJsonStringify(oldConfig.channels || []);
+            const oldStatus = safeJsonStringify(oldConfig.botStatus || {});
+
             state.config = ensureRuntimeShape(nextConfig);
             state.activeToken = state.config.token || '';
-            if (oldToken !== state.activeToken) {
+
+            const tokenChanged = oldToken !== state.activeToken;
+            const voiceChanged = oldVoice !== safeJsonStringify(state.config.settings?.voice || {});
+            const channelsChanged = oldChannels !== safeJsonStringify(state.config.channels || []);
+            const statusChanged = oldStatus !== safeJsonStringify(state.config.botStatus || {});
+            const loopConfigChanged = oldLoopSignature !== getLoopConfigSignature(state.config);
+
+            if (tokenChanged) {
+                log.warn(`[account:${accountId}] Token berubah, runtime akan dibuat ulang.`);
                 this.destroy();
+                return;
+            }
+
+            if (statusChanged) log.info(`[account:${accountId}] 🔁 Status config berubah: running=${!!state.config.botStatus?.running}, paused=${!!state.config.botStatus?.paused}`);
+            if (channelsChanged) log.info(`[account:${accountId}] 📡 Config channel berubah (${(state.config.channels || []).length} channel).`);
+            if (voiceChanged) log.info(`[account:${accountId}] 🔊 Config voice berubah: enabled=${state.config.settings?.voice?.enabled === true}, channel=${state.config.settings?.voice?.channelId || '-'}`);
+            if (loopConfigChanged && !channelsChanged) log.info(`[account:${accountId}] ⚙️ Config loop/delay berubah.`);
+
+            if (!runtimeRunning || !state.client?.isReady()) return;
+
+            if (channelsChanged) channelManager.updateActive();
+            if (loopConfigChanged || channelsChanged) {
+                loopsActive = false;
+                activateReadyRuntime('config');
+            } else if (voiceChanged) {
+                joinConfiguredVoice('config');
             }
         }
     };

@@ -277,11 +277,23 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             runtimeRunning = true;
             state.config.botStatus = { running: true, paused: false };
             if (statusChanged) configManager.save();
-            if (!state.client?.isReady()) {
-                if (!wasRuntimeRunning) log.info(`[account:${accountId}] 🚀 Menjalankan akun paralel: ${accountId}`);
-                if (!wasRuntimeRunning || !state.client) clientManager.initialize();
+
+            if (!state.client) {
+                log.info(`[account:${accountId}] 🚀 Menjalankan akun paralel: ${accountId}`);
+                clientManager.initialize();
                 startLoopsWhenReady();
-            } else if (!wasRuntimeRunning || !loopsActive) {
+                return;
+            }
+
+            if (!state.client.isReady()) {
+                if (!wasRuntimeRunning) {
+                    log.info(`[account:${accountId}] ▶️ Resume diminta; menunggu sesi Discord yang sudah ada siap tanpa login ulang.`);
+                }
+                startLoopsWhenReady();
+                return;
+            }
+
+            if (!wasRuntimeRunning || !loopsActive) {
                 if (!wasRuntimeRunning) log.info(`[account:${accountId}] ▶️ Melanjutkan loop akun paralel: ${accountId}`);
                 activateReadyRuntime(wasRuntimeRunning ? 'reconcile' : 'start');
             }

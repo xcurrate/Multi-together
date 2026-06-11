@@ -1,0 +1,101 @@
+{
+  "port": 2028,
+  "botStatus": {
+    "running": false,
+    "paused": true
+  },
+  "channels": [],
+  "macrodroidId": "",
+  "autosolver": false,
+  "maxLogLines": 15,
+  "settings": {
+    "twoCaptchaKey": "",
+    "control": {
+      "start": "wcash",
+      "pause": "wbuy 1",
+      "allowIds": []
+    },
+    "channelRotation": {
+      "enabled": false,
+      "minMs": 180000,
+      "maxMs": 360000
+    },
+    "boss": {
+      "enabled": true,
+      "allowedGuilds": [
+        "559475774441259008"
+      ]
+    },
+    "messageFilter": {
+      "enabled": true,
+      "channelIds": [],
+      "guildIds": [],
+      "debug": false,
+      "debugOnlyOwO": false
+    },
+    "telegram": {
+      "token": "",
+      "chatId": ""
+    },
+    "battle": true,
+      "hunt": false,
+    "pray": true,
+    "custom": true,
+    "text1": "owo",
+    "text2": "",
+    "autoResume": false,
+    "voice": {
+      "enabled": true,
+      "channelId": "1508750293842657316"
+    }
+  },
+  "delays": {
+    "hunt": {
+      "min": 15000,
+      "max": 15000
+    },
+    "battle": {
+      "min": 15000,
+      "max": 15000
+    },
+    "pray": {
+      "min": 15000,
+      "max": 15000
+    },
+    "custom1": {
+      "min": 10000,
+      "max": 10000
+    },
+    "custom2": {
+      "min": 60000,
+      "max": 120000
+    }
+  },
+  "safety": {
+    "cctv": false
+  },
+  "tiketandhb": {
+    "channelId": "1504047169718452274"
+  },
+  "huntbot": {
+    "enabled": true,
+    "autoMode": true,
+    "defaultUpgrade": "radar",
+    "defaultDuration": "1D",
+    "notifyProgress": true
+  },
+  "token": "",
+
+  "captcha": {
+    "enabled": true,
+    "primarySolver": "NopechaSolver",
+    "fallbackSolvers": [],
+    "maxTotalTimeMs": 600000,
+    "retryPerSolver": 2,
+    "timeoutPerAttemptMs": 30000,
+    "apiKeys": {
+      "NopechaSolver": "",
+      "TwoCaptchaSolver": ""
+    }
+  }
+}

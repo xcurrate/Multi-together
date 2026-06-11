@@ -26,8 +26,8 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
     const profilesDir = path.join(baseDir, 'profiles');
     const runtimes = new Map();
     rootState.accountRuntimes = runtimes;
-    rootState.multiAccountManager = null;
 
+    let lastGlobalStatus = null;
 
     function readMainConfig() {
         const config = configManager.read() || readJson(configPath, {}) || {};
@@ -45,15 +45,11 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
             if (!config?.token || String(config.token).length <= 20) return;
             const accountId = getAccountIdFromToken(config.token);
             if (configsById.has(accountId)) return;
-            const profileStatus = config.botStatus || { running: false, paused: true };
             configsById.set(accountId, {
                 accountId,
                 config: {
                     ...config,
-                    botStatus: {
-                        running: !!profileStatus.running,
-                        paused: profileStatus.paused !== false
-                    }
+                    botStatus: { ...(mainConfig.botStatus || { running: false, paused: true }) }
                 },
                 filePath
             });
@@ -98,12 +94,17 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
             }
         }
 
+        const globalStatus = JSON.stringify(mainConfig.botStatus || {});
+        const statusChanged = globalStatus !== lastGlobalStatus;
+        lastGlobalStatus = globalStatus;
+
+        const shouldRun = !!mainConfig.botStatus?.running && !mainConfig.botStatus?.paused;
         for (const runtime of runtimes.values()) {
-            const shouldRun = !!runtime.state.config.botStatus?.running && !runtime.state.config.botStatus?.paused;
+            runtime.state.config.botStatus = { running: shouldRun, paused: !shouldRun };
             statsService.syncBotUptime(runtime.state);
             if (shouldRun) {
                 runtime.start();
-            } else {
+            } else if (statusChanged) {
                 runtime.pause();
             }
         }
@@ -131,11 +132,7 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
         return mainConfig;
     }
 
-    function getRuntime(accountId) {
-        return runtimes.get(String(accountId));
-    }
-
-    const api = {
+    return {
         start() {
             persistSlotsToMainConfig();
             reconcile();
@@ -144,23 +141,6 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
         },
         getRuntimes() {
             return runtimes;
-        },
-        getRuntime,
-        startAccount(accountId) {
-            const runtime = getRuntime(accountId);
-            if (!runtime) return false;
-            runtime.start();
-            return true;
-        },
-        pauseAccount(accountId) {
-            const runtime = getRuntime(accountId);
-            if (!runtime) return false;
-            runtime.pause();
-            return true;
-        },
-        reconcile
+        }
     };
-
-    rootState.multiAccountManager = api;
-    return api;
 };

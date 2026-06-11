@@ -1,10 +1,11 @@
-const fs = require('fs');
-const fileService = require('../services/fileService');
 module.exports = function createPageRenderer({ CONSTANTS, configManager, profileManager, statsService, getStyles, getDashboardStatsCard, getLogCard, getLogRefreshScript, renderSettingsTabs }) {
 function renderPage(config) {
         console.log('[DASHBOARD] Rendering page with config:', { port: config.port, token: config.token ? '***' : 'MISSING' });
         
-        const { statusText, statusClass } = configManager.computeStatus(config);
+        const statusSource = config.viewingProfileId && config.globalBotStatus
+            ? { ...config, botStatus: config.globalBotStatus }
+            : config;
+        const { statusText, statusClass } = configManager.computeStatus(statusSource);
         const channels = config.channels || [];
         const custom1 = config.delays.custom1 || CONSTANTS.DEFAULT_DELAYS.custom1;
         const custom2 = config.delays.custom2 || CONSTANTS.DEFAULT_DELAYS.custom2;
@@ -21,25 +22,12 @@ function renderPage(config) {
 
         const profiles = profileManager.getSavedProfiles();
         const activeProfileId = profileManager.getUserId(config.token);
-        const profileOptions = profiles.map(id => {
-            const profilePath = profileManager.getProfilePath(id);
-            const profileConfig = fs.existsSync(profilePath)
-                ? configManager.ensureShape(fileService.readJson(profilePath))
-                : null;
-            const profileStatus = profileConfig?.botStatus || { running: false, paused: true };
-            const isRunning = !!profileStatus.running && !profileStatus.paused;
-            return {
-                id,
-                meta: profileManager.getProfileMeta(id),
-                displayName: profileManager.getProfileDisplayName(id),
-                isActive: id === activeProfileId,
-                isViewing: id === viewingProfileId,
-                running: isRunning,
-                paused: !isRunning,
-                statusText: isRunning ? 'START' : 'PAUSE',
-                statusClass: isRunning ? 'running' : 'paused'
-            };
-        });
+        const profileOptions = profiles.map(id => ({
+            id,
+            meta: profileManager.getProfileMeta(id),
+            displayName: profileManager.getProfileDisplayName(id),
+            isActive: id === activeProfileId
+        }));
 
         // Captcha config
         const captchaConfig = config.captcha || {};
@@ -77,8 +65,8 @@ function renderPage(config) {
                 <form action="/save" method="POST">
                     ${viewingProfileId ? `<input type="hidden" name="viewingProfileId" value="${viewingProfileId}">` : ''}
                     <div class="action-group">
-                        <button type="submit" name="action" value="${viewingProfileId ? 'startProfile' : 'start'}" class="btn btn-start">▶ ${viewingProfileId ? 'START AKUN INI' : 'START ALL'}</button>
-                        <button type="submit" name="action" value="${viewingProfileId ? 'pauseProfile' : 'pause'}" class="btn btn-pause">⏸ ${viewingProfileId ? 'PAUSE AKUN INI' : 'PAUSE ALL'}</button>
+                        <button type="submit" name="action" value="start" class="btn btn-start">▶ START BOT</button>
+                        <button type="submit" name="action" value="pause" class="btn btn-pause">⏸ PAUSE BOT</button>
                     </div>
 
                     ${renderSettingsTabs({

@@ -32,7 +32,7 @@ function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
 
                 async function refreshLogs() {
                     try {
-                        const res = await fetch('/logs' + profileQuery, { cache: 'no-store', headers: { 'Accept': 'application/json' }});
+                        const res = await fetch('/logs', { cache: 'no-store', headers: { 'Accept': 'application/json' }});
                         if (!res.ok) throw new Error('HTTP Error');
                         const data = await res.json();
                         renderLogs(data.lines);
@@ -157,10 +157,10 @@ function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
 
                 function escapeHtml(value) {
                     return String(value || '')
-                        .replace(/&/g, '&amp;')
-                        .replace(/</g, '&lt;')
-                        .replace(/>/g, '&gt;')
-                        .replace(/"/g, '&quot;')
+                        .replace(/&/g, '&')
+                        .replace(/</g, '<')
+                        .replace(/>/g, '>')
+                        .replace(/"/g, '"')
                         .replace(/'/g, '&#39;');
                 }
 

@@ -1,67 +1,7 @@
 const express = require('express');
 const fs = require('fs');
-function createDashboardRoutes({ configManager, fileService, profileManager, uiComponents, logService, statsService, discordProfileService, state }) {
+function createDashboardRoutes({ configManager, fileService, profileManager, uiComponents, logService, statsService, discordProfileService }) {
     const router = express.Router();
-
-
-    const getProfileConfigByAccountId = (accountId) => {
-        const id = String(accountId || '');
-        const mainConfig = configManager.ensureShape(configManager.get());
-        const mainId = profileManager.getUserId(mainConfig.token);
-        if (id === mainId) {
-            return { config: mainConfig, saveTarget: 'main', filePath: null };
-        }
-
-        const profilePath = profileManager.getProfilePath(id);
-        if (!fs.existsSync(profilePath)) return null;
-        return {
-            config: configManager.ensureShape(fileService.readJson(profilePath)),
-            saveTarget: profilePath,
-            filePath: profilePath
-        };
-    };
-
-    const saveAccountConfig = (target, config) => {
-        if (!target) return false;
-        const saved = target.saveTarget === 'main'
-            ? configManager.save(config)
-            : fileService.writeJson(target.saveTarget, config);
-        if (saved && target.saveTarget === 'main') {
-            const activeId = profileManager.getUserId(config.token);
-            if (activeId !== 'default') {
-                fileService.writeJson(profileManager.getProfilePath(activeId), config);
-            }
-        }
-        return saved;
-    };
-
-    const setAccountStatus = (accountId, shouldRun) => {
-        const target = getProfileConfigByAccountId(accountId);
-        if (!target) return false;
-        target.config.botStatus = { running: !!shouldRun, paused: !shouldRun };
-        const saved = saveAccountConfig(target, target.config);
-        const manager = state?.multiAccountManager;
-        if (manager) {
-            if (typeof manager.reconcile === 'function') manager.reconcile();
-            if (shouldRun && typeof manager.startAccount === 'function') manager.startAccount(accountId);
-            if (!shouldRun && typeof manager.pauseAccount === 'function') manager.pauseAccount(accountId);
-        }
-        return saved;
-    };
-
-    const setAllAccountStatuses = (shouldRun) => {
-        const mainConfig = configManager.ensureShape(configManager.get());
-        const ids = new Set(profileManager.getSavedProfiles());
-        const mainId = profileManager.getUserId(mainConfig.token);
-        if (mainId !== 'default') ids.add(mainId);
-        if (!ids.size) {
-            mainConfig.botStatus = { running: !!shouldRun, paused: !shouldRun };
-            configManager.save(mainConfig);
-        }
-        ids.forEach(id => setAccountStatus(id, shouldRun));
-        const manager = state?.multiAccountManager;
-        if (manager && typeof manager.reconcile === 'function') manager.reconcile();
-    };
 
     router.get('/api/profile', async (req, res) => {
         const config = configManager.get();
@@ -117,28 +57,12 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
     router.get('/logs', (req, res) => {
         try {
-            let accountId = req.query.accountId ? String(req.query.accountId) : '';
-            if (!accountId && req.query.profileId) accountId = String(req.query.profileId);
-            const lines = logService.getRecentLines({ accountId });
+            const lines = logService.getRecentLines();
             res.setHeader('Cache-Control', 'no-store');
-            res.json({ lines, accountId: accountId || null, filterMode: accountId ? 'prefix-or-id' : 'all' });
+            res.json({ lines });
         } catch {
             res.status(500).json({ lines: [] });
         }
-    });
-
-    router.post('/account/:accountId/start', (req, res) => {
-        const accountId = String(req.params.accountId || '');
-        const saved = setAccountStatus(accountId, true);
-        if (!saved) return res.status(404).send('Account not found');
-        res.redirect(req.get('referer') || `/?profileId=${encodeURIComponent(accountId)}`);
-    });
-
-    router.post('/account/:accountId/pause', (req, res) => {
-        const accountId = String(req.params.accountId || '');
-        const saved = setAccountStatus(accountId, false);
-        if (!saved) return res.status(404).send('Account not found');
-        res.redirect(req.get('referer') || `/?profileId=${encodeURIComponent(accountId)}`);
     });
 
     router.get('/api/stats', (req, res) => {
@@ -213,20 +137,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 return res.send(uiComponents.getSavedResponse());
             }
 
-            if (body.profileAction) {
-                const [action, accountId] = String(body.profileAction).split(':');
-                if (accountId && (action === 'start' || action === 'pause')) {
-                    setAccountStatus(accountId, action === 'start');
-                    return res.send(uiComponents.getSavedResponse());
-                }
-            }
-
             const viewingProfileId = body.viewingProfileId ? String(body.viewingProfileId) : '';
-            if (viewingProfileId && (body.action === 'startProfile' || body.action === 'pauseProfile')) {
-                setAccountStatus(viewingProfileId, body.action === 'startProfile');
-                return res.send(uiComponents.getSavedResponse());
-            }
-
             const isGlobalAction = body.action === 'start' || body.action === 'pause';
             let config;
             let saveTarget = 'main';
@@ -240,11 +151,8 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 config = configManager.ensureShape(configManager.get());
                 if (!isGlobalAction) {
                     config = configManager.applySave(config, body);
-                    config = configManager.applyAction(config, body.action);
-                } else {
-                    setAllAccountStatuses(body.action === 'start');
-                    return res.send(uiComponents.getSavedResponse());
                 }
+                config = configManager.applyAction(config, body.action);
             }
             
             const saved = saveTarget === 'main'

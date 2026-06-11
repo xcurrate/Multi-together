@@ -5,11 +5,9 @@ const statsService = require('../services/stats');
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
-
 async function waitUntilCaptchaClear(state) {
     while (state.hasActiveCaptcha) {
-        log.warn(`${accountPrefix(state)}⏸️ Startup command ditahan: CAPTCHA sedang aktif. Menunggu verifikasi...`);
+        log.warn('⏸️ Startup command ditahan: CAPTCHA sedang aktif. Menunggu verifikasi...');
         await wait(1000);
     }
 }
@@ -19,7 +17,7 @@ async function sendStartupCommand(state, channel, cmd) {
     if (!state.client?.isReady()) return false;
 
     await channel.send(cmd);
-    log.info(`${accountPrefix(state)}🚀 [Startup Ready] Terkirim: ${cmd}`);
+    log.info(`🚀 [Startup Ready] Terkirim: ${cmd}`);
 
     const startedWait = Date.now();
     while (Date.now() - startedWait < 5000) {
@@ -34,7 +32,7 @@ async function sendStartupCommand(state, channel, cmd) {
 module.exports = (state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager) => ({
     initialize() {
         if (state.client) {
-            log.warn(`${accountPrefix(state)}🔄 Merestart sesi Discord...`);
+            log.warn('🔄 Merestart sesi Discord...');
             try {
                 state.client.destroy();
             } catch (e) { }
@@ -50,7 +48,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
         state.client = new Client({ checkUpdate: false });
 
         state.client.on('ready', () => {
-            log.success(`${accountPrefix(state)}✅ Login Sukses: ${state.client.user.tag}`);
+            log.success(`✅ Login Sukses: ${state.client.user.tag}`);
             telegramService.send(`🤖 <b>Bot Started</b>\nUser: ${state.client.user.tag}`);
             channelManager.updateActive();
 
@@ -61,7 +59,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             configManager.save();
 
             if (voiceManager) {
-                voiceManager.joinConfigured('restart').catch(err => log.error(`${accountPrefix(state)}❌ Auto Join VC gagal: ${err.message}`));
+                voiceManager.joinConfigured('restart').catch(err => log.error(`❌ Auto Join VC gagal: ${err.message}`));
             }
 
              // PERBAIKAN LOGIKA DISINI:
@@ -81,24 +79,24 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
                     const channel = state.client.channels.cache.get(channelId);
 
                     if (!channel) {
-                        log.warn(`${accountPrefix(state)}⚠️ Channel ${channelId} tidak ditemukan untuk mengirim command awal.`);
+                        log.warn(`⚠️ Channel ${channelId} tidak ditemukan untuk mengirim command awal.`);
                         return;
                     }
 
                     // 1. Command yang HANYA jalan di run pertama (Akun A)
                     if (willRunStartupCommands) {
                         state.hasRunInitialReadyCommands = true; // Kunci agar tidak jalan lagi di akun berikutnya
-                        log.info(`${accountPrefix(state)}🚀 Menjalankan command awal client-ready untuk sesi pertama...`);
+                        log.info("🚀 Menjalankan command awal client-ready untuk sesi pertama...");
                         await sendStartupCommand(state, channel, "whb 1d");
                     }
 
                     // 2. Command yang jalan di SETIAP AKUN (Akun A, B, dst)
-                    log.info(`${accountPrefix(state)}⚔️ Mengecek status World Boss untuk akun saat ini...`);
+                    log.info("⚔️ Mengecek status World Boss untuk akun saat ini...");
                     await sendStartupCommand(state, channel, "wboss t");
                     
-                    log.info(`${accountPrefix(state)}✅ Routine startup command selesai dieksekusi.`);
+                    log.info("✅ Routine startup command selesai dieksekusi.");
                 } catch (err) {
-                    log.error(`${accountPrefix(state)}❌ Gagal mengirim command: ${err.message}`);
+                    log.error(`❌ Gagal mengirim command: ${err.message}`);
                 }
             }, 2000);
 
@@ -109,10 +107,10 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
 
         if (state.activeToken && state.activeToken.length > 20) {
             state.client.login(state.activeToken).catch(e => {
-                log.error(`${accountPrefix(state)}❌ Token Invalid / Login Gagal: ${e.message}`);
+                log.error(`❌ Token Invalid / Login Gagal: ${e.message}`);
             });
         } else {
-            log.error(`${accountPrefix(state)}❌ Tidak ada token yang valid di config!`);
+            log.error('❌ Tidak ada token yang valid di config!');
         }
     }
 });

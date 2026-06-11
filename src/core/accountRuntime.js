@@ -163,7 +163,6 @@ const createHuntbotState = () => ({
 module.exports = function createAccountRuntime({ config, filePath, sharedStats }) {
     const accountId = getAccountIdFromToken(config.token);
     const state = createRuntimeState({ config, sharedStats });
-    state.accountId = accountId;
     const configManager = createRuntimeConfigManager(state, filePath);
     const telegramService = createTelegramService(state);
     const macrodroidService = createMacrodroidService(state);
@@ -195,7 +194,6 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
 
     let readyLoopWatcher = null;
-    let runtimeRunning = false;
 
     const startLoopsWhenReady = () => {
         if (readyLoopWatcher) clearInterval(readyLoopWatcher);
@@ -227,28 +225,18 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             return state.client?.user?.tag || accountId;
         },
         start() {
-            const wasRuntimeRunning = runtimeRunning;
-            const statusChanged = !state.config.botStatus?.running || !!state.config.botStatus?.paused;
-            runtimeRunning = true;
             state.config.botStatus = { running: true, paused: false };
-            if (statusChanged) configManager.save();
             if (!state.client?.isReady()) {
-                if (!wasRuntimeRunning) log.info(`[account:${accountId}] 🚀 Menjalankan akun paralel: ${accountId}`);
-                if (!wasRuntimeRunning || !state.client) clientManager.initialize();
+                log.info(`🚀 Menjalankan akun paralel: ${accountId}`);
+                clientManager.initialize();
                 startLoopsWhenReady();
             } else {
-                if (!wasRuntimeRunning) log.info(`[account:${accountId}] ▶️ Melanjutkan loop akun paralel: ${accountId}`);
                 loopManager.startAll();
                 channelManager.scheduleRotation();
             }
         },
         pause() {
-            const wasRuntimeRunning = runtimeRunning;
-            const statusChanged = !!state.config.botStatus?.running || !state.config.botStatus?.paused;
-            runtimeRunning = false;
             state.config.botStatus = { running: false, paused: true };
-            if (statusChanged) configManager.save();
-            if (wasRuntimeRunning) log.info(`[account:${accountId}] ⏸ Menjeda akun paralel: ${accountId}`);
             loopManager.stopAll();
             channelManager.stopRotation();
         },
@@ -266,7 +254,6 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             state.config = ensureRuntimeShape(nextConfig);
             state.activeToken = state.config.token || '';
             if (oldToken !== state.activeToken) {
-                log.warn(`[account:${accountId}] Token berubah, runtime akan dibuat ulang.`);
                 this.destroy();
             }
         }

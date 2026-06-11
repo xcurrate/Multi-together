@@ -1,5 +1,4 @@
 const log = require('../../logger');
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 
 module.exports = (state, configManager) => ({
     updateActive() {
@@ -15,7 +14,7 @@ module.exports = (state, configManager) => ({
 
         if (state.client?.isReady()) {
             const channel = state.client.channels.cache.get(newChannelId);
-            if (channel) log.info(`${accountPrefix(state)}📡 Channel Aktif: ${channel.name}`);
+            if (channel) log.info(`📡 Channel Aktif: ${channel.name}`);
         }
 
         return true;
@@ -58,7 +57,7 @@ module.exports = (state, configManager) => ({
 
                 if (state.client?.isReady()) {
                     const channel = state.client.channels.cache.get(nextId);
-                    if (channel) log.info(`${accountPrefix(state)}🔁 Rotated Channel: ${channel.name}`);
+                    if (channel) log.info(`🔁 Rotated Channel: ${channel.name}`);
                 }
             }
             this.scheduleRotation();

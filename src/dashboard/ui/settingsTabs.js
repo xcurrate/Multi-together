@@ -7,17 +7,12 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                             <label style="color: var(--accent);">👥 MULTI ACCOUNT MANAGER (MAKS 4 AKUN PARALEL)</label>
                             
                             <div style="margin-bottom: 12px;">
-                                <div class="account-chip-wrap">
+                                <div class="profile-button-grid">
                                     ${profileOptions.length ? profileOptions.map(profile => `
-                                        <span class="account-chip-group">
-                                            <a class="account-chip ${profile.statusClass || 'paused'} ${profile.isViewing ? 'viewing' : ''}" href="/?profileId=${encodeURIComponent(profile.id)}" title="Lihat akun ${escapeHtml(profile.id)}">
-                                                <span class="account-chip-name">${escapeHtml(profile.displayName)}</span>
-                                                <span class="account-chip-id">${escapeHtml(profile.id)}</span>
-                                                <span class="account-chip-status">${profile.running ? '● START' : '● PAUSE'}</span>
-                                            </a>
-                                            <button type="submit" name="profileAction" value="start:${escapeHtml(profile.id)}" class="account-chip-action start" title="Start akun ${escapeHtml(profile.id)}">▶</button>
-                                            <button type="submit" name="profileAction" value="pause:${escapeHtml(profile.id)}" class="account-chip-action pause" title="Pause akun ${escapeHtml(profile.id)}">⏸</button>
-                                        </span>
+                                        <a class="btn profile-view-btn ${profile.isActive ? 'active' : ''}" href="/?profileId=${encodeURIComponent(profile.id)}">
+                                            👁️ ${escapeHtml(profile.displayName)}
+                                            <span>${escapeHtml(profile.id)}</span>
+                                        </a>
                                     `).join('') : '<div class="input-hint">Belum ada profil tersimpan. Tambahkan token akun baru di bawah.</div>'}
                                 </div>
                                 <div class="input-hint">Bot sekarang menjalankan maksimal 4 akun tersimpan secara bersamaan. Klik tombol username untuk melihat statistik/pengaturan akun tanpa menghentikan akun lain.</div>

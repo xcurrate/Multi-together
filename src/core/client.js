@@ -52,9 +52,9 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             telegramService.send(`🤖 <b>Bot Started</b>\nUser: ${state.client.user.tag}`);
             channelManager.updateActive();
 
-            state.config.botStatus = state.config.botStatus || {};
-            state.config.botStatus.paused = true;
-            state.config.botStatus.running = false;
+            state.config.botStatus = state.config.botStatus || { running: false, paused: true };
+            if (typeof state.config.botStatus.running !== 'boolean') state.config.botStatus.running = false;
+            if (typeof state.config.botStatus.paused !== 'boolean') state.config.botStatus.paused = !state.config.botStatus.running;
             statsService.syncBotUptime(state);
             configManager.save();
 

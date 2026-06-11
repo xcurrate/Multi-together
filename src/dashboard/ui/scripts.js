@@ -1,6 +1,7 @@
 module.exports = function createScripts({ CONSTANTS, serializeForScript }) {
-function getLogRefreshScript(profileOptions = []) {
+function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
         const profileOptionsJson = serializeForScript(profileOptions);
+        const viewingProfileIdJson = serializeForScript(viewingProfileId || '');
         return `
         <script>
             (function() {
@@ -63,15 +64,18 @@ function getLogRefreshScript(profileOptions = []) {
                     target.innerHTML = entries.length
                         ? entries.map(item => '<div class="recent-item">' +
                             '<span class="recent-muted">' + escapeHtml(item.atFormatted || '-') + '</span>' +
-                            '<strong>' + escapeHtml(item.type || 'Command') + '</span>' +
+                            '<strong>' + escapeHtml(item.type || 'Command') + '</strong>' +
                             '<span>' + escapeHtml(item.cmd || '-') + '</span>' +
                         '</div>').join('')
                         : '<div class="recent-item"><span class="recent-muted">Belum ada command terkirim sejak bot berjalan.</span></div>';
                 }
 
+                const viewingProfileId = ${viewingProfileIdJson};
+                const profileQuery = viewingProfileId ? '?profileId=' + encodeURIComponent(viewingProfileId) : '';
+
                 async function refreshStats() {
                     try {
-                        const res = await fetch('/api/stats', { cache: 'no-store', headers: { 'Accept': 'application/json' }});
+                        const res = await fetch('/api/stats' + profileQuery, { cache: 'no-store', headers: { 'Accept': 'application/json' }});
                         if (!res.ok) throw new Error('HTTP Error');
                         const data = await res.json();
                         const lastCommand = data.commands.last ? data.commands.last.cmd + ' • ' + data.commands.last.type : 'Belum ada command terkirim';
@@ -101,7 +105,7 @@ function getLogRefreshScript(profileOptions = []) {
                 // AUTO FETCH PROFILE SCRIPT
                 async function fetchProfile() {
                     try {
-                        const res = await fetch('/api/profile');
+                        const res = await fetch('/api/profile' + profileQuery);
                         const data = await res.json();
                         const profileBox = document.getElementById('userProfileBox');
                         

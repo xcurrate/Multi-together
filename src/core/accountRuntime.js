@@ -1,0 +1,264 @@
+const path = require('path');
+const fs = require('fs');
+
+const createTelegramService = require('../services/telegram');
+const createMacrodroidService = require('../services/macrodroidService');
+const createChannelManager = require('../managers/channel');
+const createBossManager = require('../managers/boss');
+const createCaptchaHandler = require('../managers/captcha');
+const createCommandSender = require('../managers/command');
+const createLoopManager = require('../managers/loop');
+const createEmergencyHandler = require('../managers/emergency');
+const createMessageHandler = require('../managers/message');
+const createHuntbotManager = require('../managers/huntbot');
+const createVoiceManager = require('../managers/voice');
+const createClientManager = require('./client');
+const captchaSolver = require('../services/captchaSolver');
+const log = require('../../logger');
+const CONSTANTS = require('../constants');
+const { safeJsonStringify } = require('../utils');
+
+const getAccountIdFromToken = (token) => {
+    if (!token || typeof token !== 'string') return 'default';
+    try {
+        const base64Id = token.split('.')[0];
+        const padded = base64Id + '='.repeat((4 - base64Id.length % 4) % 4);
+        const decodedId = Buffer.from(padded, 'base64').toString('utf8');
+        return /^\d{17,20}$/.test(decodedId) ? decodedId : 'default';
+    } catch {
+        return 'default';
+    }
+};
+
+const ensureRuntimeShape = (config = {}) => {
+    config.settings = config.settings || {};
+    config.settings.voice = config.settings.voice || { enabled: false, channelId: '' };
+    config.settings.channelRotation = config.settings.channelRotation || { enabled: false, minMs: 180000, maxMs: 360000 };
+    config.settings.control = config.settings.control || { start: 'wcash', pause: 'wbuy 1', allowIds: [] };
+    config.settings.boss = config.settings.boss || { enabled: true, allowedGuilds: [] };
+    config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
+    config.settings.telegram = config.settings.telegram || { token: '', chatId: '' };
+    config.settings.huntbot = config.settings.huntbot || { enabled: true };
+    config.botStatus = config.botStatus || { running: false, paused: true };
+    config.channels = Array.isArray(config.channels) ? config.channels : [];
+    config.tiketandhb = config.tiketandhb || { channelId: '' };
+    config.safety = config.safety || { cctv: false };
+    config.delays = config.delays || {};
+    Object.keys(CONSTANTS.DEFAULT_DELAYS || {}).forEach(key => {
+        config.delays[key] = {
+            ...CONSTANTS.DEFAULT_DELAYS[key],
+            ...(config.delays[key] || {})
+        };
+    });
+    config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true };
+    config.captcha = config.captcha || {};
+    return config;
+};
+
+const createRuntimeState = ({ config, sharedStats }) => ({
+    client: null,
+    config: ensureRuntimeShape(config),
+    activeToken: config.token || '',
+    activeChannelId: null,
+    stopBossHunt: false,
+    lastRefillTimestamp: 0,
+    foughtBosses: new Set(),
+    bossCooldowns: new Map(),
+    bossRespawnTimers: new Map(),
+    responseTimeout: null,
+    hasActiveCaptcha: false,
+    hasRunInitialReadyCommands: false,
+    hasUsedFirstLoopStartupStagger: false,
+    captchaSolverAbortController: null,
+    captchaSolveRunId: 0,
+    stats: sharedStats,
+    channelRotateTimer: null,
+    lastChannelId: null,
+    lastTicketCheck: 0,
+    loops: {
+        battle: null,
+        hunt: null,
+        pray: null,
+        custom1: null,
+        custom2: null
+    }
+});
+
+const createRuntimeConfigManager = (state, filePath) => ({
+    read() {
+        try {
+            return ensureRuntimeShape(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+        } catch {
+            return state.config;
+        }
+    },
+
+    save() {
+        ensureRuntimeShape(state.config);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, JSON.stringify(state.config, null, 2));
+    },
+
+    getRotationSettings() {
+        const r = state.config.settings?.channelRotation || {};
+        return {
+            enabled: r.enabled === true,
+            minMs: Math.max(1000, parseInt(r.minMs, 10) || 8 * 60 * 1000),
+            maxMs: Math.max(1000, parseInt(r.maxMs, 10) || 15 * 60 * 1000)
+        };
+    },
+
+    getControlCommands() {
+        const ctrl = state.config.settings?.control || {};
+        return {
+            startCmd: String(ctrl.start || 'wo').toLowerCase(),
+            pauseCmd: String(ctrl.pause || 'winv').toLowerCase(),
+            allowIds: Array.isArray(ctrl.allowIds) ? ctrl.allowIds.map(String) : []
+        };
+    },
+
+    getBossSettings() {
+        const boss = state.config.settings?.boss || {};
+        return {
+            enabled: boss.enabled === true,
+            allowedGuilds: Array.isArray(boss.allowedGuilds) ? boss.allowedGuilds : []
+        };
+    },
+
+    getValidChannels() {
+        const channels = Array.isArray(state.config.channels) ? state.config.channels : [];
+        return channels.filter(c => c && String(c).length > 5);
+    },
+
+    updateFromDisk() {
+        const diskConfig = this.read();
+        if (!diskConfig) return false;
+
+        const previousToken = state.activeToken;
+        const tokenChanged = diskConfig.token !== state.activeToken;
+        const channelsChanged = safeJsonStringify(state.config.channels) !== safeJsonStringify(diskConfig.channels);
+        const voiceChanged = safeJsonStringify(state.config.settings?.voice) !== safeJsonStringify(diskConfig.settings?.voice);
+        const wasPaused = state.config.botStatus?.paused;
+        const wasRunning = state.config.botStatus?.running;
+        const nowPaused = diskConfig.botStatus?.paused;
+        const nowRunning = diskConfig.botStatus?.running;
+        const statusChanged = wasPaused !== nowPaused || wasRunning !== nowRunning;
+
+        state.config = diskConfig;
+        return { tokenChanged, previousToken, channelsChanged, voiceChanged, statusChanged, wasPaused, wasRunning, nowPaused, nowRunning };
+    }
+});
+
+const createHuntbotState = () => ({
+    autoMode: false,
+    activeHunt: null,
+    pendingCaptcha: null,
+    lastUpgradeLevel: null,
+    lastProgress: null,
+    lastResponse: null,
+    monitorInterval: null,
+    notifiedSoon: false
+});
+
+module.exports = function createAccountRuntime({ config, filePath, sharedStats }) {
+    const accountId = getAccountIdFromToken(config.token);
+    const state = createRuntimeState({ config, sharedStats });
+    const configManager = createRuntimeConfigManager(state, filePath);
+    const telegramService = createTelegramService(state);
+    const macrodroidService = createMacrodroidService(state);
+    const channelManager = createChannelManager(state, configManager);
+    const loopManagerWrapper = {
+        stopAll: () => loopManager && loopManager.stopAll(),
+        startAll: () => loopManager && loopManager.startAll()
+    };
+    const bossManager = createBossManager(state, configManager, telegramService);
+    const emergencyHandler = createEmergencyHandler(state, configManager, loopManagerWrapper, channelManager, telegramService, macrodroidService);
+    const commandSender = createCommandSender(state, channelManager, emergencyHandler);
+    const loopManager = createLoopManager(state, commandSender);
+    const captchaHandler = createCaptchaHandler(state, configManager, loopManager, telegramService, channelManager, macrodroidService);
+    const voiceManager = createVoiceManager(state, configManager);
+    const huntbotManager = createHuntbotManager(state, createHuntbotState(), configManager, commandSender, telegramService, captchaSolver);
+    const messageHandler = createMessageHandler(
+        state,
+        configManager,
+        bossManager,
+        captchaHandler,
+        loopManager,
+        channelManager,
+        telegramService,
+        macrodroidService,
+        huntbotManager,
+        commandSender,
+        voiceManager
+    );
+    const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
+
+    let readyLoopWatcher = null;
+
+    const startLoopsWhenReady = () => {
+        if (readyLoopWatcher) clearInterval(readyLoopWatcher);
+        readyLoopWatcher = setInterval(() => {
+            if (!state.config.botStatus?.running || state.config.botStatus?.paused) {
+                clearInterval(readyLoopWatcher);
+                readyLoopWatcher = null;
+                return;
+            }
+            if (state.client?.isReady()) {
+                loopManager.startAll();
+                channelManager.scheduleRotation();
+                clearInterval(readyLoopWatcher);
+                readyLoopWatcher = null;
+            }
+        }, 1000);
+    };
+
+    return {
+        accountId,
+        filePath,
+        state,
+        configManager,
+        clientManager,
+        channelManager,
+        loopManager,
+        voiceManager,
+        getDisplayName() {
+            return state.client?.user?.tag || accountId;
+        },
+        start() {
+            state.config.botStatus = { running: true, paused: false };
+            if (!state.client?.isReady()) {
+                log.info(`🚀 Menjalankan akun paralel: ${accountId}`);
+                clientManager.initialize();
+                startLoopsWhenReady();
+            } else {
+                loopManager.startAll();
+                channelManager.scheduleRotation();
+            }
+        },
+        pause() {
+            state.config.botStatus = { running: false, paused: true };
+            loopManager.stopAll();
+            channelManager.stopRotation();
+        },
+        destroy() {
+            this.pause();
+            if (readyLoopWatcher) clearInterval(readyLoopWatcher);
+            readyLoopWatcher = null;
+            if (state.client) {
+                try { state.client.destroy(); } catch (error) { log.warn(`Gagal destroy client ${accountId}: ${error.message}`); }
+                state.client = null;
+            }
+        },
+        reloadConfig(nextConfig) {
+            const oldToken = state.activeToken;
+            state.config = ensureRuntimeShape(nextConfig);
+            state.activeToken = state.config.token || '';
+            if (oldToken !== state.activeToken) {
+                this.destroy();
+            }
+        }
+    };
+};
+
+module.exports.getAccountIdFromToken = getAccountIdFromToken;
+module.exports.ensureRuntimeShape = ensureRuntimeShape;

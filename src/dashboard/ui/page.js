@@ -2,7 +2,10 @@ module.exports = function createPageRenderer({ CONSTANTS, configManager, profile
 function renderPage(config) {
         console.log('[DASHBOARD] Rendering page with config:', { port: config.port, token: config.token ? '***' : 'MISSING' });
         
-        const { statusText, statusClass } = configManager.computeStatus(config);
+        const statusSource = config.viewingProfileId && config.globalBotStatus
+            ? { ...config, botStatus: config.globalBotStatus }
+            : config;
+        const { statusText, statusClass } = configManager.computeStatus(statusSource);
         const channels = config.channels || [];
         const custom1 = config.delays.custom1 || CONSTANTS.DEFAULT_DELAYS.custom1;
         const custom2 = config.delays.custom2 || CONSTANTS.DEFAULT_DELAYS.custom2;
@@ -15,6 +18,7 @@ function renderPage(config) {
         const msgFilter = config.settings.messageFilter || {};
         const voice = config.settings.voice || {};
         const statsSnapshot = statsService.getSnapshot(config);
+        const viewingProfileId = config.viewingProfileId || '';
 
         const profiles = profileManager.getSavedProfiles();
         const activeProfileId = profileManager.getUserId(config.token);
@@ -43,7 +47,7 @@ function renderPage(config) {
         <body>
             <div class="container">
                 <h2>OWO Farming Dashboard</h2>
-                <div class="subtitle">Panel ringkas, nyaman, dan ringan untuk monitoring bot.</div>
+                <div class="subtitle">Panel ringkas, nyaman, dan ringan untuk monitoring bot. ${viewingProfileId ? `Sedang melihat akun: ${viewingProfileId}` : ''}</div>
                 
                 <div class="status-box ${statusClass}">
                     <span style="font-size: 16px;">${statusText}</span>
@@ -59,6 +63,7 @@ function renderPage(config) {
                 ${getLogCard()}
 
                 <form action="/save" method="POST">
+                    ${viewingProfileId ? `<input type="hidden" name="viewingProfileId" value="${viewingProfileId}">` : ''}
                     <div class="action-group">
                         <button type="submit" name="action" value="start" class="btn btn-start">▶ START BOT</button>
                         <button type="submit" name="action" value="pause" class="btn btn-pause">⏸ PAUSE BOT</button>
@@ -85,7 +90,7 @@ function renderPage(config) {
                 </form>
             </div>
 
-            ${getLogRefreshScript(profileOptions)}
+            ${getLogRefreshScript(profileOptions, viewingProfileId)}
         </body>
         </html>
         `;

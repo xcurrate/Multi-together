@@ -5,7 +5,15 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
     router.get('/api/profile', async (req, res) => {
         const config = configManager.get();
-        const token = config.token;
+        let token = config.token;
+
+        if (req.query.profileId) {
+            const profilePath = profileManager.getProfilePath(String(req.query.profileId));
+            if (fs.existsSync(profilePath)) {
+                const profileConfig = fileService.readJson(profilePath);
+                token = profileConfig.token || token;
+            }
+        }
         
         if (!token) return res.status(400).json({ error: 'Tidak ada token.' });
 
@@ -29,7 +37,15 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     router.get('/', (req, res) => {
         console.log('[DASHBOARD] GET / - Rendering dashboard');
         try {
-            const config = configManager.ensureShape(configManager.get());
+            let config = configManager.ensureShape(configManager.get());
+            if (req.query.profileId) {
+                const profilePath = profileManager.getProfilePath(String(req.query.profileId));
+                if (fs.existsSync(profilePath)) {
+                    config = configManager.ensureShape(fileService.readJson(profilePath));
+                    config.viewingProfileId = String(req.query.profileId);
+                    config.globalBotStatus = configManager.ensureShape(configManager.get()).botStatus;
+                }
+            }
             const html = uiComponents.renderPage(config);
             console.log('[DASHBOARD] Dashboard HTML generated, size:', html.length, 'bytes');
             res.send(html);
@@ -51,7 +67,13 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
     router.get('/api/stats', (req, res) => {
         try {
-            const config = configManager.ensureShape(configManager.get());
+            let config = configManager.ensureShape(configManager.get());
+            if (req.query.profileId) {
+                const profilePath = profileManager.getProfilePath(String(req.query.profileId));
+                if (fs.existsSync(profilePath)) {
+                    config = configManager.ensureShape(fileService.readJson(profilePath));
+                }
+            }
             const snapshot = statsService.getSnapshot(config);
             snapshot.captcha.lastDetectedAtFormatted = statsService.formatTime(snapshot.captcha.lastDetectedAt);
             snapshot.captcha.lastSolvedAtFormatted = statsService.formatTime(snapshot.captcha.lastSolvedAt);
@@ -109,21 +131,40 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     let newConfig = JSON.parse(JSON.stringify(currentConfig));
                     newConfig.token = newToken;
                     
-                    configManager.save(newConfig);
                     fileService.writeJson(profilePath, newConfig);
-                    console.log(`[PROFILE] Profil baru untuk akun ${targetId} berhasil dibuat dengan pengaturan dari akun saat ini.`);
+                    console.log(`[PROFILE] Profil baru untuk akun ${targetId} berhasil dibuat dan akan dijalankan paralel bila masuk slot.`);
                 }
                 return res.send(uiComponents.getSavedResponse());
             }
 
-            let config = configManager.ensureShape(configManager.get());
-            config = configManager.applySave(config, body);
-            config = configManager.applyAction(config, body.action);
+            const viewingProfileId = body.viewingProfileId ? String(body.viewingProfileId) : '';
+            const isGlobalAction = body.action === 'start' || body.action === 'pause';
+            let config;
+            let saveTarget = 'main';
+
+            if (viewingProfileId && !isGlobalAction) {
+                const profilePath = profileManager.getProfilePath(viewingProfileId);
+                config = configManager.ensureShape(fs.existsSync(profilePath) ? fileService.readJson(profilePath) : configManager.get());
+                config = configManager.applySave(config, body);
+                saveTarget = profilePath;
+            } else {
+                config = configManager.ensureShape(configManager.get());
+                if (!isGlobalAction) {
+                    config = configManager.applySave(config, body);
+                }
+                config = configManager.applyAction(config, body.action);
+            }
             
-            if (configManager.save(config)) {
-                const activeId = profileManager.getUserId(config.token);
-                if (activeId !== 'default') {
-                    fileService.writeJson(profileManager.getProfilePath(activeId), config);
+            const saved = saveTarget === 'main'
+                ? configManager.save(config)
+                : fileService.writeJson(saveTarget, config);
+
+            if (saved) {
+                if (saveTarget === 'main') {
+                    const activeId = profileManager.getUserId(config.token);
+                    if (activeId !== 'default') {
+                        fileService.writeJson(profileManager.getProfilePath(activeId), config);
+                    }
                 }
                 res.send(uiComponents.getSavedResponse());
             } else {

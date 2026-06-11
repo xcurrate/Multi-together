@@ -1,5 +1,6 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 const statsService = require('../services/stats');
 
 module.exports = (state, configManager, bossManager, captchaHandler, loopManager, channelManager, telegramService, macrodroidService, huntbotManager, commandSender, voiceManager) => ({
@@ -39,7 +40,7 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             state.config.botStatus.running = true;
             statsService.syncBotUptime(state);
             configManager.save();
-            log.success(`▶️ Start via Discord control.`);
+            log.success(`${accountPrefix(state)}▶️ Start via Discord control.`);
             loopManager.startAll();
             telegramService.send(`▶️ <b>Bot Started</b> via Discord command`);
             return;
@@ -50,7 +51,7 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             state.config.botStatus.running = false;
             statsService.syncBotUptime(state);
             configManager.save();
-            log.warn('⏸️ Pause via Discord control.');
+            log.warn(`${accountPrefix(state)}⏸️ Pause via Discord control.`);
             loopManager.stopAll();
             telegramService.send(`⏸️ <b>Bot Paused</b> via Discord command`);
             return;
@@ -73,7 +74,7 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
                     msg.react("✅").catch(()=>{});
 
                 } catch (err) {
-                    log.error("Gagal join VC: " + err.message);
+                    log.error(`${accountPrefix(state)}Gagal join VC: ${err.message}`);
                     msg.react("⚠️").catch(()=>{});
                 }
             }
@@ -86,13 +87,13 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
                 if (!msg.guildId || !voiceManager) return;
 
                 if (voiceManager.leave(msg.guildId)) {
-                    log.info(`🔇 Keluar dari VC di server ${msg.guild?.name || msg.guildId}`);
+                    log.info(`${accountPrefix(state)}🔇 Keluar dari VC di server ${msg.guild?.name || msg.guildId}`);
                     msg.react("👋").catch(()=>{});
                 } else {
                     msg.react("❓").catch(()=>{});
                 }
             } catch (err) {
-                log.error("Gagal leave VC: " + err.message);
+                log.error(`${accountPrefix(state)}Gagal leave VC: ${err.message}`);
             }
             return;
         }
@@ -118,7 +119,7 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
         if (isMentioned) alertType = "MENTION / TAG";
         if (isReplyToMe) alertType = "REPLY MESSAGE";
 
-        log.warn(`💬 ${alertType} terdeteksi dari ${msg.author.username}! Meneruskan ke Telegram...`);
+        log.warn(`${accountPrefix(state)}💬 ${alertType} terdeteksi dari ${msg.author.username}! Meneruskan ke Telegram...`);
 
         const senderName = msg.author.username;
         const channelName = msg.channel.name || 'DM/Unknown';

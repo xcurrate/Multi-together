@@ -1,4 +1,5 @@
 const log = require('../../logger'); // Sesuaikan path logger-mu
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 
 module.exports = (state) => ({
     async trigger(action) {
@@ -7,7 +8,7 @@ module.exports = (state) => ({
             const deviceId = state.config.macrodroidId; 
             
             if (!deviceId) {
-                log.warn("⚠️ MacroDroid ID belum diatur di config!");
+                log.warn(`${accountPrefix(state)}⚠️ MacroDroid ID belum diatur di config!`);
                 return;
             }
 
@@ -17,9 +18,9 @@ module.exports = (state) => ({
             // Menembak URL secara instan (0 delay)
             await fetch(webhookUrl);
             
-            log.info(`🚀 Berhasil mengirim trigger '${action}' ke MacroDroid!`);
+            log.info(`${accountPrefix(state)}🚀 Berhasil mengirim trigger '${action}' ke MacroDroid!`);
         } catch (error) {
-            log.error(`❌ Gagal mengirim trigger MacroDroid (${action}): ` + error.message);
+            log.error(`${accountPrefix(state)}❌ Gagal mengirim trigger MacroDroid (${action}): ${error.message}`);
         }
     }
 });

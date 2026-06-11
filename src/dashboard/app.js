@@ -47,7 +47,8 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
         uiComponents,
         logService,
         statsService,
-        discordProfileService
+        discordProfileService,
+        state
     }));
 
     return { app, port };

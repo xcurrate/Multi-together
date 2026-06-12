@@ -1,5 +1,5 @@
 const log = require('../../logger'); // Sesuaikan path logger-mu
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const { accountPrefix } = require('../utils');
 
 module.exports = (state) => ({
     async trigger(action) {

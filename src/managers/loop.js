@@ -1,6 +1,5 @@
 const log = require('../../logger');
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
-const { randomInt } = require('../utils');
+const { randomInt, accountPrefix } = require('../utils');
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 module.exports = (state, commandSender) => ({

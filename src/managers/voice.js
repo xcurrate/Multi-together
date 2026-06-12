@@ -1,6 +1,6 @@
 const { joinVoiceChannel, getVoiceConnection } = require('@discordjs/voice');
 const log = require('../../logger');
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const { accountPrefix } = require('../utils');
 
 const VOICE_CHANNEL_TYPES = new Set(['GUILD_VOICE', 'GUILD_STAGE_VOICE', 2, 13]);
 

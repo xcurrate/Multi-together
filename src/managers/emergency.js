@@ -1,5 +1,5 @@
 const log = require('../../logger');
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const { accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
 
 module.exports = (state, configManager, loopManager, channelManager, telegramService) => ({

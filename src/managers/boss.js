@@ -2,7 +2,8 @@ const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { deepCopy, safeJsonStringify, removeInvisibleChars, accountPrefix } = require('../utils');
 
-const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
+const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
+const isRuntimeActive = (state) => !state.hasActiveCaptcha && (isStartupRoutineActive(state) || (!!state.config?.botStatus?.running && !state.config?.botStatus?.paused));
 
 function getNextResetInfo() {
     const now = new Date();

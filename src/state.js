@@ -13,6 +13,7 @@ module.exports = {
     hasActiveCaptcha: false,
     hasRunInitialReadyCommands: false,
     isStartupReadyRoutine: false,
+    startupReadyRoutineUntil: 0,
     hasUsedFirstLoopStartupStagger: false,
     captchaSolverAbortController: null,
     captchaSolveRunId: 0,

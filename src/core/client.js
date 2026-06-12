@@ -5,6 +5,15 @@ const { accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const STARTUP_RESPONSE_GRACE_MS = 30000;
+
+function markStartupReadyRoutine(state, graceMs = STARTUP_RESPONSE_GRACE_MS) {
+    state.isStartupReadyRoutine = true;
+    state.startupReadyRoutineUntil = Math.max(
+        state.startupReadyRoutineUntil || 0,
+        Date.now() + graceMs
+    );
+}
 
 
 async function waitUntilCaptchaClear(state) {
@@ -20,7 +29,7 @@ async function sendStartupCommand(state, channel, cmd) {
 
     const wasStartupReadyRoutine = state.isStartupReadyRoutine === true;
     const isPausedOrStopped = state.config.botStatus?.paused || !state.config.botStatus?.running;
-    state.isStartupReadyRoutine = true;
+    markStartupReadyRoutine(state);
 
     if (isPausedOrStopped) {
         log.info(`${accountPrefix(state)}🚀 Startup command [${cmd}] tetap dikirim walau akun pause/stop.`);
@@ -77,7 +86,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
                 voiceManager.joinConfigured('restart').catch(err => log.error(`${accountPrefix(state)}❌ Auto Join VC gagal: ${err.message}`));
             }
 
-            state.isStartupReadyRoutine = true;
+            markStartupReadyRoutine(state);
 
             if (huntbotManager) {
                 // Startup ready sequence selalu mengirim whb sendiri setiap client ready/login,
@@ -97,12 +106,13 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
                     }
 
                     log.info(`${accountPrefix(state)}🚀 Menjalankan startup command setiap client ready/login...`);
-                    await sendStartupCommand(state, channel, "whb 1d");
 
                     log.info(`${accountPrefix(state)}⚔️ Mengecek status World Boss untuk akun saat ini...`);
                     await sendStartupCommand(state, channel, "wboss t");
+
+                    await sendStartupCommand(state, channel, "whb 1d");
                     
-                    log.info(`${accountPrefix(state)}✅ Routine startup command selesai dieksekusi.`);
+                    log.info(`${accountPrefix(state)}✅ Routine startup command selesai dieksekusi. Respons startup tetap dipantau selama ${STARTUP_RESPONSE_GRACE_MS / 1000} detik.`);
                 } catch (err) {
                     log.error(`${accountPrefix(state)}❌ Gagal mengirim command: ${err.message}`);
                 } finally {

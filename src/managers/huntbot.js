@@ -3,10 +3,15 @@ const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars } = require('../utils');
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
+
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({
 
     // ============== MAIN ENTRY POINT ==============
     processHuntBotMessage(msg) {
+        if (!isRuntimeActive(state)) return false;
+
         const content = msg.content || "";
         const author = msg.author.id;
         
@@ -31,9 +36,15 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         const isMentioned = content.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId);
         const containsMyName = content.toLowerCase().includes(myName.toLowerCase());
         
-        // 🚀 FIX: Pengecualian khusus untuk pesan pulang (OwO tidak pakai nama di sini)
+        // 🚀 FIX: Pengecualian khusus untuk pesan pulang (OwO tidak pakai nama di sini),
+        // tapi tetap harus punya activeHunt milik akun ini agar tidak mengambil return akun lain.
         const huntbotChannelId = state.config.tiketandhb.channelId;
-        const isReturnMessage = msg.channel.id === huntbotChannelId && content.includes("BEEP BOOP. I AM BACK WITH");
+        const activeHuntEnd = huntbotState.activeHunt?.endTime;
+        const isOwnReturnWindow = !!huntbotState.activeHunt &&
+            (!activeHuntEnd || Date.now() >= activeHuntEnd - 10 * 60 * 1000);
+        const isReturnMessage = msg.channel.id === huntbotChannelId &&
+            content.includes("BEEP BOOP. I AM BACK WITH") &&
+            isOwnReturnWindow;
 
 
         // CEK CONTENT 
@@ -74,15 +85,14 @@ isPaused() {
 },
 
 shouldAbort(actionName = "") {
-    // 1. Cek langsung status CAPTCHA spesifik
-    if (state.hasActiveCaptcha) { 
-        log.warn(`🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
+    if (!isRuntimeActive(state)) {
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop atau CAPTCHA aktif.`);
         return true;
     }
     
     // 2. Cek toggle setting huntbot
     if (state.config?.settings?.huntbot?.enabled === false) {
-        log.warn(`🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
         return true;
     }
     
@@ -140,7 +150,7 @@ if (huntbotState.autoMode) {
 
     console.log(`[DEBUG] Membaca dari state.config: ${upgradeType}`);
 
-    setTimeout(() => this.upgrade(upgradeType, "all"), 1000);
+    this.scheduleDelayedAction(() => this.upgrade(upgradeType, "all"), 1000);
 }
 
         
@@ -185,7 +195,7 @@ if (huntbotState.autoMode) {
         );
         
         if (huntbotState.autoMode) {
-            setTimeout(() => this.startHunt("1D"), 1000);
+            this.scheduleDelayedAction(() => this.startHunt("1D"), 1000);
         }
         
         return true;
@@ -274,7 +284,7 @@ if (huntbotState.autoMode) {
         );
         
         if (huntbotState.autoMode) {
-            setTimeout(() => this.sacrificeAll(), 1000);
+            this.scheduleDelayedAction(() => this.sacrificeAll(), 1000);
         }
         
         return true;
@@ -309,7 +319,7 @@ if (huntbotState.autoMode) {
                 huntbotState.pendingCaptcha = { password, messageId: msg.id };
                 
                 log.info(`🤖 Mengirim password secara otomatis...`);
-                setTimeout(() => {
+                this.scheduleDelayedAction(() => {
                     this.startHunt(CONSTANTS.HUNTBOT.DEFAULT_DURATION, password);
                 }, 1000);
                 
@@ -362,7 +372,7 @@ if (huntbotState.autoMode) {
 
     // ============== INITIALIZATION ==============
     init(options = {}) {
-        log.info("⚙️ Initializing HuntBot Manager...");
+        log.info(`${accountPrefix(state)}⚙️ Initializing HuntBot Manager...`);
         const config = configManager.read() || {};
         
         // Memastikan loop menyala apapun kondisinya
@@ -388,10 +398,7 @@ if (huntbotState.autoMode) {
 async sendHuntBotCommand(cmd) {
     // 1. PERBAIKAN: Menggunakan state secara konsisten dan mengecek hasActiveCaptcha sebagai boolean.
     // Ditambahkan log agar kamu tahu persis kapan command ditahan.
-    if (state.hasActiveCaptcha) {
-        log.warn(`⚠️ Command HuntBot [${cmd}] ditahan: CAPTCHA sedang aktif.`);
-        return;
-    }
+    if (this.shouldAbort(`sendHuntBotCommand(${cmd})`)) return;
 
     try {
         const huntbotChannelId = state.config.tiketandhb.channelId;
@@ -421,7 +428,7 @@ async sendHuntBotCommand(cmd) {
 
     // ============== COMMAND METHODS ==============
 async checkStatus() {
-    if (state.hasActiveCaptcha) return;
+    if (this.shouldAbort('checkStatus')) return;
     await this.sendHuntBotCommand(CONSTANTS.HUNTBOT.COMMANDS.CHECK);
 },
 
@@ -454,9 +461,10 @@ async checkStatus() {
 
     // ============== AUTO MODE & MONITORING ==============
     startAutoMode(options = {}) {
+        if (this.shouldAbort('startAutoMode')) return;
         if (huntbotState.autoMode) return;
         huntbotState.autoMode = true;
-        log.success("🤖 HuntBot Auto Mode ACTIVE");
+        log.success(`${accountPrefix(state)}🤖 HuntBot Auto Mode ACTIVE`);
         telegramService.send("🤖 <b>HuntBot Auto Mode</b>\nStarting auto loop...");
         
         this.startMonitoring();
@@ -467,7 +475,7 @@ async checkStatus() {
         }
     },
 
-    stopAutoMode() {
+    stopAutoMode(options = {}) {
         huntbotState.autoMode = false;
         
         // PENGAMAN: Pastikan objek loops ada
@@ -477,9 +485,21 @@ async checkStatus() {
             clearInterval(huntbotState.loops.monitor);
             huntbotState.loops.monitor = null;
         }
-        log.info("🤖 HuntBot Auto Mode STOPPED");
-        telegramService.send("🤖 <b>HuntBot Auto Mode</b>\nLoop stopped.");
+        log.info(`${accountPrefix(state)}🤖 HuntBot Auto Mode STOPPED`);
+        if (options.notify !== false) {
+            telegramService.send("🤖 <b>HuntBot Auto Mode</b>\nLoop stopped.");
+        }
     },
+
+scheduleDelayedAction(fn, delayMs) {
+    huntbotState.timeouts = huntbotState.timeouts || new Set();
+    const timer = setTimeout(() => {
+        huntbotState.timeouts.delete(timer);
+        if (!this.shouldAbort('delayed HuntBot action')) fn();
+    }, delayMs);
+    huntbotState.timeouts.add(timer);
+    return timer;
+},
 
 startMonitoring() {
     huntbotState.loops = huntbotState.loops || {};
@@ -487,7 +507,7 @@ startMonitoring() {
     if (huntbotState.loops.monitor) {
         clearInterval(huntbotState.loops.monitor);
     }
-    log.info("⏱️ Mesin monitoring waktu HuntBot diaktifkan.");
+    log.info(`${accountPrefix(state)}⏱️ Mesin monitoring waktu HuntBot diaktifkan.`);
 
     huntbotState.loops.monitor = setInterval(() => {
 
@@ -497,7 +517,7 @@ startMonitoring() {
 },
 
 checkActiveHunt() {
-    if (state.hasActiveCaptcha) return;
+    if (!isRuntimeActive(state)) return;
     if (!huntbotState.activeHunt?.endTime) return;
         
         const now = Date.now();
@@ -526,6 +546,16 @@ checkActiveHunt() {
                 telegramService.send(`⏰ <b>HuntBot Selesai!</b>\nSilakan kirim 'whb' secara manual untuk menjemput.`);
             }
         }
+    },
+
+    stop(options = {}) {
+        this.stopAutoMode(options);
+        if (huntbotState.timeouts) {
+            for (const timer of huntbotState.timeouts) clearTimeout(timer);
+            huntbotState.timeouts.clear();
+        }
+        huntbotState.activeHunt = null;
+        huntbotState.pendingCaptcha = null;
     },
 
     getStatus() {

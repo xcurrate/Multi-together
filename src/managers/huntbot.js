@@ -1,6 +1,7 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars } = require('../utils');
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({
@@ -73,16 +74,23 @@ isPaused() {
     return !!state.config?.botStatus?.paused;
 },
 
-shouldAbort(actionName = "") {
+shouldAbort(actionName = "", options = {}) {
     // 1. Cek langsung status CAPTCHA spesifik
     if (state.hasActiveCaptcha) { 
-        log.warn(`🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
+        return true;
+    }
+
+    const isPausedOrStopped = state.config?.botStatus?.paused || !state.config?.botStatus?.running;
+    const canBypassPause = options.allowPaused === true || state.isStartupReadyRoutine === true;
+    if (isPausedOrStopped && !canBypassPause) {
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
         return true;
     }
     
     // 2. Cek toggle setting huntbot
     if (state.config?.settings?.huntbot?.enabled === false) {
-        log.warn(`🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
         return true;
     }
     
@@ -376,7 +384,10 @@ if (huntbotState.autoMode) {
         if (isAutoModeOn) {
             log.info("🤖 HuntBot Auto-start detected in config.");
             huntbotState.autoMode = false; // Reset sementara agar startAutoMode bisa me-restart statusnya
-            this.startAutoMode({ skipInitialCheck: options.skipInitialCheck });
+            this.startAutoMode({
+                skipInitialCheck: options.skipInitialCheck,
+                allowPaused: options.skipInitialCheck === true
+            });
         } else {
             log.warn("⚠️ Auto Mode terdeteksi OFF di config.json");
         }
@@ -454,6 +465,7 @@ async checkStatus() {
 
     // ============== AUTO MODE & MONITORING ==============
     startAutoMode(options = {}) {
+        if (this.shouldAbort('startAutoMode', { allowPaused: options.allowPaused === true })) return;
         if (huntbotState.autoMode) return;
         huntbotState.autoMode = true;
         log.success("🤖 HuntBot Auto Mode ACTIVE");

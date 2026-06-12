@@ -67,6 +67,7 @@ function renderPage(config) {
                         ${viewingProfileId ? '<button type="submit" name="action" value="connectProfile" class="btn btn-connect">🔌 CONNECT / LOGIN</button>' : ''}
                         <button type="submit" name="action" value="${viewingProfileId ? 'startProfile' : 'start'}" class="btn btn-start">▶ ${viewingProfileId ? 'START / RESUME COMMANDS' : 'START ALL COMMANDS'}</button>
                         <button type="submit" name="action" value="${viewingProfileId ? 'pauseProfile' : 'pause'}" class="btn btn-pause">⏸ ${viewingProfileId ? 'PAUSE COMMANDS' : 'PAUSE ALL COMMANDS'}</button>
+                        <button type="submit" name="action" value="joinVoice" class="btn btn-voice">🔊 JOIN VOICE</button>
                     </div>
 
                     ${renderSettingsTabs({

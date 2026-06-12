@@ -173,6 +173,18 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
             runtime.pause();
             return true;
         },
+        joinVoiceAccount(accountId) {
+            const runtime = getRuntime(accountId);
+            if (!runtime || typeof runtime.joinVoice !== 'function') return false;
+            return runtime.joinVoice('dashboard-button');
+        },
+        joinVoiceAll() {
+            let joined = 0;
+            for (const runtime of runtimes.values()) {
+                if (typeof runtime.joinVoice === 'function' && runtime.joinVoice('dashboard-button')) joined += 1;
+            }
+            return joined;
+        },
         reconcile
     };
 

@@ -17,7 +17,7 @@ const formatWIB = () => {
 const INTERNAL_MAX_LINES = 800;
 const TERMINAL_MAX_LINES = constants.MAX_LOG_LINES || 20;
 const MAX_MESSAGE_LENGTH = 260;
-const ACCOUNT_PATTERN = /\[account:([^\]\s]+)/g;
+const ACCOUNT_PATTERN = /\[account:([^\]\s]+)(?:\s+user:([^\]]+))?\]/g;
 const IMPORTANT_KEYWORDS = [
     'login sukses',
     'token invalid',
@@ -61,6 +61,13 @@ function extractAccountIds(line) {
     return Array.from(ids);
 }
 
+function hideAccountIds(line) {
+    return String(line || '').replace(ACCOUNT_PATTERN, (_match, _accountId, username) => {
+        const safeName = username ? String(username).trim() : '';
+        return safeName ? `[account:${safeName}]` : '[account]';
+    });
+}
+
 function isImportantLine(levelPlain, plainLine) {
     if (levelPlain !== '[INFO]') return true;
     const lower = String(plainLine || '').toLowerCase();
@@ -95,8 +102,8 @@ function filterEntries(options = {}) {
         const accountPrefix = `[account:${accountId}]`;
         filtered = entries.filter(entry =>
             entry.accountIds.includes(accountId) ||
-            entry.plainLine.includes(accountPrefix) ||
-            entry.plainLine.includes(accountId)
+            entry.rawPlainLine?.includes(accountPrefix) ||
+            entry.rawPlainLine?.includes(accountId)
         );
     } else if (globalOnly) {
         filtered = entries.filter(entry => entry.important);
@@ -109,19 +116,22 @@ function filterEntries(options = {}) {
 function write(levelPlain, levelColored, msg) {
     const timeStr = formatWIB();
     const compact = compactMessage(msg);
+    const rawPlainLine = `${timeStr} ${levelPlain} ${compact}`;
+    const safeCompact = hideAccountIds(compact);
 
-    // simpan versi berwarna untuk terminal
-    const coloredLine = `${chalk.gray(timeStr)} ${levelColored} ${compact}`;
+    // simpan versi berwarna untuk terminal tanpa menampilkan ID akun
+    const coloredLine = `${chalk.gray(timeStr)} ${levelColored} ${safeCompact}`;
 
-    // simpan versi plain untuk dashboard
-    const plainLine = `${timeStr} ${levelPlain} ${compact}`;
+    // simpan versi plain untuk dashboard tanpa menampilkan ID akun
+    const plainLine = `${timeStr} ${levelPlain} ${safeCompact}`;
 
     pushLogLine({
         timeStr,
         level: levelPlain,
         coloredLine,
         plainLine,
-        accountIds: extractAccountIds(plainLine),
+        rawPlainLine,
+        accountIds: extractAccountIds(rawPlainLine),
         important: isImportantLine(levelPlain, plainLine)
     });
 

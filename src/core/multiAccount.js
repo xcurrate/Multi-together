@@ -4,6 +4,8 @@ const createAccountRuntime = require('./accountRuntime');
 const statsService = require('../services/stats');
 const log = require('../../logger');
 
+const CONSTANTS = require('../constants');
+
 const DEFAULT_MAX_ACCOUNTS = 4;
 
 const readJson = (filePath, fallback = null) => {
@@ -141,6 +143,11 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
             reconcile();
             setInterval(reconcile, 2000);
             setInterval(syncDashboardState, 1000);
+            setInterval(() => {
+                for (const runtime of runtimes.values()) {
+                    if (typeof runtime.checkDailyReset === 'function') runtime.checkDailyReset();
+                }
+            }, CONSTANTS.RESET_CHECK_INTERVAL_MS);
         },
         getRuntimes() {
             return runtimes;

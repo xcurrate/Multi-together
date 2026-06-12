@@ -2,6 +2,9 @@ const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { deepCopy, safeJsonStringify, removeInvisibleChars } = require('../utils');
 
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
+
 function getNextResetInfo() {
     const now = new Date();
     
@@ -43,6 +46,7 @@ function getNextResetInfo() {
 
 module.exports = (state, configManager, telegramService) => ({
     canFight(msg) {
+        if (!isRuntimeActive(state)) return false;
         if (state.stopBossHunt) return false;
 
         const { allowedGuilds } = configManager.getBossSettings();
@@ -130,7 +134,12 @@ async handleBossAppear(msg, rawComponents) {
                 state.foughtBosses.delete(state.foughtBosses.values().next().value);
             }
 
-            setTimeout(() => this.checkTickets(msg.client), CONSTANTS.TICKET_CHECK_DELAY_MS);
+            const ticketTimer = setTimeout(() => {
+                state.bossTicketCheckTimers?.delete(ticketTimer);
+                this.checkTickets(msg.client);
+            }, CONSTANTS.TICKET_CHECK_DELAY_MS);
+            state.bossTicketCheckTimers = state.bossTicketCheckTimers || new Set();
+            state.bossTicketCheckTimers.add(ticketTimer);
             
         } catch (error) {
             // Jika klik tombol gagal (misal karena verifikasi), error ditangkap di sini
@@ -170,7 +179,7 @@ async checkTickets(client) {
     // 🛑 Skenario baru: 
     // Jika sedang terkena captcha, maka BERHENTI (return).
     // Jika tidak ada captcha, proses akan LANJUT terus (walaupun bot sedang dipause).
-    if (state.hasActiveCaptcha) return;
+    if (!isRuntimeActive(state)) return;
 
     try {
         const ticketChannelId = state.config.tiketandhb.channelId;
@@ -181,9 +190,13 @@ async checkTickets(client) {
             return;
         }
 
-        log.info(`🕵️ Mengirim 'wboss ticket' ke Channel Khusus...`);
+        log.info(`${accountPrefix(state)}🕵️ Mengirim 'wboss ticket' ke Channel Khusus...`);
         await ticketChannel.send("wboss t");
         state.lastTicketCheck = Date.now();
+        state.pendingBossTicketCheck = {
+            channelId: ticketChannelId,
+            requestedAt: state.lastTicketCheck
+        };
     } catch (err) {
         log.error(`Error kirim cek tiket: ${err.message}`);
     }
@@ -196,6 +209,8 @@ async checkTickets(client) {
             fullContent += ' ' + safeJsonStringify(msg.components);
         }
 
+        if (!isRuntimeActive(state)) return false;
+
         const cleanText = removeInvisibleChars(fullContent).toLowerCase();
 
         if (!cleanText.includes('boss ticket') && !cleanText.includes('ticket')) {
@@ -203,15 +218,20 @@ async checkTickets(client) {
         }
 
         const myName = (msg.guild?.members?.me?.displayName || state.client.user.username).toLowerCase();
-        
-        const isMyTicket = 
-            cleanText.includes(myName) || 
-            cleanText.includes('you ran out') || 
+        const myId = state.client?.user?.id;
+        const pending = state.pendingBossTicketCheck;
+        const hasExplicitOwner = cleanText.includes(myName) ||
+            (myId && (cleanText.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId)));
+        const hasRecentOwnRequest = pending?.channelId === msg.channel.id &&
+            Date.now() - pending.requestedAt <= 15000;
+        const isAnonymousTicketReply = cleanText.includes('you ran out') ||
             cleanText.includes('currently have') ||
             cleanText.includes('**0**/3') ||
             cleanText.match(/\*\*(\d+)\*\*\/\*\*3\*\*/);
+        const isMyTicket = hasExplicitOwner || (hasRecentOwnRequest && isAnonymousTicketReply);
 
         if (!isMyTicket) return false;
+        state.pendingBossTicketCheck = null;
 
         if (cleanText.includes('ran out of') || 
             cleanText.includes('have **0**') || 
@@ -247,6 +267,20 @@ async checkTickets(client) {
         }
 
         return true;
+    },
+
+    stop() {
+        if (state.bossTicketCheckTimers) {
+            for (const timer of state.bossTicketCheckTimers) clearTimeout(timer);
+            state.bossTicketCheckTimers.clear();
+        }
+
+        if (state.bossRespawnTimers) {
+            for (const timer of state.bossRespawnTimers.values()) clearTimeout(timer);
+            state.bossRespawnTimers.clear();
+        }
+
+        state.pendingBossTicketCheck = null;
     }
     
 

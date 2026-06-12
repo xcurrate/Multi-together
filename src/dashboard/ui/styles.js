@@ -31,6 +31,7 @@ function getStyles() {
             .paused { color: var(--red); border-color: #66343a; background: var(--red-soft); }
             .offline { color: var(--muted); border-color: var(--border); background: var(--panel); }
             .profile-box { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; padding: 10px; background: var(--panel-soft); border: 1px solid var(--border); border-radius: 12px; font-weight: 500; font-size: 13px; color: var(--muted); }
+            .profile-box-top { justify-content: flex-start; margin: 14px 0 16px; padding: 14px 16px; background: var(--panel); border-radius: 18px; }
             .profile-box img { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); }
             .account-chip-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
             .account-chip-group { display: inline-flex; align-items: stretch; gap: 4px; max-width: 100%; }
@@ -87,6 +88,7 @@ function getStyles() {
             .btn-start { background: #208a5d; color: white; flex: 1; }
             .btn-pause { background: #b93838; color: white; flex: 1; }
             .btn-voice { background: #7c3aed; color: white; flex: 1; }
+            .btn-logout { background: #475467; color: white; flex: 1; }
             .btn-secondary { background: var(--panel-soft); color: var(--text); border-color: var(--border); }
             .action-group { display: flex; gap: 10px; margin-bottom: 16px; }
             .divider { border-top: 1px solid var(--border); margin: 16px 0; }

@@ -173,6 +173,13 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
             runtime.pause();
             return true;
         },
+        logoutAccount(accountId) {
+            const runtime = getRuntime(accountId);
+            if (!runtime) return false;
+            runtime.destroy();
+            syncDashboardState();
+            return true;
+        },
         joinVoiceAccount(accountId) {
             const runtime = getRuntime(accountId);
             if (!runtime || typeof runtime.joinVoice !== 'function') return false;

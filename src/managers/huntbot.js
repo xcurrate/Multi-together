@@ -3,10 +3,9 @@ const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
-const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
-const isRuntimeActive = (state) => !state.hasActiveCaptcha && (isStartupRoutineActive(state) || (!!state.config?.botStatus?.running && !state.config?.botStatus?.paused));
 const RETURN_TIME_PATTERN = /I WILL BE BACK IN\s+([\d\sDHM]+)/i;
 const SHORT_RETURN_TIME_PATTERN = /BACK IN\s+([\d\sDHM]+)/i;
+const HUNTBOT_PROGRESS_PATTERN = /BEEP BOOP|I AM STILL HUNTING|I WILL BE BACK IN|\d+\.?\d*%\s*DONE|ANIMALS\s*CAPTURED/i;
 
 const collectEmbedText = (embed = {}) => [
     embed.title,
@@ -20,9 +19,6 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
     // ============== MAIN ENTRY POINT ==============
     processHuntBotMessage(msg) {
-        if (state.hasActiveCaptcha) return false;
-        if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return false;
-
         const content = removeInvisibleChars(msg.content || "");
         const author = msg.author.id;
         
@@ -40,13 +36,13 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
                 const embedText = removeInvisibleChars(collectEmbedText(embed));
                 const embedAuthorName = String(embed.author?.name || '').toLowerCase();
                 const mentionsThisAccount = embedText.toLowerCase().includes(myName.toLowerCase()) || embedText.includes(`<@${myId}>`);
-                const isOwnEmbed = mentionsThisAccount || isHuntbotChannel;
+                const isOwnEmbed = mentionsThisAccount || (isHuntbotChannel && /huntbot|beep boop|back in|i will be back in/i.test(embedText));
 
-                if (isOwnEmbed && RETURN_TIME_PATTERN.test(embedText)) {
+                if (isOwnEmbed && /YOU SPENT/i.test(embedText) && RETURN_TIME_PATTERN.test(embedText)) {
                     return this.processHuntStartedMessage(msg, embedText);
                 }
 
-                if (isOwnEmbed && (embedAuthorName.includes('huntbot') || /huntbot|beep boop|back in/i.test(embedText))) {
+                if (isOwnEmbed && (embedAuthorName.includes('huntbot') || HUNTBOT_PROGRESS_PATTERN.test(embedText))) {
                     return this.processEmbedMessage(msg, embed, myName);
                 }
             }
@@ -55,13 +51,14 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         const isMentioned = content.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId);
         const containsMyName = content.toLowerCase().includes(myName.toLowerCase());
 
-        // Setiap akun memakai channel HuntBot sendiri, jadi respons OwO di channel ini
-        // aman diproses walau teksnya tidak menyebut nama/mention akun.
+        // Pengecualian khusus untuk pesan pulang/progress HuntBot (OwO tidak selalu
+        // menyebut nama akun, terutama balasan text dari `whb 1D`).
         const isReturnMessage = isHuntbotChannel && content.includes("BEEP BOOP. I AM BACK WITH");
+        const isHuntbotProgressMessage = isHuntbotChannel && HUNTBOT_PROGRESS_PATTERN.test(content);
 
 
         // CEK CONTENT 
-        if (containsMyName || isMentioned || isHuntbotChannel) {
+        if (containsMyName || isMentioned || isReturnMessage || isHuntbotProgressMessage) {
             
             if (isReturnMessage) {
                 return this.processReturnMessage(msg, content);
@@ -86,6 +83,10 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
             if (/YOU SPENT/i.test(content) && RETURN_TIME_PATTERN.test(content)) {
                 return this.processHuntStartedMessage(msg, content);
             }
+
+            if (isHuntbotProgressMessage) {
+                return this.processProgressEmbed(msg, null, content, 'TEXT');
+            }
         }
 
         return false;
@@ -97,23 +98,17 @@ isPaused() {
     return !!state.config?.botStatus?.paused;
 },
 
-    shouldAbort(actionName = "", options = {}) {
+    shouldAbort(actionName = "") {
         // 1. Cek langsung status CAPTCHA spesifik
         if (state.hasActiveCaptcha) { 
             log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
             return true;
         }
 
-        const isPausedOrStopped = state.config?.botStatus?.paused || !state.config?.botStatus?.running;
-        const canBypassPause = options.allowPaused === true || isStartupRoutineActive(state) || huntbotState.autoMode === true;
-        if (isPausedOrStopped && !canBypassPause) {
-            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
-            return true;
-        }
-        
-        // 2. Cek toggle setting huntbot
-        if (state.config?.settings?.huntbot?.enabled === false) {
-            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
+        // 2. Cek toggle setting huntbot. Config versi baru menyimpan HuntBot di root
+        // `huntbot`, tetapi sebagian config lama pernah memakai `settings.huntbot`.
+        if (state.config?.huntbot?.enabled === false || state.config?.settings?.huntbot?.enabled === false) {
+            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: huntbot OFF`);
             return true;
         }
         
@@ -229,8 +224,8 @@ if (huntbotState.autoMode) {
     },
 
     // ============== PROCESS PROGRESS (EMBED) ==============
-    processProgressEmbed(msg, embed, progressText) {
-        log.info(`${accountPrefix(state)}📊 HuntBot progress update (EMBED)`);
+    processProgressEmbed(msg, embed, progressText, source = 'EMBED') {
+        log.info(`${accountPrefix(state)}📊 HuntBot progress update (${source})`);
         
         const cleanText = removeInvisibleChars(progressText);
         log.info(`${accountPrefix(state)}🔍 Clean Progress: ${cleanText}`);
@@ -551,7 +546,6 @@ startMonitoring() {
 
 checkActiveHunt() {
     if (state.hasActiveCaptcha) return;
-    if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return;
     if (!huntbotState.activeHunt?.endTime) return;
         
         const now = Date.now();

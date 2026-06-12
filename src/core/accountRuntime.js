@@ -11,6 +11,7 @@ const createLoopManager = require('../managers/loop');
 const createEmergencyHandler = require('../managers/emergency');
 const createMessageHandler = require('../managers/message');
 const createHuntbotManager = require('../managers/huntbot');
+const createDailyResetManager = require('../managers/dailyReset');
 const createVoiceManager = require('../managers/voice');
 const createClientManager = require('./client');
 const captchaSolver = require('../services/captchaSolver');
@@ -65,10 +66,15 @@ const createRuntimeState = ({ config, sharedStats }) => ({
     foughtBosses: new Set(),
     bossCooldowns: new Map(),
     bossRespawnTimers: new Map(),
+    bossTicketCheckTimers: new Set(),
+    pendingBossTicketCheck: null,
     responseTimeout: null,
     hasActiveCaptcha: false,
     hasRunInitialReadyCommands: false,
     hasUsedFirstLoopStartupStagger: false,
+    isBusy: false,
+    nextAt: {},
+    startupJitterMs: Math.floor(Math.random() * 4500),
     captchaSolverAbortController: null,
     captchaSolveRunId: 0,
     stats: sharedStats,
@@ -157,6 +163,7 @@ const createHuntbotState = () => ({
     lastProgress: null,
     lastResponse: null,
     monitorInterval: null,
+    timeouts: new Set(),
     notifiedSoon: false
 });
 
@@ -166,6 +173,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     state.accountId = accountId;
     const configManager = createRuntimeConfigManager(state, filePath);
     const telegramService = createTelegramService(state);
+    const dailyResetManager = createDailyResetManager(state, telegramService);
     const macrodroidService = createMacrodroidService(state);
     const channelManager = createChannelManager(state, configManager);
     const loopManagerWrapper = {
@@ -268,6 +276,10 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         channelManager,
         loopManager,
         voiceManager,
+        dailyResetManager,
+        checkDailyReset() {
+            dailyResetManager.checkAndReset();
+        },
         getDisplayName() {
             return state.client?.user?.tag || accountId;
         },
@@ -277,11 +289,23 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             runtimeRunning = true;
             state.config.botStatus = { running: true, paused: false };
             if (statusChanged) configManager.save();
-            if (!state.client?.isReady()) {
-                if (!wasRuntimeRunning) log.info(`[account:${accountId}] 🚀 Menjalankan akun paralel: ${accountId}`);
-                if (!wasRuntimeRunning || !state.client) clientManager.initialize();
+
+            if (!state.client) {
+                log.info(`[account:${accountId}] 🚀 Menjalankan akun paralel: ${accountId}`);
+                clientManager.initialize();
                 startLoopsWhenReady();
-            } else if (!wasRuntimeRunning || !loopsActive) {
+                return;
+            }
+
+            if (!state.client.isReady()) {
+                if (!wasRuntimeRunning) {
+                    log.info(`[account:${accountId}] ▶️ Resume diminta; menunggu sesi Discord yang sudah ada siap tanpa login ulang.`);
+                }
+                startLoopsWhenReady();
+                return;
+            }
+
+            if (!wasRuntimeRunning || !loopsActive) {
                 if (!wasRuntimeRunning) log.info(`[account:${accountId}] ▶️ Melanjutkan loop akun paralel: ${accountId}`);
                 activateReadyRuntime(wasRuntimeRunning ? 'reconcile' : 'start');
             }
@@ -302,6 +326,12 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             this.pause();
             if (readyLoopWatcher) clearInterval(readyLoopWatcher);
             readyLoopWatcher = null;
+            if (huntbotManager && typeof huntbotManager.stop === 'function') {
+                huntbotManager.stop({ notify: false });
+            }
+            if (bossManager && typeof bossManager.stop === 'function') {
+                bossManager.stop();
+            }
             if (state.client) {
                 try { state.client.destroy(); } catch (error) { log.warn(`Gagal destroy client ${accountId}: ${error.message}`); }
                 state.client = null;

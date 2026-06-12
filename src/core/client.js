@@ -17,6 +17,10 @@ async function waitUntilCaptchaClear(state) {
 async function sendStartupCommand(state, channel, cmd) {
     await waitUntilCaptchaClear(state);
     if (!state.client?.isReady()) return false;
+    if (state.config.botStatus?.paused || !state.config.botStatus?.running) {
+        log.warn(`${accountPrefix(state)}⏸️ Startup command [${cmd}] dibatalkan: akun sedang pause/stop.`);
+        return false;
+    }
 
     await channel.send(cmd);
     log.info(`${accountPrefix(state)}🚀 [Startup Ready] Terkirim: ${cmd}`);
@@ -43,7 +47,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             // PENTING: Saat ganti akun/restart sesi, pastikan state autoMode HuntBot di-reset
             // agar tidak terkena guard clause (if (huntbotState.autoMode) return;)
             if (huntbotManager && typeof huntbotManager.stop === 'function') {
-                huntbotManager.stop(); // Sesuaikan dengan fungsi stop/reset di huntbotManager-mu
+                huntbotManager.stop({ notify: false }); // Sesuaikan dengan fungsi stop/reset di huntbotManager-mu
             }
         }
 

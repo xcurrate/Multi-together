@@ -5,10 +5,14 @@ const { randomInt } = require('../utils');
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 module.exports = (state, commandSender) => ({
 
-    // Pastikan storage ada
+    // Pastikan storage loop tersimpan di state runtime masing-masing akun.
     init() {
         state.nextAt = state.nextAt || {};
         state.loops = state.loops || {};
+        state.isBusy = !!state.isBusy;
+        if (typeof state.startupJitterMs !== 'number') {
+            state.startupJitterMs = randomInt(0, 4500);
+        }
     },
 
     // Helper: schedule + simpan next run time
@@ -155,14 +159,15 @@ module.exports = (state, commandSender) => ({
         const isFirstLoopStartup = !state.hasUsedFirstLoopStartupStagger;
         state.hasUsedFirstLoopStartupStagger = true;
 
-        let stagger = 0;
+        let stagger = isFirstLoopStartup ? (state.startupJitterMs || 0) : randomInt(0, 1200);
+        const accountJitter = stagger;
         const bump = () => {
             stagger += isFirstLoopStartup ? 5000 : randomInt(800, 1000);
             return stagger;
         };
 
         if (isFirstLoopStartup) {
-            log.info(`${accountPrefix(state)}⏳ First loop startup: command awal loop diantrikan per 5 detik.`);
+            log.info(`${accountPrefix(state)}⏳ First loop startup: command awal loop diantrikan per 5 detik + jitter akun ${accountJitter}ms.`);
         }
 
         const scheduleStartup = (key, fn) => {

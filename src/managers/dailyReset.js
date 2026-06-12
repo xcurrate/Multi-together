@@ -1,5 +1,6 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger'); // Akan selalu mencetak log dengan jam WIB
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 
 module.exports = (state, telegramService) => ({
     checkAndReset() {
@@ -23,7 +24,7 @@ module.exports = (state, telegramService) => ({
                 
                 // Konsol: Cukup kirim pesannya saja. 
                 // logger.js Anda akan otomatis mengubahnya menjadi: [15:00:00] [OK] ⏰ DAILY RESET...
-                log.success("⏰ DAILY RESET (Server Pasifik)! Bot siap berburu! ⚔️");
+                log.success(`${accountPrefix(state)}⏰ DAILY RESET (Server Pasifik)! Bot siap berburu! ⚔️`);
                 
                 // Telegram: Kita ambil waktu WIB manual khusus untuk pesan chat
                 const timeForTelegram = now.toLocaleString('id-ID', {

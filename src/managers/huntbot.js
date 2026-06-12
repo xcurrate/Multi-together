@@ -21,13 +21,16 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
         const myName = this.getMyName(msg);
         const myId = state.client.user.id;
+        const huntbotChannelId = state.config.tiketandhb.channelId;
+        const isHuntbotChannel = msg.channel.id === huntbotChannelId;
         
         // CEK EMBED (untuk progress update)
         if (msg.embeds && msg.embeds.length > 0) {
             for (const embed of msg.embeds) {
-                if (embed.author && embed.author.name && 
-                    embed.author.name.toLowerCase().includes(myName.toLowerCase())) {
-                    if (embed.author.name.toLowerCase().includes('huntbot')) {
+                if (embed.author && embed.author.name) {
+                    const embedAuthorName = embed.author.name.toLowerCase();
+                    const isOwnEmbed = embedAuthorName.includes(myName.toLowerCase()) || isHuntbotChannel;
+                    if (isOwnEmbed && embedAuthorName.includes('huntbot')) {
                         return this.processEmbedMessage(msg, embed, myName);
                     }
                 }
@@ -36,20 +39,14 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
         const isMentioned = content.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId);
         const containsMyName = content.toLowerCase().includes(myName.toLowerCase());
-        
-        // 🚀 FIX: Pengecualian khusus untuk pesan pulang (OwO tidak pakai nama di sini),
-        // tapi tetap harus punya activeHunt milik akun ini agar tidak mengambil return akun lain.
-        const huntbotChannelId = state.config.tiketandhb.channelId;
-        const activeHuntEnd = huntbotState.activeHunt?.endTime;
-        const isOwnReturnWindow = !!huntbotState.activeHunt &&
-            (!activeHuntEnd || Date.now() >= activeHuntEnd - 10 * 60 * 1000);
-        const isReturnMessage = msg.channel.id === huntbotChannelId &&
-            content.includes("BEEP BOOP. I AM BACK WITH") &&
-            isOwnReturnWindow;
+
+        // Setiap akun memakai channel HuntBot sendiri, jadi respons OwO di channel ini
+        // aman diproses walau teksnya tidak menyebut nama/mention akun.
+        const isReturnMessage = isHuntbotChannel && content.includes("BEEP BOOP. I AM BACK WITH");
 
 
         // CEK CONTENT 
-        if (containsMyName || isMentioned || isReturnMessage) {
+        if (containsMyName || isMentioned || isHuntbotChannel) {
             
             if (isReturnMessage) {
                 return this.processReturnMessage(msg, content);

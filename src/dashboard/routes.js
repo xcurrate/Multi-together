@@ -72,6 +72,16 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         return saved;
     };
 
+    const logoutAccount = (accountId = '') => {
+        const targetId = String(accountId || '');
+        if (!targetId) return false;
+        const manager = state?.multiAccountManager;
+        if (!manager || typeof manager.logoutAccount !== 'function') return false;
+        const loggedOut = manager.logoutAccount(targetId);
+        dashboardLog(loggedOut ? 'success' : 'warn', targetId, loggedOut ? '🚪 Logout diminta dari dashboard; client Discord dihancurkan.' : '⚠️ Logout gagal: runtime akun belum ditemukan.');
+        return loggedOut;
+    };
+
     const joinVoice = (accountId = '') => {
         const manager = state?.multiAccountManager;
         if (!manager) return false;
@@ -271,6 +281,10 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     setAccountStatus(accountId, action === 'start');
                     return res.send(uiComponents.getSavedResponse());
                 }
+                if (accountId && action === 'logout') {
+                    logoutAccount(accountId);
+                    return res.send(uiComponents.getSavedResponse());
+                }
             }
 
             const viewingProfileId = body.viewingProfileId ? String(body.viewingProfileId) : '';
@@ -281,6 +295,11 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
             if (viewingProfileId && (body.action === 'startProfile' || body.action === 'pauseProfile')) {
                 setAccountStatus(viewingProfileId, body.action === 'startProfile');
+                return res.send(uiComponents.getSavedResponse());
+            }
+
+            if (viewingProfileId && body.action === 'logoutProfile') {
+                logoutAccount(viewingProfileId);
                 return res.send(uiComponents.getSavedResponse());
             }
 

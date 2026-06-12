@@ -5,6 +5,16 @@ const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../ut
 
 const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
 const isRuntimeActive = (state) => !state.hasActiveCaptcha && (isStartupRoutineActive(state) || (!!state.config?.botStatus?.running && !state.config?.botStatus?.paused));
+const RETURN_TIME_PATTERN = /I WILL BE BACK IN\s+([\d\sDHM]+)/i;
+const SHORT_RETURN_TIME_PATTERN = /BACK IN\s+([\d\sDHM]+)/i;
+
+const collectEmbedText = (embed = {}) => [
+    embed.title,
+    embed.description,
+    embed.author?.name,
+    embed.footer?.text,
+    ...(embed.fields || []).flatMap(field => [field.name, field.value])
+].filter(Boolean).join('\n');
 
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({
 
@@ -13,7 +23,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         if (state.hasActiveCaptcha) return false;
         if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return false;
 
-        const content = msg.content || "";
+        const content = removeInvisibleChars(msg.content || "");
         const author = msg.author.id;
         
         // Only process OwO messages
@@ -24,15 +34,20 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         const huntbotChannelId = state.config.tiketandhb.channelId;
         const isHuntbotChannel = msg.channel.id === huntbotChannelId;
         
-        // CEK EMBED (untuk progress update)
+        // CEK EMBED (untuk progress update / hasil command whb yang sering tidak masuk content biasa)
         if (msg.embeds && msg.embeds.length > 0) {
             for (const embed of msg.embeds) {
-                if (embed.author && embed.author.name) {
-                    const embedAuthorName = embed.author.name.toLowerCase();
-                    const isOwnEmbed = embedAuthorName.includes(myName.toLowerCase()) || isHuntbotChannel;
-                    if (isOwnEmbed && embedAuthorName.includes('huntbot')) {
-                        return this.processEmbedMessage(msg, embed, myName);
-                    }
+                const embedText = removeInvisibleChars(collectEmbedText(embed));
+                const embedAuthorName = String(embed.author?.name || '').toLowerCase();
+                const mentionsThisAccount = embedText.toLowerCase().includes(myName.toLowerCase()) || embedText.includes(`<@${myId}>`);
+                const isOwnEmbed = mentionsThisAccount || isHuntbotChannel;
+
+                if (isOwnEmbed && RETURN_TIME_PATTERN.test(embedText)) {
+                    return this.processHuntStartedMessage(msg, embedText);
+                }
+
+                if (isOwnEmbed && (embedAuthorName.includes('huntbot') || /huntbot|beep boop|back in/i.test(embedText))) {
+                    return this.processEmbedMessage(msg, embed, myName);
                 }
             }
         }
@@ -68,7 +83,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
                 return this.processPasswordMessage(msg);
             }
             
-            if (content.includes("YOU SPENT") && content.includes("I WILL BE BACK IN")) {
+            if (/YOU SPENT/i.test(content) && RETURN_TIME_PATTERN.test(content)) {
                 return this.processHuntStartedMessage(msg, content);
             }
         }
@@ -115,10 +130,15 @@ isPaused() {
     // 7. HUNT BERJALAN (EMBED)
     processEmbedMessage(msg, embed, myName) {
         log.info(`${accountPrefix(state)}📊 HuntBot embed detected`);
-        
+
+        const embedText = removeInvisibleChars(collectEmbedText(embed));
+        if (/BEEP BOOP|BACK IN|I WILL BE BACK IN/i.test(embedText)) {
+            return this.processProgressEmbed(msg, embed, embedText);
+        }
+
         if (embed.fields && embed.fields.length > 0) {
             for (const field of embed.fields) {
-                if (field.value && field.value.includes('BEEP BOOP')) {
+                if (field.value && /BEEP BOOP|BACK IN|I WILL BE BACK IN/i.test(field.value)) {
                     return this.processProgressEmbed(msg, embed, field.value);
                 }
             }
@@ -217,7 +237,7 @@ if (huntbotState.autoMode) {
         
         let returnTime = null;
         
-        const backInMatch = cleanText.match(/BACK IN ([\d\sHM]+)/i);
+        const backInMatch = cleanText.match(SHORT_RETURN_TIME_PATTERN);
         if (backInMatch) {
             returnTime = backInMatch[1].trim();
         }
@@ -345,12 +365,12 @@ if (huntbotState.autoMode) {
         
         const cleanContent = removeInvisibleChars(content);
         const spentMatch = cleanContent.match(/YOU SPENT ([\d,]+) COWONCY/i);
-        const returnTimeMatch = cleanContent.match(/I WILL BE BACK IN ([\d\sHM]+)/i);
+        const returnTimeMatch = cleanContent.match(RETURN_TIME_PATTERN);
         
         const spent = spentMatch ? parseInt(spentMatch[1].replace(/,/g, '')) : 0;
         const returnTime = returnTimeMatch ? returnTimeMatch[1].trim() : "unknown";
         
-        log.info(`${accountPrefix(state)}🔍 Hunt will return in: ${returnTime}`);
+        log.info(`${accountPrefix(state)}⏳ I WILL BE BACK IN ${returnTime}`);
         
         huntbotState.activeHunt = {
             startTime: Date.now(),

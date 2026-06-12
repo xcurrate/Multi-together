@@ -72,6 +72,23 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         return saved;
     };
 
+    const joinVoice = (accountId = '') => {
+        const manager = state?.multiAccountManager;
+        if (!manager) return false;
+
+        if (accountId) {
+            if (typeof manager.reconcile === 'function') manager.reconcile();
+            const joined = typeof manager.joinVoiceAccount === 'function' && manager.joinVoiceAccount(accountId);
+            dashboardLog(joined ? 'success' : 'warn', accountId, joined ? '🔊 Join Voice diminta dari dashboard.' : '⚠️ Join Voice gagal: akun belum ready atau VC belum valid.');
+            return joined;
+        }
+
+        if (typeof manager.reconcile === 'function') manager.reconcile();
+        const joinedCount = typeof manager.joinVoiceAll === 'function' ? manager.joinVoiceAll() : 0;
+        dashboardLog(joinedCount > 0 ? 'success' : 'warn', '', joinedCount > 0 ? `🔊 Join Voice dikirim ke ${joinedCount} akun ready.` : '⚠️ Tidak ada akun ready untuk Join Voice.');
+        return joinedCount > 0;
+    };
+
     const setAllAccountStatuses = (shouldRun) => {
         const mainConfig = configManager.ensureShape(configManager.get());
         const ids = new Set(profileManager.getSavedProfiles());
@@ -264,6 +281,20 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
             if (viewingProfileId && (body.action === 'startProfile' || body.action === 'pauseProfile')) {
                 setAccountStatus(viewingProfileId, body.action === 'startProfile');
+                return res.send(uiComponents.getSavedResponse());
+            }
+
+            if (body.action === 'joinVoice') {
+                const targetId = viewingProfileId;
+                const target = targetId ? getProfileConfigByAccountId(targetId) : null;
+                let config = target ? target.config : configManager.ensureShape(configManager.get());
+                config = configManager.applySave(config, body);
+                const saved = target ? saveAccountConfig(target, config) : configManager.save(config);
+                if (saved && !target) {
+                    const activeId = profileManager.getUserId(config.token);
+                    if (activeId !== 'default') fileService.writeJson(profileManager.getProfilePath(activeId), config);
+                }
+                if (saved) joinVoice(targetId);
                 return res.send(uiComponents.getSavedResponse());
             }
 

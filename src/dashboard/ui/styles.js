@@ -86,6 +86,7 @@ function getStyles() {
             .btn-connect { background: var(--accent-solid); color: white; flex: 1; }
             .btn-start { background: #208a5d; color: white; flex: 1; }
             .btn-pause { background: #b93838; color: white; flex: 1; }
+            .btn-voice { background: #7c3aed; color: white; flex: 1; }
             .btn-secondary { background: var(--panel-soft); color: var(--text); border-color: var(--border); }
             .action-group { display: flex; gap: 10px; margin-bottom: 16px; }
             .divider { border-top: 1px solid var(--border); margin: 16px 0; }
@@ -101,8 +102,8 @@ function getStyles() {
             .recent-list { display: grid; gap: 8px; margin-top: 10px; }
             .recent-item { display: grid; grid-template-columns: 92px 90px 1fr; gap: 10px; align-items: center; background: var(--panel-soft); border: 1px solid var(--border); border-radius: 12px; padding: 9px 10px; color: var(--text); font-size: 12px; }
             .recent-muted { color: var(--muted); }
-            .log-box { background: #0a0f16; color: #d0d5dd; border: 1px solid var(--border); border-radius: 14px; padding: 0; font-family: var(--mono); font-size: 12px; line-height: 1.45; overflow: auto; height: 320px; min-height: 320px; max-height: 58vh; resize: vertical; }
-            .log-line { display: grid; grid-template-columns: 78px 88px 1fr; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #182231; white-space: pre-wrap; word-break: break-word; border-left: 3px solid transparent; }
+            .log-box { background: #0a0f16; color: #d0d5dd; border: 1px solid var(--border); border-radius: 14px; padding: 0; font-family: var(--mono); font-size: 12px; line-height: 1.45; overflow: auto; height: 320px; min-height: 320px; max-height: 58vh; resize: vertical; user-select: text; -webkit-user-select: text; }
+            .log-line { display: grid; grid-template-columns: 78px 88px 1fr; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #182231; white-space: pre-wrap; word-break: break-word; border-left: 3px solid transparent; user-select: text; -webkit-user-select: text; }
             .log-line:last-child { border-bottom: none; }
             .log-line:nth-child(even) { background: rgba(255,255,255,0.018); }
             .log-time { color: #98a2b3; }

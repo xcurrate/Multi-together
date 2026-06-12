@@ -322,7 +322,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             if (statusChanged) configManager.save();
 
             if (!state.client) {
-                log.info(`${accountPrefix(state)}🚀 Menjalankan akun paralel: ${accountId}`);
+                log.info(`${accountPrefix(state)}🚀 Menjalankan akun paralel.`);
                 clientManager.initialize();
                 startLoopsWhenReady();
                 return;
@@ -337,9 +337,17 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             }
 
             if (!wasRuntimeRunning || !loopsActive) {
-                if (!wasRuntimeRunning) log.info(`${accountPrefix(state)}▶️ Melanjutkan loop akun paralel: ${accountId}`);
+                if (!wasRuntimeRunning) log.info(`${accountPrefix(state)}▶️ Melanjutkan loop akun paralel.`);
                 activateReadyRuntime(wasRuntimeRunning ? 'reconcile' : 'start');
             }
+        },
+        joinVoice(source = 'dashboard-button') {
+            if (!state.client?.isReady()) {
+                log.warn(`${accountPrefix(state)}⚠️ Client belum ready, tombol Join Voice dibatalkan.`);
+                return false;
+            }
+            voiceManager.joinConfigured(source).catch(err => log.error(`${accountPrefix(state)}❌ Join VC dari dashboard gagal: ${err.message}`));
+            return true;
         },
         pause() {
             const wasRuntimeRunning = runtimeRunning;
@@ -348,7 +356,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             state.config.botStatus = { running: false, paused: true };
             if (statusChanged) configManager.save();
             if (!wasRuntimeRunning && !loopsActive) return;
-            if (wasRuntimeRunning) log.info(`${accountPrefix(state)}⏸ Menjeda akun paralel: ${accountId}`);
+            if (wasRuntimeRunning) log.info(`${accountPrefix(state)}⏸ Menjeda akun paralel.`);
             loopManager.stopAll();
             loopsActive = false;
             channelManager.stopRotation();
@@ -364,7 +372,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
                 bossManager.stop();
             }
             if (state.client) {
-                try { state.client.destroy(); } catch (error) { log.warn(`${accountPrefix(state)}Gagal destroy client ${accountId}: ${error.message}`); }
+                try { state.client.destroy(); } catch (error) { log.warn(`${accountPrefix(state)}Gagal destroy client: ${error.message}`); }
                 state.client = null;
             }
         },

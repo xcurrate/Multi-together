@@ -85,26 +85,29 @@ isPaused() {
     return !!state.config?.botStatus?.paused;
 },
 
-shouldAbort(actionName = "") {
-    // 1. Cek langsung status CAPTCHA spesifik
-    if (state.hasActiveCaptcha) { 
-        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
-        return true;
-    }
+    shouldAbort(actionName = "", options = {}) {
+        // 1. Cek langsung status CAPTCHA spesifik
+        if (state.hasActiveCaptcha) { 
+            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
+            return true;
+        }
 
-    if ((state.config?.botStatus?.paused || !state.config?.botStatus?.running) && !state.isStartupReadyRoutine) {
-        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
-        return true;
-    }
-    
-    // 2. Cek toggle setting huntbot
-    if (state.config?.settings?.huntbot?.enabled === false) {
-        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
-        return true;
-    }
-    
-    return false;
-},
+        const isPausedOrStopped = state.config?.botStatus?.paused || !state.config?.botStatus?.running;
+        const canBypassPause = options.allowPaused === true || state.isStartupReadyRoutine === true;
+        if (isPausedOrStopped && !canBypassPause) {
+            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
+            return true;
+        }
+        
+        // 2. Cek toggle setting huntbot
+        if (state.config?.settings?.huntbot?.enabled === false) {
+            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
+            return true;
+        }
+        
+        return false;
+    },
+
 
 
 
@@ -393,7 +396,10 @@ if (huntbotState.autoMode) {
         if (isAutoModeOn) {
             log.info("🤖 HuntBot Auto-start detected in config.");
             huntbotState.autoMode = false; // Reset sementara agar startAutoMode bisa me-restart statusnya
-            this.startAutoMode({ skipInitialCheck: options.skipInitialCheck });
+            this.startAutoMode({
+                skipInitialCheck: options.skipInitialCheck,
+                allowPaused: options.skipInitialCheck === true
+            });
         } else {
             log.warn("⚠️ Auto Mode terdeteksi OFF di config.json");
         }
@@ -467,11 +473,13 @@ async checkStatus() {
     },
 
     // ============== AUTO MODE & MONITORING ==============
+        // ============== AUTO MODE & MONITORING ==============
     startAutoMode(options = {}) {
-        if (this.shouldAbort('startAutoMode')) return;
+        if (this.shouldAbort('startAutoMode', { allowPaused: options.allowPaused === true })) return;
+        
         if (huntbotState.autoMode) return;
         huntbotState.autoMode = true;
-        log.success(`${accountPrefix(state)}🤖 HuntBot Auto Mode ACTIVE`);
+        log.success("🤖 HuntBot Auto Mode ACTIVE");
         telegramService.send("🤖 <b>HuntBot Auto Mode</b>\nStarting auto loop...");
         
         this.startMonitoring();
@@ -481,6 +489,7 @@ async checkStatus() {
             log.info("🤖 Initial HuntBot check dilewati karena startup ready sequence yang mengirim whb.");
         }
     },
+
 
     stopAutoMode(options = {}) {
         huntbotState.autoMode = false;

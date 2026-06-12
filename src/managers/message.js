@@ -9,6 +9,10 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
 
         await this.handleControlCommands(msg);
 
+        if (bossManager && typeof bossManager.trackManualTicketCommand === 'function') {
+            bossManager.trackManualTicketCommand(msg);
+        }
+
         // ✅ FITUR BARU: Deteksi SEMUA pesan dari admin/orang lain di channel aktif
         await this.handleUserMessages(msg);
 

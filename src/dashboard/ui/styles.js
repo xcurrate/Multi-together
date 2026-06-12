@@ -43,7 +43,6 @@ function getStyles() {
             .account-chip-id { color: var(--muted); font-size: 10px; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
             .account-chip-status { font-size: 10px; letter-spacing: 0.04em; }
             .account-chip-action { width: 30px; min-width: 30px; padding: 0 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-soft); color: var(--text); font-weight: 900; cursor: pointer; }
-            .account-chip-action.connect { color: var(--accent); border-color: #4d5fc0; }
             .account-chip-action.start { color: var(--green); border-color: #2e7a52; }
             .account-chip-action.pause { color: var(--red); border-color: #7a363c; }
             .account-chip-action:hover { border-color: var(--accent); background: var(--blue-soft); }
@@ -83,7 +82,6 @@ function getStyles() {
             .toggle-row:last-child { border-bottom: none; }
             .btn { width: 100%; padding: 14px; border: 1px solid transparent; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 14px; letter-spacing: 0.01em; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
             .btn-save { background: var(--accent-solid); color: white; }
-            .btn-connect { background: var(--accent-solid); color: white; flex: 1; }
             .btn-start { background: #208a5d; color: white; flex: 1; }
             .btn-pause { background: #b93838; color: white; flex: 1; }
             .btn-secondary { background: var(--panel-soft); color: var(--text); border-color: var(--border); }

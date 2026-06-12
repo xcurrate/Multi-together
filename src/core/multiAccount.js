@@ -146,6 +146,14 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
             return runtimes;
         },
         getRuntime,
+        connectAccount(accountId) {
+            reconcile();
+            const runtime = getRuntime(accountId);
+            if (!runtime) return false;
+            runtime.connect();
+            syncDashboardState();
+            return true;
+        },
         startAccount(accountId) {
             const runtime = getRuntime(accountId);
             if (!runtime) return false;

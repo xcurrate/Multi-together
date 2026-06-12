@@ -49,6 +49,20 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         return saved;
     };
 
+
+    const connectAccount = (accountId) => {
+        const target = getProfileConfigByAccountId(accountId);
+        if (!target) return false;
+        target.config.botStatus = { running: false, paused: true };
+        const saved = saveAccountConfig(target, target.config);
+        const manager = state?.multiAccountManager;
+        if (manager) {
+            if (typeof manager.connectAccount === 'function') return manager.connectAccount(accountId) && saved;
+            if (typeof manager.reconcile === 'function') manager.reconcile();
+        }
+        return saved;
+    };
+
     const setAllAccountStatuses = (shouldRun) => {
         const mainConfig = configManager.ensureShape(configManager.get());
         const ids = new Set(profileManager.getSavedProfiles());
@@ -125,6 +139,13 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         } catch {
             res.status(500).json({ lines: [] });
         }
+    });
+
+    router.post('/account/:accountId/connect', (req, res) => {
+        const accountId = String(req.params.accountId || '');
+        const connected = connectAccount(accountId);
+        if (!connected) return res.status(404).send('Account not found');
+        res.redirect(req.get('referer') || `/?profileId=${encodeURIComponent(accountId)}`);
     });
 
     router.post('/account/:accountId/start', (req, res) => {
@@ -215,6 +236,10 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
             if (body.profileAction) {
                 const [action, accountId] = String(body.profileAction).split(':');
+                if (accountId && action === 'connect') {
+                    connectAccount(accountId);
+                    return res.send(uiComponents.getSavedResponse());
+                }
                 if (accountId && (action === 'start' || action === 'pause')) {
                     setAccountStatus(accountId, action === 'start');
                     return res.send(uiComponents.getSavedResponse());
@@ -222,6 +247,11 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
             }
 
             const viewingProfileId = body.viewingProfileId ? String(body.viewingProfileId) : '';
+            if (viewingProfileId && body.action === 'connectProfile') {
+                connectAccount(viewingProfileId);
+                return res.send(uiComponents.getSavedResponse());
+            }
+
             if (viewingProfileId && (body.action === 'startProfile' || body.action === 'pauseProfile')) {
                 setAccountStatus(viewingProfileId, body.action === 'startProfile');
                 return res.send(uiComponents.getSavedResponse());

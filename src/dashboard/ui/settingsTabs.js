@@ -15,13 +15,12 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                                 <span class="account-chip-id">${escapeHtml(profile.id)}</span>
                                                 <span class="account-chip-status">${profile.running ? '● START' : '● PAUSE'}</span>
                                             </a>
-                                            <button type="submit" name="profileAction" value="connect:${escapeHtml(profile.id)}" class="account-chip-action connect" title="Connect/Login akun ${escapeHtml(profile.id)} tanpa start loop">🔌</button>
-                                            <button type="submit" name="profileAction" value="start:${escapeHtml(profile.id)}" class="account-chip-action start" title="Start/Resume commands akun ${escapeHtml(profile.id)}">▶</button>
-                                            <button type="submit" name="profileAction" value="pause:${escapeHtml(profile.id)}" class="account-chip-action pause" title="Pause commands akun ${escapeHtml(profile.id)}">⏸</button>
+                                            <button type="submit" name="profileAction" value="start:${escapeHtml(profile.id)}" class="account-chip-action start" title="Start akun ${escapeHtml(profile.id)}">▶</button>
+                                            <button type="submit" name="profileAction" value="pause:${escapeHtml(profile.id)}" class="account-chip-action pause" title="Pause akun ${escapeHtml(profile.id)}">⏸</button>
                                         </span>
                                     `).join('') : '<div class="input-hint">Belum ada profil tersimpan. Tambahkan token akun baru di bawah.</div>'}
                                 </div>
-                                <div class="input-hint">Bot sekarang menjalankan maksimal 4 akun tersimpan secara bersamaan. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
+                                <div class="input-hint">Bot sekarang menjalankan maksimal 4 akun tersimpan secara bersamaan. Klik tombol username untuk melihat statistik/pengaturan akun tanpa menghentikan akun lain.</div>
                                 <label>Slot akun paralel (1-4)</label>
                                 <input type="number" name="maxAccounts" min="1" max="4" value="${config.multiAccount?.maxAccounts || 4}">
                                 <input type="hidden" name="selectedProfile" id="selectedProfile" value="">

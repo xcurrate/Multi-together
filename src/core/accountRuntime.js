@@ -71,7 +71,6 @@ const createRuntimeState = ({ config, sharedStats }) => ({
     responseTimeout: null,
     hasActiveCaptcha: false,
     hasRunInitialReadyCommands: false,
-    allowStartupCommands: false,
     hasUsedFirstLoopStartupStagger: false,
     isBusy: false,
     nextAt: {},
@@ -284,38 +283,6 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         getDisplayName() {
             return state.client?.user?.tag || accountId;
         },
-        connect() {
-            const statusChanged = !!state.config.botStatus?.running || !state.config.botStatus?.paused;
-            runtimeRunning = false;
-            state.config.botStatus = { running: false, paused: true };
-            state.allowStartupCommands = false;
-            if (statusChanged) configManager.save();
-            if (readyLoopWatcher) {
-                clearInterval(readyLoopWatcher);
-                readyLoopWatcher = null;
-            }
-            loopManager.stopAll();
-            loopsActive = false;
-            channelManager.stopRotation();
-
-            if (!state.client) {
-                state.allowStartupCommands = true;
-                log.info(`[account:${accountId}] 🔌 Connect/Login akun tanpa start loop.`);
-                clientManager.initialize();
-                return true;
-            }
-
-            if (!state.client.isReady()) {
-                state.allowStartupCommands = true;
-                log.info(`[account:${accountId}] 🔌 Client sudah ada, menunggu ready tanpa start loop.`);
-                return true;
-            }
-
-            state.allowStartupCommands = false;
-            log.info(`[account:${accountId}] ✅ Client sudah ready, tetap paused; loop tidak dijalankan.`);
-            channelManager.updateActive();
-            return true;
-        },
         start() {
             const wasRuntimeRunning = runtimeRunning;
             const statusChanged = !state.config.botStatus?.running || !!state.config.botStatus?.paused;
@@ -324,7 +291,6 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             if (statusChanged) configManager.save();
 
             if (!state.client) {
-                state.allowStartupCommands = true;
                 log.info(`[account:${accountId}] 🚀 Menjalankan akun paralel: ${accountId}`);
                 clientManager.initialize();
                 startLoopsWhenReady();
@@ -332,7 +298,6 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             }
 
             if (!state.client.isReady()) {
-                state.allowStartupCommands = true;
                 if (!wasRuntimeRunning) {
                     log.info(`[account:${accountId}] ▶️ Resume diminta; menunggu sesi Discord yang sudah ada siap tanpa login ulang.`);
                 }
@@ -340,7 +305,6 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
                 return;
             }
 
-            state.allowStartupCommands = false;
             if (!wasRuntimeRunning || !loopsActive) {
                 if (!wasRuntimeRunning) log.info(`[account:${accountId}] ▶️ Melanjutkan loop akun paralel: ${accountId}`);
                 activateReadyRuntime(wasRuntimeRunning ? 'reconcile' : 'start');
@@ -353,7 +317,6 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             state.config.botStatus = { running: false, paused: true };
             if (statusChanged) configManager.save();
             if (!wasRuntimeRunning && !loopsActive) return;
-            state.allowStartupCommands = false;
             if (wasRuntimeRunning) log.info(`[account:${accountId}] ⏸ Menjeda akun paralel: ${accountId}`);
             loopManager.stopAll();
             loopsActive = false;

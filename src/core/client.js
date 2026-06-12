@@ -22,14 +22,6 @@ async function sendStartupCommand(state, channel, cmd) {
         return false;
     }
 
-    const canSendStartup = state.allowStartupCommands === true || (
-        state.config.botStatus?.running === true && state.config.botStatus?.paused !== true
-    );
-    if (!canSendStartup) {
-        log.info(`${accountPrefix(state)}⏸️ Startup command dilewati karena akun masih paused dan tidak dalam mode connect/prepare: ${cmd}`);
-        return false;
-    }
-
     await channel.send(cmd);
     log.info(`${accountPrefix(state)}🚀 [Startup Ready] Terkirim: ${cmd}`);
 
@@ -72,7 +64,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             statsService.syncBotUptime(state);
             configManager.save();
 
-            if (voiceManager && state.config.botStatus?.running === true && state.config.botStatus?.paused !== true) {
+            if (voiceManager) {
                 voiceManager.joinConfigured('restart').catch(err => log.error(`${accountPrefix(state)}❌ Auto Join VC gagal: ${err.message}`));
             }
 
@@ -111,8 +103,6 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
                     log.info(`${accountPrefix(state)}✅ Routine startup command selesai dieksekusi.`);
                 } catch (err) {
                     log.error(`${accountPrefix(state)}❌ Gagal mengirim command: ${err.message}`);
-                } finally {
-                    state.allowStartupCommands = false;
                 }
             }, 2000);
 

@@ -1,9 +1,13 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
-const { deepCopy, safeJsonStringify, removeInvisibleChars } = require('../utils');
+const { deepCopy, safeJsonStringify, removeInvisibleChars, accountPrefix } = require('../utils');
 
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
-const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
+const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
+const isRuntimeActive = (state, options = {}) => {
+    if (state.hasActiveCaptcha) return false;
+    if (state.config?.botStatus?.running && !state.config?.botStatus?.paused) return true;
+    return options.allowStartup === true && isStartupRoutineActive(state);
+};
 
 function getNextResetInfo() {
     const now = new Date();
@@ -46,7 +50,7 @@ function getNextResetInfo() {
 
 module.exports = (state, configManager, telegramService) => ({
     canFight(msg) {
-        if (!isRuntimeActive(state)) return false;
+        if (!isRuntimeActive(state, { allowStartup: true })) return false;
         if (state.stopBossHunt) return false;
 
         const { allowedGuilds } = configManager.getBossSettings();
@@ -176,10 +180,9 @@ async handleBossAppear(msg, rawComponents) {
 
 async checkTickets(client) {
 
-    // 🛑 Skenario baru: 
-    // Jika sedang terkena captcha, maka BERHENTI (return).
-    // Jika tidak ada captcha, proses akan LANJUT terus (walaupun bot sedang dipause).
-    if (!isRuntimeActive(state)) return;
+    // Startup ready flow tetap boleh cek tiket walaupun akun pause/stop,
+    // tetapi semua pengecekan tetap berhenti saat CAPTCHA aktif.
+    if (!isRuntimeActive(state, { allowStartup: true })) return;
 
     try {
         const ticketChannelId = state.config.tiketandhb.channelId;
@@ -209,7 +212,7 @@ async checkTickets(client) {
             fullContent += ' ' + safeJsonStringify(msg.components);
         }
 
-        if (!isRuntimeActive(state)) return false;
+        if (!isRuntimeActive(state, { allowStartup: true })) return false;
 
         const cleanText = removeInvisibleChars(fullContent).toLowerCase();
 

@@ -17,7 +17,7 @@ const createClientManager = require('./client');
 const captchaSolver = require('../services/captchaSolver');
 const log = require('../../logger');
 const CONSTANTS = require('../constants');
-const { safeJsonStringify } = require('../utils');
+const { accountPrefix, safeJsonStringify } = require('../utils');
 
 const getAccountIdFromToken = (token) => {
     if (!token || typeof token !== 'string') return 'default';
@@ -70,8 +70,10 @@ const createRuntimeState = ({ config, sharedStats }) => ({
     pendingBossTicketCheck: null,
     responseTimeout: null,
     hasActiveCaptcha: false,
+    accountUsername: '',
     hasRunInitialReadyCommands: false,
     isStartupReadyRoutine: false,
+    startupReadyRoutineUntil: 0,
     hasUsedFirstLoopStartupStagger: false,
     isBusy: false,
     nextAt: {},
@@ -236,7 +238,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
 
     const joinConfiguredVoice = (source) => {
         if (!state.client?.isReady()) return;
-        voiceManager.joinConfigured(source).catch(err => log.error(`[account:${accountId}] ❌ Auto Join VC gagal: ${err.message}`));
+        voiceManager.joinConfigured(source).catch(err => log.error(`${accountPrefix(state)}❌ Auto Join VC gagal: ${err.message}`));
     };
 
     const activateReadyRuntime = (source = 'start') => {
@@ -298,17 +300,17 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             channelManager.stopRotation();
 
             if (!state.client) {
-                log.info(`[account:${accountId}] 🔌 Connect/Login akun tanpa start loop.`);
+                log.info(`${accountPrefix(state)}🔌 Connect/Login akun tanpa start loop.`);
                 clientManager.initialize();
                 return true;
             }
 
             if (!state.client.isReady()) {
-                log.info(`[account:${accountId}] 🔌 Client sudah ada, menunggu ready tanpa start loop.`);
+                log.info(`${accountPrefix(state)}🔌 Client sudah ada, menunggu ready tanpa start loop.`);
                 return true;
             }
 
-            log.info(`[account:${accountId}] ✅ Client sudah ready, tetap paused; loop tidak dijalankan.`);
+            log.info(`${accountPrefix(state)}✅ Client sudah ready, tetap paused; loop tidak dijalankan.`);
             channelManager.updateActive();
             return true;
         },
@@ -320,7 +322,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             if (statusChanged) configManager.save();
 
             if (!state.client) {
-                log.info(`[account:${accountId}] 🚀 Menjalankan akun paralel: ${accountId}`);
+                log.info(`${accountPrefix(state)}🚀 Menjalankan akun paralel: ${accountId}`);
                 clientManager.initialize();
                 startLoopsWhenReady();
                 return;
@@ -328,14 +330,14 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
 
             if (!state.client.isReady()) {
                 if (!wasRuntimeRunning) {
-                    log.info(`[account:${accountId}] ▶️ Resume diminta; menunggu sesi Discord yang sudah ada siap tanpa login ulang.`);
+                    log.info(`${accountPrefix(state)}▶️ Resume diminta; menunggu sesi Discord yang sudah ada siap tanpa login ulang.`);
                 }
                 startLoopsWhenReady();
                 return;
             }
 
             if (!wasRuntimeRunning || !loopsActive) {
-                if (!wasRuntimeRunning) log.info(`[account:${accountId}] ▶️ Melanjutkan loop akun paralel: ${accountId}`);
+                if (!wasRuntimeRunning) log.info(`${accountPrefix(state)}▶️ Melanjutkan loop akun paralel: ${accountId}`);
                 activateReadyRuntime(wasRuntimeRunning ? 'reconcile' : 'start');
             }
         },
@@ -346,7 +348,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             state.config.botStatus = { running: false, paused: true };
             if (statusChanged) configManager.save();
             if (!wasRuntimeRunning && !loopsActive) return;
-            if (wasRuntimeRunning) log.info(`[account:${accountId}] ⏸ Menjeda akun paralel: ${accountId}`);
+            if (wasRuntimeRunning) log.info(`${accountPrefix(state)}⏸ Menjeda akun paralel: ${accountId}`);
             loopManager.stopAll();
             loopsActive = false;
             channelManager.stopRotation();
@@ -384,15 +386,15 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             const loopConfigChanged = oldLoopSignature !== getLoopConfigSignature(state.config);
 
             if (tokenChanged) {
-                log.warn(`[account:${accountId}] Token berubah, runtime akan dibuat ulang.`);
+                log.warn(`${accountPrefix(state)}Token berubah, runtime akan dibuat ulang.`);
                 this.destroy();
                 return;
             }
 
-            if (statusChanged) log.info(`[account:${accountId}] 🔁 Status config berubah: running=${!!state.config.botStatus?.running}, paused=${!!state.config.botStatus?.paused}`);
-            if (channelsChanged) log.info(`[account:${accountId}] 📡 Config channel berubah (${(state.config.channels || []).length} channel).`);
-            if (voiceChanged) log.info(`[account:${accountId}] 🔊 Config voice berubah: enabled=${state.config.settings?.voice?.enabled === true}, channel=${state.config.settings?.voice?.channelId || '-'}`);
-            if (loopConfigChanged && !channelsChanged) log.info(`[account:${accountId}] ⚙️ Config loop/delay berubah.`);
+            if (statusChanged) log.info(`${accountPrefix(state)}🔁 Status config berubah: running=${!!state.config.botStatus?.running}, paused=${!!state.config.botStatus?.paused}`);
+            if (channelsChanged) log.info(`${accountPrefix(state)}📡 Config channel berubah (${(state.config.channels || []).length} channel).`);
+            if (voiceChanged) log.info(`${accountPrefix(state)}🔊 Config voice berubah: enabled=${state.config.settings?.voice?.enabled === true}, channel=${state.config.settings?.voice?.channelId || '-'}`);
+            if (loopConfigChanged && !channelsChanged) log.info(`${accountPrefix(state)}⚙️ Config loop/delay berubah.`);
 
             if (!runtimeRunning || !state.client?.isReady()) return;
 

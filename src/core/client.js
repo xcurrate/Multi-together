@@ -1,11 +1,27 @@
-
 const { Client } = require('discord.js-selfbot-v13');
 const log = require('../../logger');
+const { accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const STARTUP_RESPONSE_WINDOW_MS = 120000;
 
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+function extendStartupResponseWindow(state) {
+    state.startupReadyRoutineUntil = Math.max(
+        state.startupReadyRoutineUntil || 0,
+        Date.now() + STARTUP_RESPONSE_WINDOW_MS
+    );
+}
+
+function markPendingBossTicketCheck(state, channel, cmd) {
+    if (!/^\s*wboss\s+t(?:icket)?\s*$/i.test(cmd)) return;
+
+    state.lastTicketCheck = Date.now();
+    state.pendingBossTicketCheck = {
+        channelId: channel.id,
+        requestedAt: state.lastTicketCheck
+    };
+}
 
 async function waitUntilCaptchaClear(state) {
     while (state.hasActiveCaptcha) {
@@ -17,23 +33,25 @@ async function waitUntilCaptchaClear(state) {
 async function sendStartupCommand(state, channel, cmd) {
     await waitUntilCaptchaClear(state);
     if (!state.client?.isReady()) return false;
-    if (state.config.botStatus?.paused || !state.config.botStatus?.running) {
-        log.warn(`${accountPrefix(state)}⏸️ Startup command [${cmd}] dibatalkan: akun sedang pause/stop.`);
-        return false;
-    }
 
-    const wasBypassingPause = state.isStartupReadyRoutine === true;
+    const wasStartupReadyRoutine = state.isStartupReadyRoutine === true;
+    const isPausedOrStopped = state.config.botStatus?.paused || !state.config.botStatus?.running;
     state.isStartupReadyRoutine = true;
-    if (state.config.botStatus?.paused || !state.config.botStatus?.running) {
-        log.info(`${accountPrefix(state)}🚀 Startup command [${cmd}] bypass pause/stop.`);
+
+    if (isPausedOrStopped) {
+        log.info(`${accountPrefix(state)}🚀 Startup command [${cmd}] tetap dikirim walau akun pause/stop.`);
     }
 
     try {
+        extendStartupResponseWindow(state);
+        markPendingBossTicketCheck(state, channel, cmd);
         await channel.send(cmd);
     } finally {
-        state.isStartupReadyRoutine = wasBypassingPause;
+        state.isStartupReadyRoutine = wasStartupReadyRoutine;
     }
     log.info(`${accountPrefix(state)}🚀 [Startup Ready] Terkirim: ${cmd}`);
+
+    extendStartupResponseWindow(state);
 
     const startedWait = Date.now();
     while (Date.now() - startedWait < 5000) {
@@ -64,6 +82,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
         state.client = new Client({ checkUpdate: false });
 
         state.client.on('ready', () => {
+            state.accountUsername = state.client.user.tag || state.client.user.username || '';
             log.success(`${accountPrefix(state)}✅ Login Sukses: ${state.client.user.tag}`);
             telegramService.send(`🤖 <b>Bot Started</b>\nUser: ${state.client.user.tag}`);
             channelManager.updateActive();
@@ -79,6 +98,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             }
 
             state.isStartupReadyRoutine = true;
+            extendStartupResponseWindow(state);
 
             if (huntbotManager) {
                 // Startup ready sequence selalu mengirim whb sendiri setiap client ready/login,
@@ -108,6 +128,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
                     log.error(`${accountPrefix(state)}❌ Gagal mengirim command: ${err.message}`);
                 } finally {
                     state.isStartupReadyRoutine = false;
+                    extendStartupResponseWindow(state);
                 }
             }, 2000);
 

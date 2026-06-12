@@ -1,17 +1,21 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
-const { sleep, randomInt, removeInvisibleChars } = require('../utils');
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
-const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
+const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
+const isRuntimeActive = (state, options = {}) => {
+    if (state.hasActiveCaptcha) return false;
+    if (state.config?.botStatus?.running && !state.config?.botStatus?.paused) return true;
+    return options.allowStartup === true && isStartupRoutineActive(state);
+};
 
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({
 
     // ============== MAIN ENTRY POINT ==============
     processHuntBotMessage(msg) {
-        if (!isRuntimeActive(state)) return false;
+        if (state.hasActiveCaptcha) return false;
+        if (!isRuntimeActive(state, { allowStartup: true }) && !huntbotState.autoMode) return false;
 
         const content = msg.content || "";
         const author = msg.author.id;
@@ -93,7 +97,10 @@ isPaused() {
         }
 
         const isPausedOrStopped = state.config?.botStatus?.paused || !state.config?.botStatus?.running;
-        const canBypassPause = options.allowPaused === true || state.isStartupReadyRoutine === true;
+        const canBypassPause = options.allowPaused === true ||
+            state.isStartupReadyRoutine === true ||
+            isStartupRoutineActive(state) ||
+            (options.allowAutoMode === true && huntbotState.autoMode === true);
         if (isPausedOrStopped && !canBypassPause) {
             log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
             return true;
@@ -411,7 +418,7 @@ if (huntbotState.autoMode) {
 async sendHuntBotCommand(cmd) {
     // 1. PERBAIKAN: Menggunakan state secara konsisten dan mengecek hasActiveCaptcha sebagai boolean.
     // Ditambahkan log agar kamu tahu persis kapan command ditahan.
-    if (this.shouldAbort(`sendHuntBotCommand(${cmd})`)) return;
+    if (this.shouldAbort(`sendHuntBotCommand(${cmd})`, { allowAutoMode: true })) return;
 
     try {
         const huntbotChannelId = state.config.tiketandhb.channelId;
@@ -428,7 +435,7 @@ async sendHuntBotCommand(cmd) {
         
         // 2. Re-check setelah sleep, biar pause yang dinyalakan saat nunggu tetap kepake
         // Asumsi: shouldAbort adalah metode valid dari class/objek ini yang mengecek status pause bot.
-        if (this.shouldAbort(`sendHuntBotCommand(${cmd}) post-sleep`)) return;
+        if (this.shouldAbort(`sendHuntBotCommand(${cmd}) post-sleep`, { allowAutoMode: true })) return;
 
         await channel.send(cmd);
         log.info(`💬 [HuntBot Channel] Terkirim: ${cmd}`);
@@ -441,7 +448,7 @@ async sendHuntBotCommand(cmd) {
 
     // ============== COMMAND METHODS ==============
 async checkStatus() {
-    if (this.shouldAbort('checkStatus')) return;
+    if (this.shouldAbort('checkStatus', { allowAutoMode: true })) return;
     await this.sendHuntBotCommand(CONSTANTS.HUNTBOT.COMMANDS.CHECK);
 },
 
@@ -511,7 +518,7 @@ scheduleDelayedAction(fn, delayMs) {
     huntbotState.timeouts = huntbotState.timeouts || new Set();
     const timer = setTimeout(() => {
         huntbotState.timeouts.delete(timer);
-        if (!this.shouldAbort('delayed HuntBot action')) fn();
+        if (!this.shouldAbort('delayed HuntBot action', { allowAutoMode: true })) fn();
     }, delayMs);
     huntbotState.timeouts.add(timer);
     return timer;
@@ -533,7 +540,8 @@ startMonitoring() {
 },
 
 checkActiveHunt() {
-    if (!isRuntimeActive(state)) return;
+    if (state.hasActiveCaptcha) return;
+    if (!isRuntimeActive(state, { allowStartup: true }) && !huntbotState.autoMode) return;
     if (!huntbotState.activeHunt?.endTime) return;
         
         const now = Date.now();

@@ -1,7 +1,6 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
-const { sleep, randomInt } = require('../utils');
+const { sleep, randomInt, accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
 
 module.exports = (state, channelManager, emergencyHandler) => ({

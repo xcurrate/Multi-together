@@ -80,7 +80,7 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
 
         for (const [accountId, runtime] of runtimes.entries()) {
             if (!desiredIds.has(accountId)) {
-                log.warn(`🧹 Akun ${accountId} tidak lagi masuk slot paralel, sesi ditutup.`);
+                log.warn(`[account:${accountId}] 🧹 Akun tidak lagi masuk slot paralel, sesi ditutup.`);
                 runtime.destroy();
                 runtimes.delete(accountId);
             }

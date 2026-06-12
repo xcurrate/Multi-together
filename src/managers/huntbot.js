@@ -117,7 +117,7 @@ isPaused() {
 
     // 7. HUNT BERJALAN (EMBED)
     processEmbedMessage(msg, embed, myName) {
-        log.info(`📊 HuntBot embed detected`);
+        log.info(`${accountPrefix(state)}📊 HuntBot embed detected`);
         
         if (embed.fields && embed.fields.length > 0) {
             for (const field of embed.fields) {
@@ -132,10 +132,10 @@ isPaused() {
 
     // ============== PROCESS SACRIFICE ==============
     processSacrificeMessage(msg, content) {
-        log.info(`🔪 HuntBot sacrificed items`);
+        log.info(`${accountPrefix(state)}🔪 HuntBot sacrificed items`);
         
         const cleanContent = removeInvisibleChars(content);
-        log.info(`🔍 Clean Sacrifice: ${cleanContent}`);
+        log.info(`${accountPrefix(state)}🔍 Clean Sacrifice: ${cleanContent}`);
         
         const essenceMatch = cleanContent.match(/total of.*?([\d,]+)/i);
         
@@ -143,9 +143,9 @@ isPaused() {
 
         if (essenceMatch) {
             essenceGained = parseInt(essenceMatch[1].replace(/,/g, ''));
-            log.info(`🔍 Essence gained: ${essenceGained}`);
+            log.info(`${accountPrefix(state)}🔍 Essence gained: ${essenceGained}`);
         } else {
-            log.warn(`❌ Could not extract essence from: ${cleanContent}`);
+            log.warn(`${accountPrefix(state)}❌ Could not extract essence from: ${cleanContent}`);
         }
         
         telegramService.send(
@@ -158,7 +158,7 @@ if (huntbotState.autoMode) {
     // Ambil dari state.config (mengikuti pola loop.js yang sudah berhasil)
     const upgradeType = state.config?.huntbot?.defaultUpgrade || "duration";
 
-    console.log(`[DEBUG] Membaca dari state.config: ${upgradeType}`);
+    log.info(`${accountPrefix(state)}🧭 HuntBot default upgrade dari config: ${upgradeType}`);
 
     this.scheduleDelayedAction(() => this.upgrade(upgradeType, "all"), 1000);
 }
@@ -169,10 +169,10 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS UPGRADE ==============
     processUpgradeText(msg, content) {
-        log.info(`⬆️ Processing upgrade text response`);
+        log.info(`${accountPrefix(state)}⬆️ Processing upgrade text response`);
         
         const cleanContent = removeInvisibleChars(content);
-        log.info(`🔍 Clean Upgrade: ${cleanContent}`);
+        log.info(`${accountPrefix(state)}🔍 Clean Upgrade: ${cleanContent}`);
         
         let duration = null;
         let level = null;
@@ -182,7 +182,7 @@ if (huntbotState.autoMode) {
         const essenceMatch = cleanContent.match(/total of.*?>\s*([\d,]+)/i);
         if (essenceMatch) {
             essence = parseInt(essenceMatch[1].replace(/,/g, ''));
-            log.info(`🔍 Essence used: ${essence}`);
+            log.info(`${accountPrefix(state)}🔍 Essence used: ${essence}`);
         }
         
         const durationMatch = cleanContent.match(/duration:\s*([\d.]+H)\s*-\s*Lvl\s*(\d+)\s*\[(\d+)\/(\d+)\]/i);
@@ -190,9 +190,9 @@ if (huntbotState.autoMode) {
             duration = durationMatch[1];
             level = parseInt(durationMatch[2]);
             progress = `${durationMatch[3]}/${durationMatch[4]}`;
-            log.info(`🔍 Duration: ${duration}, Level: ${level}, Progress: ${progress}`);
+            log.info(`${accountPrefix(state)}🔍 Duration: ${duration}, Level: ${level}, Progress: ${progress}`);
         } else {
-            log.warn(`❌ Could not extract duration/level from upgrade`);
+            log.warn(`${accountPrefix(state)}❌ Could not extract duration/level from upgrade`);
         }
         
         huntbotState.lastUpgradeLevel = { duration, level, progress, essence, raw: content };
@@ -213,10 +213,10 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS PROGRESS (EMBED) ==============
     processProgressEmbed(msg, embed, progressText) {
-        log.info(`📊 HuntBot progress update (EMBED)`);
+        log.info(`${accountPrefix(state)}📊 HuntBot progress update (EMBED)`);
         
         const cleanText = removeInvisibleChars(progressText);
-        log.info(`🔍 Clean Progress: ${cleanText}`);
+        log.info(`${accountPrefix(state)}🔍 Clean Progress: ${cleanText}`);
         
         let returnTime = null;
         
@@ -231,7 +231,7 @@ if (huntbotState.autoMode) {
         const animalsMatch = cleanText.match(/(\d+)\s*ANIMALS\s*CAPTURED/i);
         const animals = animalsMatch ? parseInt(animalsMatch[1]) : null;
         
-        log.info(`📊 Extracted - Time: ${returnTime}, Percentage: ${percentage}%, Animals: ${animals}`);
+        log.info(`${accountPrefix(state)}📊 Extracted - Time: ${returnTime}, Percentage: ${percentage}%, Animals: ${animals}`);
         
         huntbotState.lastProgress = { percentage, animals, returnTime, raw: progressText };
         
@@ -260,7 +260,7 @@ if (huntbotState.autoMode) {
                     minute: '2-digit',
                     second: '2-digit'
                 });
-                log.info(`📊 End time updated: ${endTimeStr} WIB`);
+                log.info(`${accountPrefix(state)}📊 End time updated: ${endTimeStr} WIB`);
                 
                 // FIX UTAMA: Pastikan monitoring menyala setelah membaca embed
                 this.startMonitoring();
@@ -272,7 +272,7 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS RETURN ==============
     processReturnMessage(msg, content) {
-        log.info(`🤖 HuntBot returned with animals!`);
+        log.info(`${accountPrefix(state)}🤖 HuntBot returned with animals!`);
         
         const cleanContent = removeInvisibleChars(content);
         
@@ -302,7 +302,7 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS SELL ==============
     processSellMessage(msg, content) {
-        log.info(`💰 HuntBot sold items`);
+        log.info(`${accountPrefix(state)}💰 HuntBot sold items`);
         const cleanContent = removeInvisibleChars(content);
         const cowoncyMatch = cleanContent.match(/total of .*?([\d,]+)/i);
         const cowoncy = cowoncyMatch ? parseInt(cowoncyMatch[1].replace(/,/g, '')) : 0;
@@ -313,11 +313,11 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS PASSWORD (CAPTCHA) ==============
     async processPasswordMessage(msg) {
-        log.info(`🔐 HuntBot password received`);
+        log.info(`${accountPrefix(state)}🔐 HuntBot password received`);
         
         const attachment = msg.attachments?.first();
         if (!attachment || !attachment.url) {
-            log.error("No image attachment found for captcha");
+            log.error(`${accountPrefix(state)}No image attachment found for captcha`);
             return false;
         }
         
@@ -325,10 +325,10 @@ if (huntbotState.autoMode) {
             const password = await captchaSolver.solve(attachment.url);
             
             if (password) {
-                log.success(`✅ Captcha solved: ${password}`);
+                log.success(`${accountPrefix(state)}✅ Captcha solved: ${password}`);
                 huntbotState.pendingCaptcha = { password, messageId: msg.id };
                 
-                log.info(`🤖 Mengirim password secara otomatis...`);
+                log.info(`${accountPrefix(state)}🤖 Mengirim password secara otomatis...`);
                 this.scheduleDelayedAction(() => {
                     this.startHunt(CONSTANTS.HUNTBOT.DEFAULT_DURATION, password);
                 }, 1000);
@@ -337,14 +337,14 @@ if (huntbotState.autoMode) {
             }
             return true;
         } catch (error) {
-            log.error(`Failed to solve captcha: ${error.message}`);
+            log.error(`${accountPrefix(state)}Failed to solve captcha: ${error.message}`);
             return false;
         }
     },
 
     // ============== PROCESS HUNT STARTED ==============
     processHuntStartedMessage(msg, content) {
-        log.info(`🚀 HuntBot started successfully`);
+        log.info(`${accountPrefix(state)}🚀 HuntBot started successfully`);
         
         const cleanContent = removeInvisibleChars(content);
         const spentMatch = cleanContent.match(/YOU SPENT ([\d,]+) COWONCY/i);
@@ -353,7 +353,7 @@ if (huntbotState.autoMode) {
         const spent = spentMatch ? parseInt(spentMatch[1].replace(/,/g, '')) : 0;
         const returnTime = returnTimeMatch ? returnTimeMatch[1].trim() : "unknown";
         
-        log.info(`🔍 Hunt will return in: ${returnTime}`);
+        log.info(`${accountPrefix(state)}🔍 Hunt will return in: ${returnTime}`);
         
         huntbotState.activeHunt = {
             startTime: Date.now(),
@@ -394,14 +394,14 @@ if (huntbotState.autoMode) {
                              huntbotState.autoMode === true;
         
         if (isAutoModeOn) {
-            log.info("🤖 HuntBot Auto-start detected in config.");
+            log.info(`${accountPrefix(state)}🤖 HuntBot Auto-start detected in config.`);
             huntbotState.autoMode = false; // Reset sementara agar startAutoMode bisa me-restart statusnya
             this.startAutoMode({
                 skipInitialCheck: options.skipInitialCheck,
                 allowPaused: options.skipInitialCheck === true
             });
         } else {
-            log.warn("⚠️ Auto Mode terdeteksi OFF di config.json");
+            log.warn(`${accountPrefix(state)}⚠️ Auto Mode terdeteksi OFF di config.json`);
         }
     },
 
@@ -418,7 +418,7 @@ async sendHuntBotCommand(cmd) {
         const channel = state.client.channels.cache.get(huntbotChannelId);
 
         if (!channel) {
-            log.error(`❌ Channel HuntBot (${huntbotChannelId}) belum ter-cache atau ID salah!`);
+            log.error(`${accountPrefix(state)}❌ Channel HuntBot (${huntbotChannelId}) belum ter-cache atau ID salah!`);
 
             return;
         }
@@ -431,10 +431,10 @@ async sendHuntBotCommand(cmd) {
         if (this.shouldAbort(`sendHuntBotCommand(${cmd}) post-sleep`)) return;
 
         await channel.send(cmd);
-        log.info(`💬 [HuntBot Channel] Terkirim: ${cmd}`);
+        log.info(`${accountPrefix(state)}💬 [HuntBot Channel] Terkirim: ${cmd}`);
 
     } catch (error) {
-        log.error(`❌ Gagal mengirim command HuntBot: ${error.message}`);
+        log.error(`${accountPrefix(state)}❌ Gagal mengirim command HuntBot: ${error.message}`);
     }
 },
 
@@ -479,14 +479,14 @@ async checkStatus() {
         
         if (huntbotState.autoMode) return;
         huntbotState.autoMode = true;
-        log.success("🤖 HuntBot Auto Mode ACTIVE");
+        log.success(`${accountPrefix(state)}🤖 HuntBot Auto Mode ACTIVE`);
         telegramService.send("🤖 <b>HuntBot Auto Mode</b>\nStarting auto loop...");
         
         this.startMonitoring();
         if (!options.skipInitialCheck) {
             this.checkStatus();
         } else {
-            log.info("🤖 Initial HuntBot check dilewati karena startup ready sequence yang mengirim whb.");
+            log.info(`${accountPrefix(state)}🤖 Initial HuntBot check dilewati karena startup ready sequence yang mengirim whb.`);
         }
     },
 
@@ -543,23 +543,23 @@ checkActiveHunt() {
         // Notif 5 menit sebelum selesai (H-5)
         if (timeLeft > 0 && timeLeft <= 5 * 60 * 1000 && !huntbotState.notifiedSoon) {
             huntbotState.notifiedSoon = true;
-            log.info("⏰ Waktu sisa < 5 menit. Mengirim notifikasi Telegram...");
+            log.info(`${accountPrefix(state)}⏰ Waktu sisa < 5 menit. Mengirim notifikasi Telegram...`);
             telegramService.send(`⏰ <b>HuntBot Returning Soon!</b>\nLess than 5 minutes remaining!`);
         }
         
         // Auto check saat waktu habis (Bot menjemput secara otomatis)
         if (timeLeft <= 0) {
-            log.info("⏰ Waktu HuntBot telah habis!");
+            log.info(`${accountPrefix(state)}⏰ Waktu HuntBot telah habis!`);
             
             // Reset status agar tidak dikirim berulang kali
             huntbotState.notifiedSoon = false;
             huntbotState.activeHunt = null; 
             
             if (huntbotState.autoMode) {
-                log.info("🚀 Auto-Mode ON: Menjemput HuntBot dengan command whb...");
+                log.info(`${accountPrefix(state)}🚀 Auto-Mode ON: Menjemput HuntBot dengan command whb...`);
                 this.checkStatus();
             } else {
-                log.warn("⚠️ Auto-Mode OFF: Huntbot Selesai, menunggu aksi manual.");
+                log.warn(`${accountPrefix(state)}⚠️ Auto-Mode OFF: Huntbot Selesai, menunggu aksi manual.`);
                 telegramService.send(`⏰ <b>HuntBot Selesai!</b>\nSilakan kirim 'whb' secara manual untuk menjemput.`);
             }
         }

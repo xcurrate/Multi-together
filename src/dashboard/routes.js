@@ -1,7 +1,14 @@
 const express = require('express');
 const fs = require('fs');
-function createDashboardRoutes({ configManager, fileService, profileManager, uiComponents, logService, statsService, discordProfileService, state }) {
+function createDashboardRoutes({ configManager, fileService, profileManager, uiComponents, logService, statsService, discordProfileService, state, logger }) {
     const router = express.Router();
+
+    const dashboardLog = (level, accountId, message) => {
+        const target = logger && typeof logger[level] === 'function' ? logger[level] : logger?.info;
+        if (!target) return;
+        const prefix = accountId ? `[account:${accountId}] ` : '';
+        target(`${prefix}${message}`);
+    };
 
 
     const getProfileConfigByAccountId = (accountId) => {
@@ -40,6 +47,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         if (!target) return false;
         target.config.botStatus = { running: !!shouldRun, paused: !shouldRun };
         const saved = saveAccountConfig(target, target.config);
+        if (saved) dashboardLog('info', accountId, `🔁 Status config akun diubah dari dashboard: running=${!!shouldRun}, paused=${!shouldRun}`);
         const manager = state?.multiAccountManager;
         if (manager) {
             if (typeof manager.reconcile === 'function') manager.reconcile();
@@ -55,6 +63,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         if (!target) return false;
         target.config.botStatus = { running: false, paused: true };
         const saved = saveAccountConfig(target, target.config);
+        if (saved) dashboardLog('info', accountId, '🔌 Config akun disiapkan untuk connect/login dari dashboard.');
         const manager = state?.multiAccountManager;
         if (manager) {
             if (typeof manager.connectAccount === 'function') return manager.connectAccount(accountId) && saved;
@@ -133,7 +142,8 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         try {
             let accountId = req.query.accountId ? String(req.query.accountId) : '';
             if (!accountId && req.query.profileId) accountId = String(req.query.profileId);
-            const lines = logService.getRecentLines({ accountId });
+            const baseConfig = configManager.ensureShape(configManager.get());
+            const lines = logService.getRecentLines({ accountId, limit: baseConfig.maxLogLines || 20 });
             res.setHeader('Cache-Control', 'no-store');
             res.json({ lines, accountId: accountId || null, filterMode: accountId ? 'prefix-or-id' : 'all' });
         } catch {
@@ -212,7 +222,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     if (fs.existsSync(profilePath)) {
                         const loadedConfig = fileService.readJson(profilePath);
                         configManager.save(loadedConfig); 
-                        console.log(`[PROFILE] Akun ${targetId} berhasil dimuat.`);
+                        dashboardLog('success', targetId, '📂 Profil akun berhasil dimuat ke config utama.');
                     }
                 }
                 return res.send(uiComponents.getSavedResponse());
@@ -229,7 +239,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     newConfig.token = newToken;
                     
                     fileService.writeJson(profilePath, newConfig);
-                    console.log(`[PROFILE] Profil baru untuk akun ${targetId} berhasil dibuat dan akan dijalankan paralel bila masuk slot.`);
+                    dashboardLog('success', targetId, '➕ Profil baru berhasil dibuat dan akan dijalankan paralel bila masuk slot.');
                 }
                 return res.send(uiComponents.getSavedResponse());
             }
@@ -280,6 +290,8 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
             const saved = saveTarget === 'main'
                 ? configManager.save(config)
                 : fileService.writeJson(saveTarget, config);
+            const savedAccountId = viewingProfileId || profileManager.getUserId(config.token);
+            if (saved) dashboardLog('success', savedAccountId !== 'default' ? savedAccountId : '', `💾 Config dashboard disimpan (${saveTarget === 'main' ? 'main' : 'profile'}).`);
 
             if (saved) {
                 if (saveTarget === 'main') {
@@ -293,7 +305,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 res.status(500).send('Failed to save configuration');
             }
         } catch (error) {
-            console.error('Error saving config:', error);
+            dashboardLog('error', '', `❌ Error saving config: ${error.message}`);
             res.status(500).send('Internal Server Error');
         }
     });

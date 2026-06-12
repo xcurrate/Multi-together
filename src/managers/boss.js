@@ -106,7 +106,7 @@ module.exports = (state, configManager, telegramService) => ({
                 this.handleBossDefeated(msg);
             }
         } catch (e) {
-            log.error(`Handle Boss Error: ${e.message}`);
+            log.error(`${accountPrefix(state)}Handle Boss Error: ${e.message}`);
         }
     },
 
@@ -125,7 +125,7 @@ async handleBossAppear(msg, rawComponents) {
             await msg.clickButton(btnId);
             
             // Kode di bawah ini hanya akan berjalan JIKA klik tombol berhasil
-            log.success(`⚔️ ACTION: Fight Boss!`);
+            log.success(`${accountPrefix(state)}⚔️ ACTION: Fight Boss!`);
 
             state.foughtBosses.add(msg.id);
             state.bossCooldowns.set(msg.guildId, Date.now());
@@ -145,9 +145,9 @@ async handleBossAppear(msg, rawComponents) {
             // Jika klik tombol gagal (misal karena verifikasi), error ditangkap di sini
             if (error.message && error.message.includes("Channel verification level is too high")) {
                 // Asumsi kamu menggunakan 'log.error', sesuaikan dengan logger-mu (misal: console.error)
-                log.error(`❌ Gagal Fight Boss: Level verifikasi server terlalu tinggi.`);
+                log.error(`${accountPrefix(state)}❌ Gagal Fight Boss: Level verifikasi server terlalu tinggi.`);
             } else {
-                log.error(`❌ Gagal Fight Boss karena error lain: ${error.message || error}`);
+                log.error(`${accountPrefix(state)}❌ Gagal Fight Boss karena error lain: ${error.message || error}`);
             }
         }
     }
@@ -163,12 +163,12 @@ async handleBossAppear(msg, rawComponents) {
         }
 
         const guildName = msg.guild?.name || "Server";
-        log.info(`💀 Boss Defeated di ${guildName}. Timer 4m 55s dimulai...`);
+        log.info(`${accountPrefix(state)}💀 Boss Defeated di ${guildName}. Timer 4m 55s dimulai...`);
 
         const timer = setTimeout(() => {
             const alertMsg = `⚠️ <b>SIAP-SIAP!</b> ⚠️\nBoss di <b>${guildName}</b> muncul dalam <b>5 DETIK</b>!\nSiapkan jari! ⚔️`;
             telegramService.send(alertMsg);
-            log.info(`🔔 Mengirim Notifikasi 5 Detik ke Telegram.`);
+            log.info(`${accountPrefix(state)}🔔 Mengirim Notifikasi 5 Detik ke Telegram.`);
         }, CONSTANTS.BOSS_COOLDOWN_MS);
 
         state.bossRespawnTimers.set(msg.guildId, timer);
@@ -186,7 +186,7 @@ async checkTickets(client) {
         const ticketChannel = client.channels.cache.get(ticketChannelId);
         
         if (!ticketChannel) {
-            log.warn(`⚠️ Gagal akses Channel Tiket: ${ticketChannelId}`);
+            log.warn(`${accountPrefix(state)}⚠️ Gagal akses Channel Tiket: ${ticketChannelId}`);
             return;
         }
 
@@ -198,7 +198,7 @@ async checkTickets(client) {
             requestedAt: state.lastTicketCheck
         };
     } catch (err) {
-        log.error(`Error kirim cek tiket: ${err.message}`);
+        log.error(`${accountPrefix(state)}Error kirim cek tiket: ${err.message}`);
     }
 },
 
@@ -242,7 +242,7 @@ async checkTickets(client) {
             const resetInfo = getNextResetInfo();
             
             state.stopBossHunt = true;
-            log.warn(`⛔ TIKET HABIS (0/3). Stop Hunt sampai ${resetInfo.wibTime} WIB (Waktu Mundur: ${resetInfo.countdown}).`);
+            log.warn(`${accountPrefix(state)}⛔ TIKET HABIS (0/3). Stop Hunt sampai ${resetInfo.wibTime} WIB (Waktu Mundur: ${resetInfo.countdown}).`);
             telegramService.sendTicketNotification(0, true);
             
         } else {
@@ -251,7 +251,7 @@ async checkTickets(client) {
             
             if (ticketMatch) {
                 const sisa = parseInt(ticketMatch[1]);
-                log.info(`🎫 Tiket Terupdate: ${sisa}/3`);
+                log.info(`${accountPrefix(state)}🎫 Tiket Terupdate: ${sisa}/3`);
                 
                 if (sisa > 0) {
                     state.stopBossHunt = false;
@@ -261,7 +261,7 @@ async checkTickets(client) {
                     const resetInfo = getNextResetInfo();
                     
                     state.stopBossHunt = true;
-                    log.warn(`⛔ TIKET HABIS (${sisa}/3). Stop Hunt sampai ${resetInfo.wibTime} WIB (Waktu Mundur: ${resetInfo.countdown}).`);
+                    log.warn(`${accountPrefix(state)}⛔ TIKET HABIS (${sisa}/3). Stop Hunt sampai ${resetInfo.wibTime} WIB (Waktu Mundur: ${resetInfo.countdown}).`);
                     telegramService.sendTicketNotification(0, true);
                 }
             }
@@ -314,7 +314,7 @@ async checkTickets(client) {
             // cleanText.includes('**0**/3')) {
             
             // state.stopBossHunt = true;
-                    // log.warn(`⛔ TIKET HABIS (${sisa}/3). Stop Hunt sampai ${resetInfo.wibTime} WIB (Waktu Mundur: ${resetInfo.countdown}).`);
+                    // log.warn(`${accountPrefix(state)}⛔ TIKET HABIS (${sisa}/3). Stop Hunt sampai ${resetInfo.wibTime} WIB (Waktu Mundur: ${resetInfo.countdown}).`);
                     // telegramService.sendTicketNotification(0, true);
             
         // } else {
@@ -323,7 +323,7 @@ async checkTickets(client) {
             
             // if (ticketMatch) {
                 // const sisa = parseInt(ticketMatch[1]);
-                // log.info(`🎫 Tiket Terupdate: ${sisa}/3`);
+                // log.info(`${accountPrefix(state)}🎫 Tiket Terupdate: ${sisa}/3`);
                 
                 // if (sisa > 0) {
                     // state.stopBossHunt = false;

@@ -71,6 +71,7 @@ const createRuntimeState = ({ config, sharedStats }) => ({
     responseTimeout: null,
     hasActiveCaptcha: false,
     hasRunInitialReadyCommands: false,
+    isStartupReadyRoutine: false,
     hasUsedFirstLoopStartupStagger: false,
     isBusy: false,
     nextAt: {},
@@ -282,6 +283,34 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         },
         getDisplayName() {
             return state.client?.user?.tag || accountId;
+        },
+        connect() {
+            const statusChanged = !!state.config.botStatus?.running || !state.config.botStatus?.paused;
+            runtimeRunning = false;
+            state.config.botStatus = { running: false, paused: true };
+            if (statusChanged) configManager.save();
+            if (readyLoopWatcher) {
+                clearInterval(readyLoopWatcher);
+                readyLoopWatcher = null;
+            }
+            loopManager.stopAll();
+            loopsActive = false;
+            channelManager.stopRotation();
+
+            if (!state.client) {
+                log.info(`[account:${accountId}] 🔌 Connect/Login akun tanpa start loop.`);
+                clientManager.initialize();
+                return true;
+            }
+
+            if (!state.client.isReady()) {
+                log.info(`[account:${accountId}] 🔌 Client sudah ada, menunggu ready tanpa start loop.`);
+                return true;
+            }
+
+            log.info(`[account:${accountId}] ✅ Client sudah ready, tetap paused; loop tidak dijalankan.`);
+            channelManager.updateActive();
+            return true;
         },
         start() {
             const wasRuntimeRunning = runtimeRunning;

@@ -1,6 +1,7 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars } = require('../utils');
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
 const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
@@ -85,8 +86,14 @@ isPaused() {
 },
 
 shouldAbort(actionName = "") {
-    if (!isRuntimeActive(state)) {
-        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop atau CAPTCHA aktif.`);
+    // 1. Cek langsung status CAPTCHA spesifik
+    if (state.hasActiveCaptcha) { 
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
+        return true;
+    }
+
+    if ((state.config?.botStatus?.paused || !state.config?.botStatus?.running) && !state.isStartupReadyRoutine) {
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
         return true;
     }
     

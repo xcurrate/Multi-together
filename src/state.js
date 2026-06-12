@@ -12,6 +12,7 @@ module.exports = {
     responseTimeout: null,
     hasActiveCaptcha: false,
     hasRunInitialReadyCommands: false,
+    isStartupReadyRoutine: false,
     hasUsedFirstLoopStartupStagger: false,
     captchaSolverAbortController: null,
     captchaSolveRunId: 0,

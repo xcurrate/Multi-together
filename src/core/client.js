@@ -22,7 +22,17 @@ async function sendStartupCommand(state, channel, cmd) {
         return false;
     }
 
-    await channel.send(cmd);
+    const wasBypassingPause = state.isStartupReadyRoutine === true;
+    state.isStartupReadyRoutine = true;
+    if (state.config.botStatus?.paused || !state.config.botStatus?.running) {
+        log.info(`${accountPrefix(state)}🚀 Startup command [${cmd}] bypass pause/stop.`);
+    }
+
+    try {
+        await channel.send(cmd);
+    } finally {
+        state.isStartupReadyRoutine = wasBypassingPause;
+    }
     log.info(`${accountPrefix(state)}🚀 [Startup Ready] Terkirim: ${cmd}`);
 
     const startedWait = Date.now();
@@ -64,21 +74,19 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             statsService.syncBotUptime(state);
             configManager.save();
 
-            if (voiceManager) {
+            if (voiceManager && state.config.botStatus?.running === true && state.config.botStatus?.paused !== true) {
                 voiceManager.joinConfigured('restart').catch(err => log.error(`${accountPrefix(state)}❌ Auto Join VC gagal: ${err.message}`));
             }
 
-             // PERBAIKAN LOGIKA DISINI:
-            const willRunStartupCommands = !state.hasRunInitialReadyCommands;
+            state.isStartupReadyRoutine = true;
 
             if (huntbotManager) {
-                // Huntbot akan otomatis bypass check di run pertama, 
-                // tapi akan dipaksa checkStatus() saat ganti akun.
-                huntbotManager.init({ skipInitialCheck: willRunStartupCommands });
+                // Startup ready sequence selalu mengirim whb sendiri setiap client ready/login,
+                // jadi initial check HuntBot otomatis dilewati agar tidak double-send.
+                huntbotManager.init({ skipInitialCheck: true });
             }
 
-            // Pindahkan setTimeout keluar dari if (willRunStartupCommands) 
-            // agar bisa dieksekusi setiap kali ada akun (token) yang ready.
+            // Startup command wajib dieksekusi setiap client ready/login, termasuk mode connect/prepare.
             setTimeout(async () => {
                 try {
                     const channelId = state.config.tiketandhb?.channelId;
@@ -89,20 +97,17 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
                         return;
                     }
 
-                    // 1. Command yang HANYA jalan di run pertama (Akun A)
-                    if (willRunStartupCommands) {
-                        state.hasRunInitialReadyCommands = true; // Kunci agar tidak jalan lagi di akun berikutnya
-                        log.info(`${accountPrefix(state)}🚀 Menjalankan command awal client-ready untuk sesi pertama...`);
-                        await sendStartupCommand(state, channel, "whb 1d");
-                    }
+                    log.info(`${accountPrefix(state)}🚀 Menjalankan startup command setiap client ready/login...`);
+                    await sendStartupCommand(state, channel, "whb 1d");
 
-                    // 2. Command yang jalan di SETIAP AKUN (Akun A, B, dst)
                     log.info(`${accountPrefix(state)}⚔️ Mengecek status World Boss untuk akun saat ini...`);
                     await sendStartupCommand(state, channel, "wboss t");
                     
                     log.info(`${accountPrefix(state)}✅ Routine startup command selesai dieksekusi.`);
                 } catch (err) {
                     log.error(`${accountPrefix(state)}❌ Gagal mengirim command: ${err.message}`);
+                } finally {
+                    state.isStartupReadyRoutine = false;
                 }
             }, 2000);
 

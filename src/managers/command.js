@@ -10,7 +10,7 @@ module.exports = (state, channelManager, emergencyHandler) => ({
             log.warn(`${accountPrefix(state)}⚠️ Command [${cmd}] ditahan: CAPTCHA sedang aktif.`);
             return;
         }
-        if (state.config.botStatus.paused || !state.config.botStatus.running) return;
+        if ((state.config.botStatus.paused || !state.config.botStatus.running) && !state.isStartupReadyRoutine) return;
         if (!state.client?.isReady()) return;
 
         if (!state.activeChannelId && !channelManager.updateActive()) return;

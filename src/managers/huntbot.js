@@ -1,6 +1,7 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars } = require('../utils');
+const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({
@@ -76,13 +77,18 @@ isPaused() {
 shouldAbort(actionName = "") {
     // 1. Cek langsung status CAPTCHA spesifik
     if (state.hasActiveCaptcha) { 
-        log.warn(`🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
+        return true;
+    }
+
+    if ((state.config?.botStatus?.paused || !state.config?.botStatus?.running) && !state.isStartupReadyRoutine) {
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
         return true;
     }
     
     // 2. Cek toggle setting huntbot
     if (state.config?.settings?.huntbot?.enabled === false) {
-        log.warn(`🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
+        log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
         return true;
     }
     
@@ -454,6 +460,7 @@ async checkStatus() {
 
     // ============== AUTO MODE & MONITORING ==============
     startAutoMode(options = {}) {
+        if (this.shouldAbort('startAutoMode')) return;
         if (huntbotState.autoMode) return;
         huntbotState.autoMode = true;
         log.success("🤖 HuntBot Auto Mode ACTIVE");

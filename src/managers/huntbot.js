@@ -1,10 +1,8 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
-const { sleep, randomInt, removeInvisibleChars } = require('../utils');
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
 
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({

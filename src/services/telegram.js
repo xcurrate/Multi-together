@@ -1,6 +1,6 @@
 const https = require('https');
 const log = require('../../logger');
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const { accountPrefix } = require('../utils');
 
 module.exports = (state) => ({
     send: (text) => {

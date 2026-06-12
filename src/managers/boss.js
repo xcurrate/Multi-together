@@ -1,8 +1,7 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
-const { deepCopy, safeJsonStringify, removeInvisibleChars } = require('../utils');
+const { deepCopy, safeJsonStringify, removeInvisibleChars, accountPrefix } = require('../utils');
 
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
 const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
 
 function getNextResetInfo() {

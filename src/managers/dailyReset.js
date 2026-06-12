@@ -1,6 +1,6 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger'); // Akan selalu mencetak log dengan jam WIB
-const accountPrefix = (state) => state?.accountId ? `[account:${state.accountId}] ` : '';
+const { accountPrefix } = require('../utils');
 
 module.exports = (state, telegramService) => ({
     checkAndReset() {

@@ -73,6 +73,7 @@ const createRuntimeState = ({ config, sharedStats }) => ({
     accountUsername: '',
     hasRunInitialReadyCommands: false,
     isStartupReadyRoutine: false,
+    startupReadyRoutineUntil: 0,
     hasUsedFirstLoopStartupStagger: false,
     isBusy: false,
     nextAt: {},

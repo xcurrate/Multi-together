@@ -3,7 +3,8 @@ const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
-const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
+const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
+const isRuntimeActive = (state) => !state.hasActiveCaptcha && (isStartupRoutineActive(state) || (!!state.config?.botStatus?.running && !state.config?.botStatus?.paused));
 
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({
 

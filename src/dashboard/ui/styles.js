@@ -102,8 +102,24 @@ function getStyles() {
             .recent-item { display: grid; grid-template-columns: 92px 90px 1fr; gap: 10px; align-items: center; background: var(--panel-soft); border: 1px solid var(--border); border-radius: 12px; padding: 9px 10px; color: var(--text); font-size: 12px; }
             .recent-muted { color: var(--muted); }
             .log-box { background: #0a0f16; color: #d0d5dd; border: 1px solid var(--border); border-radius: 14px; padding: 0; font-family: var(--mono); font-size: 12px; line-height: 1.45; overflow: auto; height: 320px; min-height: 320px; max-height: 58vh; resize: vertical; }
-            .log-line { display: grid; grid-template-columns: 78px 88px 1fr; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #182231; white-space: pre-wrap; word-break: break-word; }
+            .log-line { display: grid; grid-template-columns: 78px 88px 1fr; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #182231; white-space: pre-wrap; word-break: break-word; border-left: 3px solid transparent; }
             .log-line:last-child { border-bottom: none; }
+            .log-line:nth-child(even) { background: rgba(255,255,255,0.018); }
+            .log-time { color: #98a2b3; }
+            .log-level { font-weight: 900; letter-spacing: 0.02em; }
+            .log-message { color: #d0d5dd; }
+            .log-level-info { border-left-color: #2f80ed; }
+            .log-level-info .log-level, .log-level-info .log-message { color: #8ec5ff; }
+            .log-level-ok { border-left-color: #12b76a; }
+            .log-level-ok .log-level, .log-level-ok .log-message { color: #8ff0bf; }
+            .log-level-warn { border-left-color: #fdb022; }
+            .log-level-warn .log-level, .log-level-warn .log-message { color: #ffd27a; }
+            .log-level-err { border-left-color: #f04438; }
+            .log-level-err .log-level, .log-level-err .log-message { color: #ff9b96; }
+            .log-level-battle { border-left-color: #d444f1; }
+            .log-level-battle .log-level, .log-level-battle .log-message { color: #efa8ff; }
+            .log-level-captcha { border-left-color: #ff4d6d; background: rgba(255, 77, 109, 0.08); }
+            .log-level-captcha .log-level, .log-level-captcha .log-message { color: #ffb3c1; }
             .log-empty { min-height: 318px; display: flex; align-items: center; justify-content: center; padding: 16px; color: #98a2b3; }
             .input-hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.45; }
             .telegram-badge { background: var(--blue-soft); border: 1px solid var(--border); border-radius: 999px; padding: 5px 9px; font-size: 11px; color: var(--accent); display: inline-block; margin-top: 8px; }

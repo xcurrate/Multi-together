@@ -12,22 +12,41 @@ function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
                     return { time: match[1], level: match[2], message: match[3] };
                 }
 
+                function getLogLevelClass(level) {
+                    return 'log-level-' + String(level || 'info')
+                        .split('[').join('').split(']').join('')
+                        .toLowerCase()
+                        .replace(/[^a-z0-9_-]/g, '');
+                }
+
                 function renderLogs(lines) {
                     const logBox = document.getElementById('logBox');
                     if (!logBox) return;
+
+                    const previousScrollTop = logBox.scrollTop;
+                    const distanceFromBottom = logBox.scrollHeight - logBox.scrollTop - logBox.clientHeight;
+                    const shouldStickToBottom = logBox.dataset.userScrolled !== 'true' || distanceFromBottom < 48;
+
                     if (!lines || !lines.length) {
                         logBox.innerHTML = '<div class="log-empty">✨ Belum ada log...</div>';
                         return;
                     }
                     logBox.innerHTML = lines.map(line => {
                         const item = parseLogLine(line);
-                        return '<div class="log-line">' +
+                        const levelClass = getLogLevelClass(item.level);
+                        return '<div class="log-line ' + levelClass + '">' +
                             '<span class="log-time">' + escapeHtml(item.time) + '</span>' +
                             '<span class="log-level">' + escapeHtml(item.level) + '</span>' +
                             '<span class="log-message">' + escapeHtml(item.message) + '</span>' +
                         '</div>';
                     }).join('');
-                    logBox.scrollTop = logBox.scrollHeight;
+
+                    if (shouldStickToBottom) {
+                        logBox.scrollTop = logBox.scrollHeight;
+                        logBox.dataset.userScrolled = 'false';
+                    } else {
+                        logBox.scrollTop = previousScrollTop;
+                    }
                 }
 
                 async function refreshLogs() {
@@ -72,6 +91,13 @@ function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
 
                 const viewingProfileId = ${viewingProfileIdJson};
                 const profileQuery = viewingProfileId ? '?profileId=' + encodeURIComponent(viewingProfileId) : '';
+                const logBox = document.getElementById('logBox');
+                if (logBox) {
+                    logBox.addEventListener('scroll', () => {
+                        const distanceFromBottom = logBox.scrollHeight - logBox.scrollTop - logBox.clientHeight;
+                        logBox.dataset.userScrolled = distanceFromBottom >= 48 ? 'true' : 'false';
+                    }, { passive: true });
+                }
 
                 async function refreshStats() {
                     try {

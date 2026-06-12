@@ -3,6 +3,8 @@ const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
+const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
+const isRuntimeActive = (state) => !state.hasActiveCaptcha && (isStartupRoutineActive(state) || (!!state.config?.botStatus?.running && !state.config?.botStatus?.paused));
 const RETURN_TIME_PATTERN = /I WILL BE BACK IN\s+([\d\sDHM]+)/i;
 const SHORT_RETURN_TIME_PATTERN = /BACK IN\s+([\d\sDHM]+)/i;
 
@@ -18,6 +20,9 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
     // ============== MAIN ENTRY POINT ==============
     processHuntBotMessage(msg) {
+        if (state.hasActiveCaptcha) return false;
+        if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return false;
+
         const content = removeInvisibleChars(msg.content || "");
         const author = msg.author.id;
         
@@ -35,7 +40,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
                 const embedText = removeInvisibleChars(collectEmbedText(embed));
                 const embedAuthorName = String(embed.author?.name || '').toLowerCase();
                 const mentionsThisAccount = embedText.toLowerCase().includes(myName.toLowerCase()) || embedText.includes(`<@${myId}>`);
-                const isOwnEmbed = mentionsThisAccount || (isHuntbotChannel && /huntbot|beep boop|back in|i will be back in/i.test(embedText));
+                const isOwnEmbed = mentionsThisAccount || isHuntbotChannel;
 
                 if (isOwnEmbed && RETURN_TIME_PATTERN.test(embedText)) {
                     return this.processHuntStartedMessage(msg, embedText);
@@ -50,12 +55,13 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         const isMentioned = content.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId);
         const containsMyName = content.toLowerCase().includes(myName.toLowerCase());
 
-        // Pengecualian khusus untuk pesan pulang (OwO tidak selalu menyebut nama di sini).
+        // Setiap akun memakai channel HuntBot sendiri, jadi respons OwO di channel ini
+        // aman diproses walau teksnya tidak menyebut nama/mention akun.
         const isReturnMessage = isHuntbotChannel && content.includes("BEEP BOOP. I AM BACK WITH");
 
 
         // CEK CONTENT 
-        if (containsMyName || isMentioned || isReturnMessage) {
+        if (containsMyName || isMentioned || isHuntbotChannel) {
             
             if (isReturnMessage) {
                 return this.processReturnMessage(msg, content);
@@ -91,17 +97,23 @@ isPaused() {
     return !!state.config?.botStatus?.paused;
 },
 
-    shouldAbort(actionName = "") {
+    shouldAbort(actionName = "", options = {}) {
         // 1. Cek langsung status CAPTCHA spesifik
         if (state.hasActiveCaptcha) { 
             log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
             return true;
         }
 
-        // 2. Cek toggle setting huntbot. Config versi baru menyimpan HuntBot di root
-        // `huntbot`, tetapi sebagian config lama pernah memakai `settings.huntbot`.
-        if (state.config?.huntbot?.enabled === false || state.config?.settings?.huntbot?.enabled === false) {
-            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: huntbot OFF`);
+        const isPausedOrStopped = state.config?.botStatus?.paused || !state.config?.botStatus?.running;
+        const canBypassPause = options.allowPaused === true || isStartupRoutineActive(state) || huntbotState.autoMode === true;
+        if (isPausedOrStopped && !canBypassPause) {
+            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
+            return true;
+        }
+        
+        // 2. Cek toggle setting huntbot
+        if (state.config?.settings?.huntbot?.enabled === false) {
+            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: settings.huntbot OFF`);
             return true;
         }
         
@@ -539,6 +551,7 @@ startMonitoring() {
 
 checkActiveHunt() {
     if (state.hasActiveCaptcha) return;
+    if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return;
     if (!huntbotState.activeHunt?.endTime) return;
         
         const now = Date.now();

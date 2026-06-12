@@ -61,13 +61,18 @@ function renderPage(config) {
                 <h2>OWO Farming Dashboard</h2>
                 <div class="subtitle">Panel ringkas, nyaman, dan ringan untuk monitoring bot. ${viewingProfileId ? `Sedang melihat akun: ${viewingProfileId}` : ''}</div>
 
+                <div id="userProfileBox" class="profile-box profile-box-top">
+                    ⏳ Menghubungi Discord API...
+                </div>
+
                 <form action="/save" method="POST">
                     ${viewingProfileId ? `<input type="hidden" name="viewingProfileId" value="${viewingProfileId}">` : ''}
                     <div class="action-group">
                         ${viewingProfileId ? '<button type="submit" name="action" value="connectProfile" class="btn btn-connect">🔌 CONNECT / LOGIN</button>' : ''}
                         <button type="submit" name="action" value="${viewingProfileId ? 'startProfile' : 'start'}" class="btn btn-start">▶ ${viewingProfileId ? 'START / RESUME COMMANDS' : 'START ALL COMMANDS'}</button>
                         <button type="submit" name="action" value="${viewingProfileId ? 'pauseProfile' : 'pause'}" class="btn btn-pause">⏸ ${viewingProfileId ? 'PAUSE COMMANDS' : 'PAUSE ALL COMMANDS'}</button>
-                        <button type="submit" name="action" value="joinVoice" class="btn btn-voice">🔊 JOIN VOICE</button>
+                        ${viewingProfileId ? '<button type="submit" name="action" value="joinVoice" class="btn btn-voice">🔊 JOIN VOICE</button>' : ''}
+                        ${viewingProfileId ? '<button type="submit" name="action" value="logoutProfile" class="btn btn-logout">🚪 LOGOUT</button>' : ''}
                     </div>
 
                     ${renderSettingsTabs({
@@ -92,10 +97,6 @@ function renderPage(config) {
 
                 <div class="status-box ${statusClass}">
                     <span style="font-size: 16px;">${statusText}</span>
-
-                    <div id="userProfileBox" class="profile-box">
-                        ⏳ Menghubungi Discord API...
-                    </div>
 
                     ${hasTelegram ? '<div class="telegram-badge">📱 Telegram Active</div>' : ''}
                 </div>

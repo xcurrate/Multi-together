@@ -3,13 +3,15 @@ const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
-const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
+const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
+const isRuntimeActive = (state) => !state.hasActiveCaptcha && (isStartupRoutineActive(state) || (!!state.config?.botStatus?.running && !state.config?.botStatus?.paused));
 
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({
 
     // ============== MAIN ENTRY POINT ==============
     processHuntBotMessage(msg) {
-        if (!isRuntimeActive(state)) return false;
+        if (state.hasActiveCaptcha) return false;
+        if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return false;
 
         const content = msg.content || "";
         const author = msg.author.id;
@@ -91,7 +93,7 @@ isPaused() {
         }
 
         const isPausedOrStopped = state.config?.botStatus?.paused || !state.config?.botStatus?.running;
-        const canBypassPause = options.allowPaused === true || state.isStartupReadyRoutine === true;
+        const canBypassPause = options.allowPaused === true || isStartupRoutineActive(state) || huntbotState.autoMode === true;
         if (isPausedOrStopped && !canBypassPause) {
             log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
             return true;
@@ -531,7 +533,8 @@ startMonitoring() {
 },
 
 checkActiveHunt() {
-    if (!isRuntimeActive(state)) return;
+    if (state.hasActiveCaptcha) return;
+    if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return;
     if (!huntbotState.activeHunt?.endTime) return;
         
         const now = Date.now();

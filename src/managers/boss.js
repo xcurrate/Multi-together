@@ -2,7 +2,8 @@ const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { deepCopy, safeJsonStringify, removeInvisibleChars, accountPrefix } = require('../utils');
 
-const isRuntimeActive = (state) => !!state.config?.botStatus?.running && !state.config?.botStatus?.paused && !state.hasActiveCaptcha;
+const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
+const isRuntimeActive = (state) => !state.hasActiveCaptcha && (isStartupRoutineActive(state) || (!!state.config?.botStatus?.running && !state.config?.botStatus?.paused));
 
 function getNextResetInfo() {
     const now = new Date();
@@ -208,7 +209,7 @@ async checkTickets(client) {
             fullContent += ' ' + safeJsonStringify(msg.components);
         }
 
-        if (!isRuntimeActive(state)) return false;
+        if (state.hasActiveCaptcha) return false;
 
         const cleanText = removeInvisibleChars(fullContent).toLowerCase();
 
@@ -222,7 +223,7 @@ async checkTickets(client) {
         const hasExplicitOwner = cleanText.includes(myName) ||
             (myId && (cleanText.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId)));
         const hasRecentOwnRequest = pending?.channelId === msg.channel.id &&
-            Date.now() - pending.requestedAt <= 15000;
+            Date.now() - pending.requestedAt <= 120000;
         const isAnonymousTicketReply = cleanText.includes('you ran out') ||
             cleanText.includes('currently have') ||
             cleanText.includes('**0**/3') ||
@@ -230,6 +231,7 @@ async checkTickets(client) {
         const isMyTicket = hasExplicitOwner || (hasRecentOwnRequest && isAnonymousTicketReply);
 
         if (!isMyTicket) return false;
+        if (!isRuntimeActive(state) && !hasRecentOwnRequest) return false;
         state.pendingBossTicketCheck = null;
 
         if (cleanText.includes('ran out of') || 

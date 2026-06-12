@@ -2,8 +2,89 @@ const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { deepCopy, safeJsonStringify, removeInvisibleChars, accountPrefix } = require('../utils');
 
-const isStartupRoutineActive = (state) => state.isStartupReadyRoutine === true || Date.now() < (state.startupReadyRoutineUntil || 0);
-const isRuntimeActive = (state) => !state.hasActiveCaptcha && (isStartupRoutineActive(state) || (!!state.config?.botStatus?.running && !state.config?.botStatus?.paused));
+
+const BOSS_TICKET_COMMAND_PATTERN = /^w(?:boss)?\s+t(?:icket)?$/i;
+
+const collectEmbedText = (embed = {}) => [
+    embed.title,
+    embed.description,
+    embed.author?.name,
+    embed.footer?.text,
+    ...(embed.fields || []).flatMap(field => [field.name, field.value])
+].filter(Boolean).join(' ');
+
+const collectMessageSearchText = (msg) => {
+    const parts = [msg.content || ''];
+    if (msg.embeds && msg.embeds.length > 0) {
+        parts.push(...msg.embeds.map(collectEmbedText));
+    }
+    if (msg.components && msg.components.length > 0) {
+        parts.push(safeJsonStringify(msg.components));
+    }
+    return removeInvisibleChars(parts.filter(Boolean).join(' '));
+};
+
+const parseTicketCount = (cleanText) => {
+    const patterns = [
+        /\*\*(\d+)\*\*\s*\/\s*\*\*3\*\*/,
+        /have\s+\*\*(\d+)\*\*\s*\/\s*\*\*3\*\*/,
+        /currently\s+have\s+(\d+)\s*\/\s*3/,
+        /have\s+(\d+)\s*\/\s*3/,
+        /(^|\s)(\d+)\s*\/\s*3(\s|$)/
+    ];
+
+    for (const pattern of patterns) {
+        const match = cleanText.match(pattern);
+        if (match) return parseInt(match[2] || match[1], 10);
+    }
+
+    return null;
+};
+
+const normalizeName = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const addNameAlias = (aliases, value) => {
+    const text = String(value || '').trim();
+    if (!text) return;
+
+    aliases.add(text.toLowerCase());
+    aliases.add(text.split('#')[0].toLowerCase());
+    aliases.add(text.split('.')[0].toLowerCase());
+    aliases.add(text.split('_')[0].toLowerCase());
+    aliases.add(text.split('-')[0].toLowerCase());
+};
+
+const getAccountNameAliases = (state, msg) => {
+    const aliases = new Set();
+    addNameAlias(aliases, msg.guild?.members?.me?.displayName);
+    addNameAlias(aliases, state.client?.user?.globalName);
+    addNameAlias(aliases, state.client?.user?.username);
+    addNameAlias(aliases, state.client?.user?.tag);
+    addNameAlias(aliases, state.accountUsername);
+
+    return Array.from(aliases)
+        .map(normalizeName)
+        .filter(alias => alias.length >= 2);
+};
+
+const extractTicketOwnerName = (cleanText) => {
+    const match = cleanText.match(/(?:^|\s)([^,]{2,40}),\s*you\s+(?:currently\s+)?have/i);
+    return match ? normalizeName(match[1]) : '';
+};
+
+const ticketBelongsToAccount = (state, msg, cleanText, hasRecentOwnRequest) => {
+    const myId = state.client?.user?.id;
+    if (myId && (cleanText.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId))) return true;
+
+    const aliases = getAccountNameAliases(state, msg);
+    const ownerName = extractTicketOwnerName(cleanText);
+    if (ownerName) return aliases.some(alias => ownerName === alias || ownerName.includes(alias) || alias.includes(ownerName));
+
+    const normalizedText = normalizeName(cleanText);
+    if (aliases.some(alias => normalizedText.includes(alias))) return true;
+
+    return hasRecentOwnRequest;
+};
 
 function getNextResetInfo() {
     const now = new Date();
@@ -46,7 +127,7 @@ function getNextResetInfo() {
 
 module.exports = (state, configManager, telegramService) => ({
     canFight(msg) {
-        if (!isRuntimeActive(state)) return false;
+        if (state.hasActiveCaptcha) return false;
         if (state.stopBossHunt) return false;
 
         const { allowedGuilds } = configManager.getBossSettings();
@@ -179,7 +260,7 @@ async checkTickets(client) {
     // 🛑 Skenario baru: 
     // Jika sedang terkena captcha, maka BERHENTI (return).
     // Jika tidak ada captcha, proses akan LANJUT terus (walaupun bot sedang dipause).
-    if (!isRuntimeActive(state)) return;
+    if (state.hasActiveCaptcha) return;
 
     try {
         const ticketChannelId = state.config.tiketandhb.channelId;
@@ -202,36 +283,48 @@ async checkTickets(client) {
     }
 },
 
-    processTicketMessage(msg) {
-        let fullContent = msg.content || '';
-        
-        if (msg.components && msg.components.length > 0) {
-            fullContent += ' ' + safeJsonStringify(msg.components);
+    trackManualTicketCommand(msg) {
+        const myId = state.client?.user?.id;
+        const isOwnMessage = myId && msg.author?.id === myId;
+        const ticketChannelId = state.config.tiketandhb?.channelId;
+        const isTicketChannel = ticketChannelId && msg.channel?.id === ticketChannelId;
+        const commandText = removeInvisibleChars(msg.content || '').trim();
+
+        if (!isOwnMessage || !isTicketChannel || !BOSS_TICKET_COMMAND_PATTERN.test(commandText)) {
+            return false;
         }
 
+        state.lastTicketCheck = Date.now();
+        state.pendingBossTicketCheck = {
+            channelId: msg.channel.id,
+            requestedAt: state.lastTicketCheck,
+            source: 'manual'
+        };
+        log.info(`${accountPrefix(state)}🎫 Manual ticket check terdeteksi: ${commandText}`);
+        return true;
+    },
+
+    processTicketMessage(msg) {
         if (state.hasActiveCaptcha) return false;
 
-        const cleanText = removeInvisibleChars(fullContent).toLowerCase();
+        const cleanText = collectMessageSearchText(msg).toLowerCase();
 
         if (!cleanText.includes('boss ticket') && !cleanText.includes('ticket')) {
             return false;
         }
 
-        const myName = (msg.guild?.members?.me?.displayName || state.client.user.username).toLowerCase();
-        const myId = state.client?.user?.id;
         const pending = state.pendingBossTicketCheck;
-        const hasExplicitOwner = cleanText.includes(myName) ||
-            (myId && (cleanText.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId)));
         const hasRecentOwnRequest = pending?.channelId === msg.channel.id &&
             Date.now() - pending.requestedAt <= 120000;
-        const isAnonymousTicketReply = cleanText.includes('you ran out') ||
+        const isTicketReply = cleanText.includes('you ran out') ||
             cleanText.includes('currently have') ||
             cleanText.includes('**0**/3') ||
-            cleanText.match(/\*\*(\d+)\*\*\/\*\*3\*\*/);
-        const isMyTicket = hasExplicitOwner || (hasRecentOwnRequest && isAnonymousTicketReply);
+            cleanText.includes('0/3') ||
+            parseTicketCount(cleanText) !== null;
+        const isMyTicket = ticketBelongsToAccount(state, msg, cleanText, hasRecentOwnRequest) ||
+            (hasRecentOwnRequest && isTicketReply);
 
         if (!isMyTicket) return false;
-        if (!isRuntimeActive(state) && !hasRecentOwnRequest) return false;
         state.pendingBossTicketCheck = null;
 
         if (cleanText.includes('ran out of') || 
@@ -246,11 +339,9 @@ async checkTickets(client) {
             telegramService.sendTicketNotification(0, true);
             
         } else {
-            const ticketMatch = cleanText.match(/\*\*(\d+)\*\*\/\*\*3\*\*/) || 
-                               cleanText.match(/have \*\*(\d+)\*\*\/\*\*3\*\*/);
+            const sisa = parseTicketCount(cleanText);
             
-            if (ticketMatch) {
-                const sisa = parseInt(ticketMatch[1]);
+            if (sisa !== null) {
                 log.info(`${accountPrefix(state)}🎫 Tiket Terupdate: ${sisa}/3`);
                 
                 if (sisa > 0) {

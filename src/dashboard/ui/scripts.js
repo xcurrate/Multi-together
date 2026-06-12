@@ -19,9 +19,19 @@ function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
                         .replace(/[^a-z0-9_-]/g, '');
                 }
 
+                function isSelectingInside(element) {
+                    const selection = window.getSelection ? window.getSelection() : null;
+                    if (!selection || selection.isCollapsed || selection.rangeCount === 0) return false;
+                    const range = selection.getRangeAt(0);
+                    return element.contains(range.commonAncestorContainer) ||
+                        element.contains(selection.anchorNode) ||
+                        element.contains(selection.focusNode);
+                }
+
                 function renderLogs(lines) {
                     const logBox = document.getElementById('logBox');
                     if (!logBox) return;
+                    if (isSelectingInside(logBox)) return;
 
                     const previousScrollTop = logBox.scrollTop;
                     const distanceFromBottom = logBox.scrollHeight - logBox.scrollTop - logBox.clientHeight;

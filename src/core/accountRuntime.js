@@ -364,7 +364,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
                 bossManager.stop();
             }
             if (state.client) {
-                try { state.client.destroy(); } catch (error) { log.warn(`Gagal destroy client ${accountId}: ${error.message}`); }
+                try { state.client.destroy(); } catch (error) { log.warn(`${accountPrefix(state)}Gagal destroy client ${accountId}: ${error.message}`); }
                 state.client = null;
             }
         },

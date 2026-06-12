@@ -14,23 +14,67 @@ const formatWIB = () => {
     return `[${hh}:${mm}:${ss}]`;
 };
 
+const INTERNAL_MAX_LINES = 800;
+const TERMINAL_MAX_LINES = constants.MAX_LOG_LINES || 20;
+const MAX_MESSAGE_LENGTH = 260;
+const ACCOUNT_PATTERN = /\[account:([^\]\s]+)/g;
+const IMPORTANT_KEYWORDS = [
+    'login sukses',
+    'token invalid',
+    'tidak ada token',
+    'bot started',
+    'captcha',
+    'tiket habis',
+    'tiket terupdate',
+    'daily reset',
+    'config',
+    'profil',
+    'akun paralel',
+    'connect/login',
+    'melanjutkan loop',
+    'menjeda akun',
+    'huntbot returned',
+    'huntbot started',
+    'huntbot auto mode',
+    'gagal',
+    'error'
+];
+
 // --- LOG BUFFER ---
+const entries = [];
 const logBuffer = [];
 const plainLogBuffer = [];
 
-function pushLogLine(line, plainLine) {
-    const maxLines = constants.MAX_LOG_LINES || 20;
+function compactMessage(msg) {
+    const text = String(msg ?? '').replace(/\s+/g, ' ').trim();
+    if (text.length <= MAX_MESSAGE_LENGTH) return text;
+    return `${text.slice(0, MAX_MESSAGE_LENGTH - 1)}…`;
+}
 
-    logBuffer.push(line);
-    plainLogBuffer.push(plainLine);
-
-    while (logBuffer.length > maxLines) {
-        logBuffer.shift();
+function extractAccountIds(line) {
+    const ids = new Set();
+    let match;
+    ACCOUNT_PATTERN.lastIndex = 0;
+    while ((match = ACCOUNT_PATTERN.exec(line))) {
+        ids.add(match[1]);
     }
+    return Array.from(ids);
+}
 
-    while (plainLogBuffer.length > maxLines) {
-        plainLogBuffer.shift();
-    }
+function isImportantLine(levelPlain, plainLine) {
+    if (levelPlain !== '[INFO]') return true;
+    const lower = String(plainLine || '').toLowerCase();
+    return IMPORTANT_KEYWORDS.some(keyword => lower.includes(keyword));
+}
+
+function pushLogLine(entry) {
+    entries.push(entry);
+    logBuffer.push(entry.coloredLine);
+    plainLogBuffer.push(entry.plainLine);
+
+    while (entries.length > INTERNAL_MAX_LINES) entries.shift();
+    while (logBuffer.length > TERMINAL_MAX_LINES) logBuffer.shift();
+    while (plainLogBuffer.length > INTERNAL_MAX_LINES) plainLogBuffer.shift();
 }
 
 // --- RENDER TERMINAL ---
@@ -39,20 +83,49 @@ function render() {
     console.log(logBuffer.join('\n'));
 }
 
+function filterEntries(options = {}) {
+    const accountId = options.accountId ? String(options.accountId).trim() : '';
+    const globalOnly = options.globalOnly === true;
+    const limit = Number.isFinite(Number(options.limit)) && Number(options.limit) > 0
+        ? Number(options.limit)
+        : INTERNAL_MAX_LINES;
+
+    let filtered = entries;
+    if (accountId) {
+        const accountPrefix = `[account:${accountId}]`;
+        filtered = entries.filter(entry =>
+            entry.accountIds.includes(accountId) ||
+            entry.plainLine.includes(accountPrefix) ||
+            entry.plainLine.includes(accountId)
+        );
+    } else if (globalOnly) {
+        filtered = entries.filter(entry => entry.important);
+    }
+
+    return filtered.slice(-limit);
+}
+
 // --- LOGGING CORE ---
 function write(levelPlain, levelColored, msg) {
     const timeStr = formatWIB();
+    const compact = compactMessage(msg);
 
     // simpan versi berwarna untuk terminal
-    const coloredLine = `${chalk.gray(timeStr)} ${levelColored} ${msg}`;
+    const coloredLine = `${chalk.gray(timeStr)} ${levelColored} ${compact}`;
 
     // simpan versi plain untuk dashboard
-    const plainLine = `${timeStr} ${levelPlain} ${msg}`;
+    const plainLine = `${timeStr} ${levelPlain} ${compact}`;
 
-    pushLogLine(coloredLine, plainLine);
+    pushLogLine({
+        timeStr,
+        level: levelPlain,
+        coloredLine,
+        plainLine,
+        accountIds: extractAccountIds(plainLine),
+        important: isImportantLine(levelPlain, plainLine)
+    });
 
     render();
-
 }
 
 // --- EXPORT ---
@@ -63,5 +136,5 @@ module.exports = {
     success: (msg) => write('[OK]', chalk.green('[OK]'), msg),
     battle: (msg) => write('[BATTLE]', chalk.magenta('[BATTLE]'), msg),
     captcha: (msg) => write('[CAPTCHA]', chalk.bgRed.white('[CAPTCHA]'), msg),
-    getRecent: () => plainLogBuffer.slice()
+    getRecent: (options = {}) => filterEntries(options).map(entry => entry.plainLine)
 };

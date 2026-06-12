@@ -48,7 +48,8 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
         logService,
         statsService,
         discordProfileService,
-        state
+        state,
+        logger
     }));
 
     return { app, port };

@@ -101,10 +101,10 @@ function getStyles() {
             .recent-list { display: grid; gap: 8px; margin-top: 10px; }
             .recent-item { display: grid; grid-template-columns: 92px 90px 1fr; gap: 10px; align-items: center; background: var(--panel-soft); border: 1px solid var(--border); border-radius: 12px; padding: 9px 10px; color: var(--text); font-size: 12px; }
             .recent-muted { color: var(--muted); }
-            .log-box { background: #0a0f16; color: #d0d5dd; border: 1px solid var(--border); border-radius: 14px; padding: 0; font-family: var(--mono); font-size: 12px; line-height: 1.45; overflow-y: auto; max-height: 320px; }
+            .log-box { background: #0a0f16; color: #d0d5dd; border: 1px solid var(--border); border-radius: 14px; padding: 0; font-family: var(--mono); font-size: 12px; line-height: 1.45; overflow: auto; height: 320px; min-height: 320px; max-height: 58vh; resize: vertical; }
             .log-line { display: grid; grid-template-columns: 78px 88px 1fr; gap: 10px; padding: 9px 12px; border-bottom: 1px solid #182231; white-space: pre-wrap; word-break: break-word; }
             .log-line:last-child { border-bottom: none; }
-            .log-empty { padding: 16px; color: #98a2b3; }
+            .log-empty { min-height: 318px; display: flex; align-items: center; justify-content: center; padding: 16px; color: #98a2b3; }
             .input-hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.45; }
             .telegram-badge { background: var(--blue-soft); border: 1px solid var(--border); border-radius: 999px; padding: 5px 9px; font-size: 11px; color: var(--accent); display: inline-block; margin-top: 8px; }
             @media (max-width: 920px) { .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .info-grid { grid-template-columns: 1fr; } }

@@ -10,7 +10,8 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
     // ============== MAIN ENTRY POINT ==============
     processHuntBotMessage(msg) {
-        if (!isRuntimeActive(state)) return false;
+        if (state.hasActiveCaptcha) return false;
+        if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return false;
 
         const content = msg.content || "";
         const author = msg.author.id;
@@ -92,7 +93,7 @@ isPaused() {
         }
 
         const isPausedOrStopped = state.config?.botStatus?.paused || !state.config?.botStatus?.running;
-        const canBypassPause = options.allowPaused === true || state.isStartupReadyRoutine === true;
+        const canBypassPause = options.allowPaused === true || isStartupRoutineActive(state) || huntbotState.autoMode === true;
         if (isPausedOrStopped && !canBypassPause) {
             log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: akun pause/stop.`);
             return true;
@@ -532,7 +533,8 @@ startMonitoring() {
 },
 
 checkActiveHunt() {
-    if (!isRuntimeActive(state)) return;
+    if (state.hasActiveCaptcha) return;
+    if (!isRuntimeActive(state) && huntbotState.autoMode !== true) return;
     if (!huntbotState.activeHunt?.endTime) return;
         
         const now = Date.now();

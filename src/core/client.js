@@ -5,7 +5,7 @@ const { accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-const STARTUP_RESPONSE_GRACE_MS = 30000;
+const STARTUP_RESPONSE_GRACE_MS = 120000;
 
 function markStartupReadyRoutine(state, graceMs = STARTUP_RESPONSE_GRACE_MS) {
     state.isStartupReadyRoutine = true;
@@ -37,6 +37,16 @@ async function sendStartupCommand(state, channel, cmd) {
 
     try {
         await channel.send(cmd);
+
+        if (/^wboss\s+t(?:icket)?$/i.test(cmd.trim())) {
+            state.lastTicketCheck = Date.now();
+            state.pendingBossTicketCheck = {
+                channelId: channel.id,
+                requestedAt: state.lastTicketCheck,
+                source: 'startup'
+            };
+            log.info(`${accountPrefix(state)}🎫 Startup ticket check ditandai sebagai request akun ini.`);
+        }
     } finally {
         state.isStartupReadyRoutine = wasStartupReadyRoutine;
     }

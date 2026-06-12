@@ -209,7 +209,7 @@ async checkTickets(client) {
             fullContent += ' ' + safeJsonStringify(msg.components);
         }
 
-        if (!isRuntimeActive(state)) return false;
+        if (state.hasActiveCaptcha) return false;
 
         const cleanText = removeInvisibleChars(fullContent).toLowerCase();
 
@@ -223,7 +223,7 @@ async checkTickets(client) {
         const hasExplicitOwner = cleanText.includes(myName) ||
             (myId && (cleanText.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId)));
         const hasRecentOwnRequest = pending?.channelId === msg.channel.id &&
-            Date.now() - pending.requestedAt <= 15000;
+            Date.now() - pending.requestedAt <= 120000;
         const isAnonymousTicketReply = cleanText.includes('you ran out') ||
             cleanText.includes('currently have') ||
             cleanText.includes('**0**/3') ||
@@ -231,6 +231,7 @@ async checkTickets(client) {
         const isMyTicket = hasExplicitOwner || (hasRecentOwnRequest && isAnonymousTicketReply);
 
         if (!isMyTicket) return false;
+        if (!isRuntimeActive(state) && !hasRecentOwnRequest) return false;
         state.pendingBossTicketCheck = null;
 
         if (cleanText.includes('ran out of') || 

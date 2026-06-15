@@ -1,7 +1,8 @@
 module.exports = function createScripts({ CONSTANTS, serializeForScript }) {
-function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
+function getLogRefreshScript(profileOptions = [], viewingProfileId = '', isControlPanel = false) {
         const profileOptionsJson = serializeForScript(profileOptions);
         const viewingProfileIdJson = serializeForScript(viewingProfileId || '');
+        const isControlPanelJson = serializeForScript(!!isControlPanel);
         return `
         <script>
             (function() {
@@ -100,6 +101,7 @@ function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
                 }
 
                 const viewingProfileId = ${viewingProfileIdJson};
+                const isControlPanel = ${isControlPanelJson};
                 const profileQuery = viewingProfileId ? '?profileId=' + encodeURIComponent(viewingProfileId) : '';
                 const logBox = document.getElementById('logBox');
                 if (logBox) {
@@ -165,7 +167,9 @@ function getLogRefreshScript(profileOptions = [], viewingProfileId = '') {
                         document.getElementById('userProfileBox').innerHTML = '⚠️ Koneksi ke Discord API gagal.';
                     }
                 }
-                fetchProfile(); // Panggil saat halaman dimuat
+                if (!isControlPanel) {
+                    fetchProfile(); // Panggil hanya saat melihat akun tertentu
+                }
 
                 const profileOptions = ${profileOptionsJson};
                 const profileSelect = document.getElementById('selectedProfile');

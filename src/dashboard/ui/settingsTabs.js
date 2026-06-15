@@ -4,7 +4,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                     <div id="tab-main" class="tab-content active">
 
                         <div class="card" style="border-color: var(--accent);">
-                            <label style="color: var(--accent);">👥 MULTI ACCOUNT MANAGER (DEFAULT 1, MAKS 4 AKUN PARALEL)</label>
+                            <label style="color: var(--accent);">👥 CONTROL PANEL MULTI ACCOUNT (MAKS 4 AKUN PARALEL)</label>
                             
                             <div style="margin-bottom: 12px;">
                                 <div class="account-chip-wrap">
@@ -21,7 +21,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                         </span>
                                     `).join('') : '<div class="input-hint">Belum ada profil tersimpan. Tambahkan token akun baru di bawah.</div>'}
                                 </div>
-                                <div class="input-hint">Bot default menjalankan 1 slot. Klik Tambah Slot untuk menaikkan slot bertahap sampai maksimal 4 akun paralel. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
+                                <div class="input-hint">Dashboard utama adalah Control Panel murni, bukan akun default. Gunakan panel ini untuk mengatur semua akun tersimpan dan jumlah slot paralel. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
                                 <label>Slot akun paralel (1-4)</label>
                                 <div class="row">
                                     <div class="col">
@@ -30,8 +30,11 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                     <div class="col" style="flex: 0.45;">
                                         <button type="submit" name="action" value="addSlot" class="btn" style="background: var(--accent); color: white;" ${Number(config.multiAccount?.maxAccounts || 1) >= 4 ? 'disabled' : ''}>➕ TAMBAH SLOT</button>
                                     </div>
+                                    <div class="col" style="flex: 0.45;">
+                                        <button type="submit" name="action" value="removeSlot" class="btn" style="background: var(--red); color: white;" ${Number(config.multiAccount?.maxAccounts || 1) <= 1 ? 'disabled' : ''}>➖ HAPUS SLOT</button>
+                                    </div>
                                 </div>
-                                <div class="input-hint">Slot aktif saat ini: ${Math.max(1, Math.min(4, Number(config.multiAccount?.maxAccounts || 1)))}/4. Tombol tambah slot berhenti otomatis saat mencapai 4.</div>
+                                <div class="input-hint">Slot aktif saat ini: ${Math.max(1, Math.min(4, Number(config.multiAccount?.maxAccounts || 1)))}/4. Tambah slot berhenti di 4, hapus slot berhenti di 1 agar selalu ada kapasitas minimal.</div>
                                 <input type="hidden" name="selectedProfile" id="selectedProfile" value="">
                                 <div id="selectedProfilePreview" class="profile-preview" aria-live="polite"></div>
                             </div>
@@ -52,9 +55,9 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                             </div>
                         </div>
                         <div class="card">
-                            <label>🔐 CURRENT DISCORD TOKEN</label>
+                            <label>🔐 TEMPLATE TOKEN / KONFIG UTAMA</label>
                             <input type="password" name="token" value="${config.token || ''}" placeholder="Token aktif saat ini.">
-                            <div class="input-hint">Token yang sedang digunakan oleh bot saat ini.</div>
+                            <div class="input-hint">Token ini hanya template/konfigurasi utama untuk pembuatan profil. Dashboard utama tetap Control Panel; pilih chip akun untuk melihat/mengontrol akun tertentu.</div>
                         </div>
 
                         <div class="card">

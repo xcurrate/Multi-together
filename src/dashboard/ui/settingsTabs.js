@@ -21,20 +21,9 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                         </span>
                                     `).join('') : '<div class="input-hint">Belum ada profil tersimpan. Tambahkan token akun baru di bawah.</div>'}
                                 </div>
-                                <div class="input-hint">Dashboard utama adalah Control Panel murni, bukan akun default. Gunakan panel ini untuk mengatur semua akun tersimpan dan jumlah slot paralel. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
-                                <label>Slot akun paralel (1-4)</label>
-                                <div class="row">
-                                    <div class="col">
-                                        <input type="number" name="maxAccounts" min="1" max="4" value="${config.multiAccount?.maxAccounts || 1}">
-                                    </div>
-                                    <div class="col" style="flex: 0.45;">
-                                        <button type="submit" name="action" value="addSlot" class="btn" style="background: var(--accent); color: white;" ${Number(config.multiAccount?.maxAccounts || 1) >= 4 ? 'disabled' : ''}>➕ TAMBAH SLOT</button>
-                                    </div>
-                                    <div class="col" style="flex: 0.45;">
-                                        <button type="submit" name="action" value="removeSlot" class="btn" style="background: var(--red); color: white;" ${Number(config.multiAccount?.maxAccounts || 1) <= 1 ? 'disabled' : ''}>➖ HAPUS SLOT</button>
-                                    </div>
-                                </div>
-                                <div class="input-hint">Slot aktif saat ini: ${Math.max(1, Math.min(4, Number(config.multiAccount?.maxAccounts || 1)))}/4. Tambah slot berhenti di 4, hapus slot berhenti di 1 agar selalu ada kapasitas minimal.</div>
+                                <div class="input-hint">Dashboard utama adalah Control Panel murni, bukan akun default. Slot paralel otomatis mengikuti jumlah token akun yang ditambahkan. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
+                                <label>Slot akun paralel otomatis</label>
+                                <div class="input-hint">Token tersimpan saat ini: ${Math.min(4, profileOptions.length)}/4. Tambah token = tambah 1 slot baru. Tersisa ${Math.max(0, 4 - profileOptions.length)} slot lagi.</div>
                                 <input type="hidden" name="selectedProfile" id="selectedProfile" value="">
                                 <div id="selectedProfilePreview" class="profile-preview" aria-live="polite"></div>
                             </div>

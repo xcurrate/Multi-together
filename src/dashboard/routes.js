@@ -275,15 +275,33 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
             if (body.action === 'newProfile') {
                 const newToken = body.newToken;
                 if (newToken) {
+                    const existingProfiles = new Set(profileManager.getSavedProfiles());
                     const targetId = profileManager.getUserId(newToken);
+                    if (!existingProfiles.has(targetId) && existingProfiles.size >= 4) {
+                        dashboardLog('warn', targetId, '⚠️ Slot akun penuh: maksimal 4 token/slot.');
+                        return res.send(uiComponents.getSavedResponse());
+                    }
+
                     const profilePath = profileManager.getProfilePath(targetId);
-                    
-                    let currentConfig = configManager.ensureShape(configManager.get());
-                    let newConfig = JSON.parse(JSON.stringify(currentConfig));
+                    const currentConfig = configManager.ensureShape(configManager.get());
+                    const newConfig = JSON.parse(JSON.stringify(currentConfig));
                     newConfig.token = newToken;
+                    newConfig.multiAccount = newConfig.multiAccount || {};
+                    newConfig.multiAccount.enabled = true;
+                    delete newConfig.viewingProfileId;
                     
                     fileService.writeJson(profilePath, newConfig);
-                    dashboardLog('success', targetId, '➕ Profil baru berhasil dibuat dan akan dijalankan paralel bila masuk slot.');
+
+                    const slotCount = Math.min(4, new Set([...existingProfiles, targetId]).size);
+                    const mainConfig = configManager.ensureShape(configManager.get());
+                    mainConfig.multiAccount = mainConfig.multiAccount || {};
+                    mainConfig.multiAccount.enabled = true;
+                    mainConfig.multiAccount.maxAccounts = slotCount;
+                    configManager.save(mainConfig);
+
+                    dashboardLog('success', targetId, `➕ Token ditambahkan sebagai slot baru (${slotCount}/4). Tersisa ${4 - slotCount} slot lagi.`);
+                    const manager = state?.multiAccountManager;
+                    if (manager && typeof manager.reconcile === 'function') manager.reconcile();
                 }
                 return res.send(uiComponents.getSavedResponse());
             }

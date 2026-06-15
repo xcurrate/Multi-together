@@ -4,7 +4,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                     <div id="tab-main" class="tab-content active">
 
                         <div class="card" style="border-color: var(--accent);">
-                            <label style="color: var(--accent);">👥 MULTI ACCOUNT MANAGER (MAKS 4 AKUN PARALEL)</label>
+                            <label style="color: var(--accent);">👥 MULTI ACCOUNT MANAGER (DEFAULT 1, MAKS 4 AKUN PARALEL)</label>
                             
                             <div style="margin-bottom: 12px;">
                                 <div class="account-chip-wrap">
@@ -21,9 +21,17 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                         </span>
                                     `).join('') : '<div class="input-hint">Belum ada profil tersimpan. Tambahkan token akun baru di bawah.</div>'}
                                 </div>
-                                <div class="input-hint">Bot sekarang menjalankan maksimal 4 akun tersimpan secara bersamaan. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
+                                <div class="input-hint">Bot default menjalankan 1 slot. Klik Tambah Slot untuk menaikkan slot bertahap sampai maksimal 4 akun paralel. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
                                 <label>Slot akun paralel (1-4)</label>
-                                <input type="number" name="maxAccounts" min="1" max="4" value="${config.multiAccount?.maxAccounts || 4}">
+                                <div class="row">
+                                    <div class="col">
+                                        <input type="number" name="maxAccounts" min="1" max="4" value="${config.multiAccount?.maxAccounts || 1}">
+                                    </div>
+                                    <div class="col" style="flex: 0.45;">
+                                        <button type="submit" name="action" value="addSlot" class="btn" style="background: var(--accent); color: white;" ${Number(config.multiAccount?.maxAccounts || 1) >= 4 ? 'disabled' : ''}>➕ TAMBAH SLOT</button>
+                                    </div>
+                                </div>
+                                <div class="input-hint">Slot aktif saat ini: ${Math.max(1, Math.min(4, Number(config.multiAccount?.maxAccounts || 1)))}/4. Tombol tambah slot berhenti otomatis saat mencapai 4.</div>
                                 <input type="hidden" name="selectedProfile" id="selectedProfile" value="">
                                 <div id="selectedProfilePreview" class="profile-preview" aria-live="polite"></div>
                             </div>
@@ -40,7 +48,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                         <button type="submit" name="action" value="newProfile" class="btn" style="background: var(--green); color: white;">➕ BUAT</button>
                                     </div>
                                 </div>
-                                <div class="input-hint">Paste token akun baru dan klik BUAT. Profil ini akan ikut masuk slot paralel (maksimal 4 akun tersimpan pertama).</div>
+                                <div class="input-hint">Paste token akun baru dan klik BUAT. Profil ini akan ikut masuk slot paralel jika jumlah slot yang aktif masih tersedia (maksimal 4 akun tersimpan pertama).</div>
                             </div>
                         </div>
                         <div class="card">

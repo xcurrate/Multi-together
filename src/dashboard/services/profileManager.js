@@ -68,6 +68,24 @@ module.exports = function createProfileManager({ baseDir, fileService }) {
         return meta.profiles && meta.profiles[id] ? meta.profiles[id] : null;
     },
 
+    deleteProfile(id) {
+        const profilePath = this.getProfilePath(id);
+        let removed = false;
+        if (fs.existsSync(profilePath)) {
+            fs.unlinkSync(profilePath);
+            removed = true;
+        }
+
+        const metaPath = this.getMetaPath();
+        const meta = this.readMeta();
+        if (meta.profiles && meta.profiles[id]) {
+            delete meta.profiles[id];
+            fileService.writeJson(metaPath, meta);
+        }
+
+        return removed;
+    },
+
     getProfileDisplayName(id) {
         const meta = this.getProfileMeta(id);
         if (meta && meta.globalName) {

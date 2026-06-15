@@ -47,7 +47,11 @@ function getStyles() {
             .account-chip-action.connect { color: var(--accent); border-color: #4d5fc0; }
             .account-chip-action.start { color: var(--green); border-color: #2e7a52; }
             .account-chip-action.pause { color: var(--red); border-color: #7a363c; }
+            .account-chip-action.delete { color: var(--yellow); border-color: #8a5d16; }
             .account-chip-action:hover { border-color: var(--accent); background: var(--blue-soft); }
+            .slot-indicator { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+            .slot-indicator span { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--panel-soft); color: var(--text); font-size: 12px; font-weight: 800; }
+            .slot-indicator strong { color: var(--accent); }
             .profile-preview { display: none; align-items: center; gap: 8px; margin-top: 8px; padding: 10px; background: var(--blue-soft); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 13px; }
             .profile-preview.visible { display: flex; }
             .profile-preview strong { color: var(--accent); }

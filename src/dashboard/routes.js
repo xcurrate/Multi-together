@@ -255,14 +255,17 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 return res.send(uiComponents.getSavedResponse());
             }
 
-            if (body.action === 'addSlot') {
+            if (body.action === 'addSlot' || body.action === 'removeSlot') {
                 const mainConfig = configManager.ensureShape(configManager.get());
                 const currentSlots = Math.max(1, Math.min(4, parseInt(mainConfig.multiAccount?.maxAccounts, 10) || 1));
+                const delta = body.action === 'addSlot' ? 1 : -1;
                 mainConfig.multiAccount = mainConfig.multiAccount || {};
                 mainConfig.multiAccount.enabled = true;
-                mainConfig.multiAccount.maxAccounts = Math.min(4, currentSlots + 1);
+                mainConfig.multiAccount.maxAccounts = Math.max(1, Math.min(4, currentSlots + delta));
                 if (configManager.save(mainConfig)) {
-                    dashboardLog('success', '', `➕ Slot akun paralel ditambah menjadi ${mainConfig.multiAccount.maxAccounts}/4.`);
+                    const icon = delta > 0 ? '➕' : '➖';
+                    const verb = delta > 0 ? 'ditambah' : 'dikurangi';
+                    dashboardLog('success', '', `${icon} Slot akun paralel ${verb} menjadi ${mainConfig.multiAccount.maxAccounts}/4.`);
                     const manager = state?.multiAccountManager;
                     if (manager && typeof manager.reconcile === 'function') manager.reconcile();
                 }

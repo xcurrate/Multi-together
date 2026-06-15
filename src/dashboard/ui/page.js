@@ -18,6 +18,7 @@ function renderPage(config) {
         const voice = config.settings.voice || {};
         const statsSnapshot = statsService.getSnapshot(config);
         const viewingProfileId = config.viewingProfileId || '';
+        const isControlPanel = !viewingProfileId;
 
         const profiles = profileManager.getSavedProfiles();
         const activeProfileId = profileManager.getUserId(config.token);
@@ -59,10 +60,10 @@ function renderPage(config) {
         <body>
             <div class="container">
                 <h2>OWO Farming Dashboard</h2>
-                <div class="subtitle">Panel ringkas, nyaman, dan ringan untuk monitoring bot. ${viewingProfileId ? `Sedang melihat akun: ${viewingProfileId}` : ''}</div>
+                <div class="subtitle">${isControlPanel ? 'Control Panel utama untuk mengontrol semua akun dan slot paralel; halaman ini bukan akun default.' : `Sedang melihat akun: ${viewingProfileId}`}</div>
 
-                <div id="userProfileBox" class="profile-box profile-box-top">
-                    ⏳ Menghubungi Discord API...
+                <div id="userProfileBox" class="profile-box profile-box-top" data-control-panel="${isControlPanel ? 'true' : 'false'}">
+                    ${isControlPanel ? '🧭 Control Panel — tidak ada akun default. Pilih akun tersimpan untuk melihat profil Discord.' : '⏳ Menghubungi Discord API...'}
                 </div>
 
                 <form action="/save" method="POST">
@@ -105,7 +106,7 @@ function renderPage(config) {
                 ${getLogCard()}
             </div>
 
-            ${getLogRefreshScript(profileOptions, viewingProfileId)}
+            ${getLogRefreshScript(profileOptions, viewingProfileId, isControlPanel)}
         </body>
         </html>
         `;

@@ -7,7 +7,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                     <div id="tab-main" class="tab-content active">
 
                         <div class="card" style="border-color: var(--accent);">
-                            <label style="color: var(--accent);">👥 CONTROL PANEL MULTI ACCOUNT (MAKS 4 AKUN PARALEL)</label>
+                            <label style="color: var(--accent);">👥 MULTI ACCOUNT</label>
                             
                             <div style="margin-bottom: 12px;">
                                 <div class="account-chip-wrap">
@@ -23,15 +23,13 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                             <button type="submit" name="profileAction" value="pause:${escapeHtml(profile.id)}" class="account-chip-action pause" title="Pause commands akun ${escapeHtml(profile.id)}">⏸</button>
                                             <button type="submit" name="profileAction" value="delete:${escapeHtml(profile.id)}" class="account-chip-action delete" title="Hapus slot akun ${escapeHtml(profile.id)}" onclick="return confirm('Hapus slot akun ini? Slot akan berkurang 1.');">🗑</button>
                                         </span>
-                                    `).join('') : '<div class="input-hint">Belum ada profil tersimpan. Tambahkan token akun baru di bawah.</div>'}
+                                    `).join('') : '<div class="input-hint">Belum ada profil.</div>'}
                                 </div>
-                                <div class="input-hint">Dashboard utama adalah Control Panel murni, bukan akun default. Slot paralel otomatis mengikuti jumlah token akun yang ditambahkan. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
                                 <label>Slot akun paralel otomatis</label>
                                 <div class="slot-indicator" aria-live="polite">
                                     <span>📦 Terpakai: <strong>${usedSlots}/4</strong></span>
                                     <span>🟢 Sisa slot: <strong>${remainingSlots}</strong></span>
                                 </div>
-                                <div class="input-hint">Token tersimpan saat ini: ${usedSlots}/4. Tambah token = tambah 1 slot baru; hapus slot akun = kurang 1 slot. Jika 1 slot dihapus maka 1 - 1 = 0 slot. Tersisa ${remainingSlots} slot lagi.</div>
                                 <input type="hidden" name="selectedProfile" id="selectedProfile" value="">
                                 <div id="selectedProfilePreview" class="profile-preview" aria-live="polite"></div>
                             </div>
@@ -42,19 +40,17 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <label>ATAU MASUKKUN TOKEN AKUN BARU</label>
                                 <div class="row">
                                     <div class="col">
-                                        <input type="password" name="newToken" placeholder="Paste Token di sini...">
+                                        <input type="password" name="newToken" placeholder="Token">
                                     </div>
                                     <div class="col" style="flex: 0.4;">
                                         <button type="submit" name="action" value="newProfile" class="btn" style="background: var(--green); color: white;">➕ BUAT</button>
                                     </div>
                                 </div>
-                                <div class="input-hint">Paste token akun baru dan klik BUAT. Profil ini akan ikut masuk slot paralel jika jumlah slot yang aktif masih tersedia (maksimal 4 akun tersimpan pertama).</div>
                             </div>
                         </div>
                         <div class="card">
                             <label>🔐 TEMPLATE TOKEN / KONFIG UTAMA</label>
-                            <input type="password" name="token" value="${config.token || ''}" placeholder="Token aktif saat ini.">
-                            <div class="input-hint">Token ini hanya template/konfigurasi utama untuk pembuatan profil. Dashboard utama tetap Control Panel; pilih chip akun untuk melihat/mengontrol akun tertentu.</div>
+                            <input type="password" name="token" value="${config.token || ''}" placeholder="Token">
                         </div>
 
                         <div class="card">
@@ -102,14 +98,14 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                         <div class="card">
                             <label>💬 CUSTOM COMMANDS</label>
                             <div style="margin-bottom: 12px;">
-                                <input type="text" name="text1" value="${config.settings.text1 || ''}" placeholder="Command 1 (e.g., owo inv)">
+                                <input type="text" name="text1" value="${config.settings.text1 || ''}" placeholder="Command 1">
                                 <div class="row" style="margin-top: 8px;">
                                     <div class="col"><input type="number" name="c1Min" value="${custom1.min}" placeholder="Min"></div>
                                     <div class="col"><input type="number" name="c1Max" value="${custom1.max}" placeholder="Max"></div>
                                 </div>
                             </div>
                             <div style="margin-bottom: 12px;">
-                                <input type="text" name="text2" value="${config.settings.text2 || ''}" placeholder="Command 2 (e.g., owo cash)">
+                                <input type="text" name="text2" value="${config.settings.text2 || ''}" placeholder="Command 2">
                                 <div class="row" style="margin-top: 8px;">
                                     <div class="col"><input type="number" name="c2Min" value="${custom2.min}" placeholder="Min"></div>
                                     <div class="col"><input type="number" name="c2Max" value="${custom2.max}" placeholder="Max"></div>
@@ -133,14 +129,14 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <span class="section-label">Advanced / Add-ons</span>
                                 <h3>📱 Notifikasi</h3>
                             </div>
-                            <p>Pengaturan kanal notifikasi eksternal agar status bot mudah dipantau.</p>
+
                         </div>
 
                         <div class="card">
                             <label>📱 TELEGRAM NOTIFICATIONS</label>
                             <input type="text" name="tgToken" value="${config.settings.telegram.token || ''}" placeholder="Bot Token">
                             <input type="text" name="tgChat" value="${config.settings.telegram.chatId || ''}" placeholder="Chat ID">
-                            <div class="input-hint">Optional: Leave empty to disable</div>
+
                         </div>
                     </div>
 
@@ -150,7 +146,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <span class="section-label">Advanced / Add-ons</span>
                                 <h3>🛡️ Captcha</h3>
                             </div>
-                            <p>Kelola auto solver, solver utama, fallback, dan API key captcha.</p>
+
                         </div>
 
                         <!-- === CAPTCHA SETTINGS (Full Fallback UI) === -->
@@ -172,7 +168,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
 
                             <div class="divider"></div>
 
-                            <label>Fallback Solvers (akan dicoba jika Primary gagal)</label>
+                            <label>Fallback Solvers</label>
                             <div style="margin: 8px 0;">
                                 <label style="display: inline-flex; align-items: center; gap: 8px; margin-right: 20px;">
                                     <input type="checkbox" name="fallbackNopecha" value="NopechaSolver" ${fallbackSolvers.includes('NopechaSolver') ? 'checked' : ''}>
@@ -183,19 +179,15 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                     <span>TwoCaptchaSolver</span>
                                 </label>
                             </div>
-                            <div class="input-hint">Centang solver yang ingin digunakan sebagai cadangan (sequential).</div>
 
                             <div class="divider"></div>
 
                             <label>Nopecha API Key</label>
-                            <input type="password" name="nopechaApiKey" value="${escapeHtml(nopechaKey)}" placeholder="Masukkan Nopecha API Key">
+                            <input type="password" name="nopechaApiKey" value="${escapeHtml(nopechaKey)}" placeholder="API Key">
 
                             <label style="margin-top: 12px;">TwoCaptcha API Key</label>
-                            <input type="password" name="twoCaptchaApiKey" value="${escapeHtml(twoCaptchaKey)}" placeholder="Masukkan TwoCaptcha API Key">
+                            <input type="password" name="twoCaptchaApiKey" value="${escapeHtml(twoCaptchaKey)}" placeholder="API Key">
 
-                            <div class="input-hint" style="margin-top: 8px; color: #f59e0b;">
-                                Sistem akan mencoba Primary terlebih dahulu, lalu fallback secara berurutan jika gagal.
-                            </div>
                         </div>
                     </div>
 
@@ -205,7 +197,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <span class="section-label">Advanced / Add-ons</span>
                                 <h3>🔌 Integrasi Sistem</h3>
                             </div>
-                            <p>Konfigurasi port dashboard dan layanan eksternal pendukung.</p>
+
                         </div>
 
                         <div class="card">
@@ -225,7 +217,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <span class="section-label">Advanced / Add-ons</span>
                                 <h3>🛡️ Safety & Filter</h3>
                             </div>
-                            <p>Batasi channel/guild, aktifkan CCTV, dan atur mode debug filter pesan.</p>
+
                         </div>
 
                         <div class="card">
@@ -242,9 +234,9 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <span>Enable Filter</span>
                                 <input type="checkbox" name="mfEnabled" ${msgFilter.enabled ? 'checked' : ''}>
                             </div>
-                            <label>Channel IDs (Comma separated)</label>
+                            <label>Channel IDs</label>
                             <input type="text" name="mfChannelIds" value="${(msgFilter.channelIds || []).join(',')}" placeholder="Channel IDs">
-                            <label>Guild IDs (Comma separated)</label>
+                            <label>Guild IDs</label>
                             <input type="text" name="mfGuildIds" value="${(msgFilter.guildIds || []).join(',')}" placeholder="Guild IDs">
                             <div class="toggle-row">
                                 <span>Debug Mode</span>
@@ -263,7 +255,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <span class="section-label">Advanced / Add-ons</span>
                                 <h3>🤖 Automasi</h3>
                             </div>
-                            <p>Kumpulkan pengaturan HuntBot, voice channel, boss, dan rotasi channel.</p>
+
                         </div>
                                                                         
                         <div class="card">
@@ -273,7 +265,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <input type="checkbox" name="hbEnabled" ${huntbot.enabled ? 'checked' : ''}>
                             </div>
                             <div class="toggle-row">
-                                <span>Auto Mode (Claim & Upgrade)</span>
+                                <span>Auto Mode</span>
                                 <input type="checkbox" name="hbAutoMode" ${huntbot.autoMode ? 'checked' : ''}>
                             </div>
                             <div class="toggle-row">
@@ -282,7 +274,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                             </div>
                             <div class="divider"></div>
                             <label>Default Upgrade Type</label>
-                            <input type="text" name="hbUpgrade" value="${huntbot.defaultUpgrade || 'duration'}" placeholder="duration / efficiency">
+                            <input type="text" name="hbUpgrade" value="${huntbot.defaultUpgrade || 'duration'}" placeholder="Upgrade">
                             <label>Default Hunt Duration</label>
                             <input type="text" name="hbDuration" value="${huntbot.defaultDuration || '1D'}" placeholder="1D">
                             
@@ -299,8 +291,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <input type="checkbox" name="voiceEnabled" ${voice.enabled ? 'checked' : ''}>
                             </div>
                             <label>Voice Channel ID</label>
-                            <input type="text" name="voiceChannelId" value="${voice.channelId || ''}" placeholder="Voice Channel ID">
-                            <div class="input-hint">Jika aktif, bot otomatis join VC ini setelah login/restart. Command vjoin juga menyimpan VC terakhir ke field ini.</div>
+                            <input type="text" name="voiceChannelId" value="${voice.channelId || ''}" placeholder="Channel ID">
                         </div>
 
                         <div class="card">
@@ -309,7 +300,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <span>Enable Auto-Boss</span>
                                 <input type="checkbox" name="bossEnabled" ${boss.enabled ? 'checked' : ''}>
                             </div>
-                            <label>Allowed Guilds (Comma separated)</label>
+                            <label>Allowed Guilds</label>
                             <input type="text" name="bossGuilds" value="${(boss.allowedGuilds || []).join(',')}" placeholder="Guild ID">
                         </div>
 
@@ -320,8 +311,8 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <input type="checkbox" name="crEnabled" ${rotation.enabled ? 'checked' : ''}>
                             </div>
                             <div class="row">
-                                <div class="col"><input type="number" name="crMin" value="${rotation.minMs}" placeholder="Min delay"></div>
-                                <div class="col"><input type="number" name="crMax" value="${rotation.maxMs}" placeholder="Max delay"></div>
+                                <div class="col"><input type="number" name="crMin" value="${rotation.minMs}" placeholder="Min"></div>
+                                <div class="col"><input type="number" name="crMax" value="${rotation.maxMs}" placeholder="Max"></div>
                             </div>
                         </div>
 
@@ -333,13 +324,13 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <span class="section-label">Advanced / Add-ons</span>
                                 <h3>🎮 Kontrol & Sistem</h3>
                             </div>
-                            <p>Atur auto resume, kata kontrol, whitelist user, dan ukuran log dashboard.</p>
+
                         </div>
 
                         <div class="card">
                             <label>🎮 CONTROL & SYSTEM</label>
                             <div class="toggle-row">
-                                <span>Auto Resume (After restart)</span>
+                                <span>Auto Resume</span>
                                 <input type="checkbox" name="autoResume" ${config.settings.autoResume ? 'checked' : ''}>
                             </div>
                             <div class="divider"></div>
@@ -353,8 +344,8 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                     <input type="text" name="ctrlPause" value="${control.pause || 'wbuy 1'}" placeholder="wbuy 1">
                                 </div>
                             </div>
-                            <label>Allowed User IDs (Comma separated)</label>
-                            <input type="text" name="ctrlAllowIds" value="${(control.allowIds || []).join(',')}" placeholder="Leave blank to allow all">
+                            <label>Allowed User IDs</label>
+                            <input type="text" name="ctrlAllowIds" value="${(control.allowIds || []).join(',')}" placeholder="User ID">
                             
                             <div class="divider"></div>
                             <label>Max Log Lines in Dashboard</label>

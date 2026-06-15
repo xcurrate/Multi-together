@@ -255,6 +255,20 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 return res.send(uiComponents.getSavedResponse());
             }
 
+            if (body.action === 'addSlot') {
+                const mainConfig = configManager.ensureShape(configManager.get());
+                const currentSlots = Math.max(1, Math.min(4, parseInt(mainConfig.multiAccount?.maxAccounts, 10) || 1));
+                mainConfig.multiAccount = mainConfig.multiAccount || {};
+                mainConfig.multiAccount.enabled = true;
+                mainConfig.multiAccount.maxAccounts = Math.min(4, currentSlots + 1);
+                if (configManager.save(mainConfig)) {
+                    dashboardLog('success', '', `➕ Slot akun paralel ditambah menjadi ${mainConfig.multiAccount.maxAccounts}/4.`);
+                    const manager = state?.multiAccountManager;
+                    if (manager && typeof manager.reconcile === 'function') manager.reconcile();
+                }
+                return res.send(uiComponents.getSavedResponse());
+            }
+
             if (body.action === 'newProfile') {
                 const newToken = body.newToken;
                 if (newToken) {

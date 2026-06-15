@@ -257,11 +257,11 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
             if (body.action === 'addSlot' || body.action === 'removeSlot') {
                 const mainConfig = configManager.ensureShape(configManager.get());
-                const currentSlots = Math.max(1, Math.min(4, parseInt(mainConfig.multiAccount?.maxAccounts, 10) || 1));
+                const currentSlots = Math.max(0, Math.min(4, parseInt(mainConfig.multiAccount?.maxAccounts, 10) || 0));
                 const delta = body.action === 'addSlot' ? 1 : -1;
                 mainConfig.multiAccount = mainConfig.multiAccount || {};
                 mainConfig.multiAccount.enabled = true;
-                mainConfig.multiAccount.maxAccounts = Math.max(1, Math.min(4, currentSlots + delta));
+                mainConfig.multiAccount.maxAccounts = Math.max(0, Math.min(4, currentSlots + delta));
                 if (configManager.save(mainConfig)) {
                     const icon = delta > 0 ? '➕' : '➖';
                     const verb = delta > 0 ? 'ditambah' : 'dikurangi';
@@ -318,6 +318,22 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 }
                 if (accountId && action === 'logout') {
                     logoutAccount(accountId);
+                    return res.send(uiComponents.getSavedResponse());
+                }
+                if (accountId && action === 'delete') {
+                    logoutAccount(accountId);
+                    const removed = profileManager.deleteProfile(accountId);
+                    const remainingProfiles = profileManager.getSavedProfiles();
+                    const mainConfig = configManager.ensureShape(configManager.get());
+                    mainConfig.multiAccount = mainConfig.multiAccount || {};
+                    mainConfig.multiAccount.enabled = true;
+                    mainConfig.multiAccount.maxAccounts = Math.min(4, remainingProfiles.length);
+                    configManager.save(mainConfig);
+                    dashboardLog(removed ? 'success' : 'warn', accountId, removed
+                        ? `🗑 Slot akun dihapus. Slot aktif sekarang ${mainConfig.multiAccount.maxAccounts}/4, tersisa ${4 - mainConfig.multiAccount.maxAccounts} slot.`
+                        : '⚠️ Hapus slot gagal: profil akun tidak ditemukan.');
+                    const manager = state?.multiAccountManager;
+                    if (manager && typeof manager.reconcile === 'function') manager.reconcile();
                     return res.send(uiComponents.getSavedResponse());
                 }
             }

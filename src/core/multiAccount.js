@@ -6,7 +6,7 @@ const log = require('../../logger');
 
 const CONSTANTS = require('../constants');
 
-const DEFAULT_MAX_ACCOUNTS = 1;
+const DEFAULT_MAX_ACCOUNTS = 0;
 const ABSOLUTE_MAX_ACCOUNTS = 4;
 
 const readJson = (filePath, fallback = null) => {
@@ -41,7 +41,7 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
     }
 
     function discoverAccountConfigs(mainConfig) {
-        const maxAccounts = Math.max(1, Math.min(ABSOLUTE_MAX_ACCOUNTS, parseInt(mainConfig.multiAccount?.maxAccounts, 10) || DEFAULT_MAX_ACCOUNTS));
+        const maxAccounts = Math.max(0, Math.min(ABSOLUTE_MAX_ACCOUNTS, parseInt(mainConfig.multiAccount?.maxAccounts, 10) || DEFAULT_MAX_ACCOUNTS));
         const configsById = new Map();
 
         const addConfig = (config, filePath) => {
@@ -128,7 +128,7 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
         const mainConfig = readMainConfig();
         mainConfig.multiAccount = mainConfig.multiAccount || {};
         mainConfig.multiAccount.enabled = true;
-        mainConfig.multiAccount.maxAccounts = Math.max(1, Math.min(ABSOLUTE_MAX_ACCOUNTS, parseInt(mainConfig.multiAccount.maxAccounts, 10) || DEFAULT_MAX_ACCOUNTS));
+        mainConfig.multiAccount.maxAccounts = Math.max(0, Math.min(ABSOLUTE_MAX_ACCOUNTS, parseInt(mainConfig.multiAccount.maxAccounts, 10) || DEFAULT_MAX_ACCOUNTS));
         writeJson(configPath, mainConfig);
         rootState.config = mainConfig;
         return mainConfig;

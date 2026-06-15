@@ -1,5 +1,8 @@
 module.exports = function createSettingsTabs({ escapeHtml }) {
     function renderMainSettings({ config, profileOptions, channels, custom1, custom2 }) {
+        const usedSlots = Math.min(4, profileOptions.length);
+        const remainingSlots = Math.max(0, 4 - usedSlots);
+
         return `
                     <div id="tab-main" class="tab-content active">
 
@@ -18,12 +21,17 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                             <button type="submit" name="profileAction" value="connect:${escapeHtml(profile.id)}" class="account-chip-action connect" title="Connect/Login akun ${escapeHtml(profile.id)} tanpa start loop">🔌</button>
                                             <button type="submit" name="profileAction" value="start:${escapeHtml(profile.id)}" class="account-chip-action start" title="Start/Resume commands akun ${escapeHtml(profile.id)}">▶</button>
                                             <button type="submit" name="profileAction" value="pause:${escapeHtml(profile.id)}" class="account-chip-action pause" title="Pause commands akun ${escapeHtml(profile.id)}">⏸</button>
+                                            <button type="submit" name="profileAction" value="delete:${escapeHtml(profile.id)}" class="account-chip-action delete" title="Hapus slot akun ${escapeHtml(profile.id)}" onclick="return confirm('Hapus slot akun ini? Slot akan berkurang 1.');">🗑</button>
                                         </span>
                                     `).join('') : '<div class="input-hint">Belum ada profil tersimpan. Tambahkan token akun baru di bawah.</div>'}
                                 </div>
                                 <div class="input-hint">Dashboard utama adalah Control Panel murni, bukan akun default. Slot paralel otomatis mengikuti jumlah token akun yang ditambahkan. 🔌 hanya login/prepare client; ▶ memulai/resume command loop; ⏸ hanya pause command loop tanpa logout.</div>
                                 <label>Slot akun paralel otomatis</label>
-                                <div class="input-hint">Token tersimpan saat ini: ${Math.min(4, profileOptions.length)}/4. Tambah token = tambah 1 slot baru. Tersisa ${Math.max(0, 4 - profileOptions.length)} slot lagi.</div>
+                                <div class="slot-indicator" aria-live="polite">
+                                    <span>📦 Terpakai: <strong>${usedSlots}/4</strong></span>
+                                    <span>🟢 Sisa slot: <strong>${remainingSlots}</strong></span>
+                                </div>
+                                <div class="input-hint">Token tersimpan saat ini: ${usedSlots}/4. Tambah token = tambah 1 slot baru; hapus slot akun = kurang 1 slot. Jika 1 slot dihapus maka 1 - 1 = 0 slot. Tersisa ${remainingSlots} slot lagi.</div>
                                 <input type="hidden" name="selectedProfile" id="selectedProfile" value="">
                                 <div id="selectedProfilePreview" class="profile-preview" aria-live="polite"></div>
                             </div>

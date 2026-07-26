@@ -7,6 +7,23 @@ const RETURN_TIME_PATTERN = /I WILL BE BACK IN\s+([\d\sDHM]+)/i;
 const SHORT_RETURN_TIME_PATTERN = /BACK IN\s+([\d\sDHM]+)/i;
 const HUNTBOT_PROGRESS_PATTERN = /BEEP BOOP|I AM STILL HUNTING|I WILL BE BACK IN|\d+\.?\d*%\s*DONE|ANIMALS\s*CAPTURED/i;
 
+const HUNTBOT_RESPONSE_WINDOW_MS = 2 * 60 * 1000;
+
+const getMessageReferenceId = (msg = {}) => (
+    msg.reference?.messageId ||
+    msg.messageReference?.messageId ||
+    msg.reference?.id ||
+    msg.messageReference?.id ||
+    null
+);
+
+const parseReturnTimeMs = (returnTime = '') => {
+    const days = parseInt(String(returnTime).match(/(\d+)\s*D/i)?.[1] || '0', 10);
+    const hours = parseInt(String(returnTime).match(/(\d+)\s*H/i)?.[1] || '0', 10);
+    const minutes = parseInt(String(returnTime).match(/(\d+)\s*M/i)?.[1] || '0', 10);
+    return ((days * 24 * 60) + (hours * 60) + minutes) * 60 * 1000;
+};
+
 const collectEmbedText = (embed = {}) => [
     embed.title,
     embed.description,
@@ -26,17 +43,13 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         if (!CONSTANTS.OWO_IDS.includes(author)) return false;
 
         const myName = this.getMyName(msg);
-        const myId = state.client.user.id;
-        const huntbotChannelId = state.config.tiketandhb.channelId;
-        const isHuntbotChannel = msg.channel.id === huntbotChannelId;
         
         // CEK EMBED (untuk progress update / hasil command whb yang sering tidak masuk content biasa)
         if (msg.embeds && msg.embeds.length > 0) {
             for (const embed of msg.embeds) {
                 const embedText = removeInvisibleChars(collectEmbedText(embed));
                 const embedAuthorName = String(embed.author?.name || '').toLowerCase();
-                const mentionsThisAccount = embedText.toLowerCase().includes(myName.toLowerCase()) || embedText.includes(`<@${myId}>`);
-                const isOwnEmbed = mentionsThisAccount || (isHuntbotChannel && /huntbot|beep boop|back in|i will be back in/i.test(embedText));
+                const isOwnEmbed = this.isOwnHuntbotResponse(msg, embedText, myName);
 
                 if (isOwnEmbed && /YOU SPENT/i.test(embedText) && RETURN_TIME_PATTERN.test(embedText)) {
                     return this.processHuntStartedMessage(msg, embedText);
@@ -48,17 +61,16 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
             }
         }
 
-        const isMentioned = content.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId);
-        const containsMyName = content.toLowerCase().includes(myName.toLowerCase());
+        const isOwnResponse = this.isOwnHuntbotResponse(msg, content, myName);
 
-        // Pengecualian khusus untuk pesan pulang/progress HuntBot (OwO tidak selalu
-        // menyebut nama akun, terutama balasan text dari `whb 1D`).
-        const isReturnMessage = isHuntbotChannel && content.includes("BEEP BOOP. I AM BACK WITH");
-        const isHuntbotProgressMessage = isHuntbotChannel && HUNTBOT_PROGRESS_PATTERN.test(content);
+        // Pengecualian khusus untuk pesan pulang/progress HuntBot hanya boleh diproses
+        // jika respons tersebut bisa dikaitkan ke command akun runtime ini.
+        const isReturnMessage = isOwnResponse && content.includes("BEEP BOOP. I AM BACK WITH");
+        const isHuntbotProgressMessage = isOwnResponse && HUNTBOT_PROGRESS_PATTERN.test(content);
 
 
         // CEK CONTENT 
-        if (containsMyName || isMentioned || isReturnMessage || isHuntbotProgressMessage) {
+        if (isOwnResponse) {
             
             if (isReturnMessage) {
                 return this.processReturnMessage(msg, content);
@@ -115,6 +127,50 @@ isPaused() {
         return false;
     },
 
+
+
+
+    pruneTrackedCommands() {
+        const now = Date.now();
+        huntbotState.outgoingCommands = huntbotState.outgoingCommands || new Map();
+        for (const [messageId, meta] of huntbotState.outgoingCommands.entries()) {
+            if (!meta?.sentAt || now - meta.sentAt > HUNTBOT_RESPONSE_WINDOW_MS) {
+                huntbotState.outgoingCommands.delete(messageId);
+            }
+        }
+    },
+
+    trackOutgoingCommand(sentMessage, cmd) {
+        if (!sentMessage?.id) return false;
+        huntbotState.outgoingCommands = huntbotState.outgoingCommands || new Map();
+        huntbotState.outgoingCommands.set(sentMessage.id, {
+            cmd,
+            channelId: sentMessage.channel?.id || sentMessage.channelId || state.config.tiketandhb?.channelId,
+            sentAt: Date.now()
+        });
+        this.pruneTrackedCommands();
+        return true;
+    },
+
+    isOwnHuntbotResponse(msg, text = '', myName = this.getMyName(msg)) {
+        if (msg.channel?.id !== state.config.tiketandhb?.channelId) return false;
+
+        const normalizedText = String(text || '').toLowerCase();
+        const myId = state.client?.user?.id;
+        const containsMyName = myName && normalizedText.includes(String(myName).toLowerCase());
+        const isMentioned = myId && (String(text || '').includes(`<@${myId}>`) || msg.mentions?.users?.has(myId));
+        if (containsMyName || isMentioned) return true;
+
+        this.pruneTrackedCommands();
+        const referenceId = getMessageReferenceId(msg);
+        if (!referenceId) return false;
+
+        const commandMeta = huntbotState.outgoingCommands?.get(referenceId);
+        if (!commandMeta) return false;
+        if (commandMeta.channelId && commandMeta.channelId !== msg.channel.id) return false;
+
+        return Date.now() - commandMeta.sentAt <= HUNTBOT_RESPONSE_WINDOW_MS;
+    },
 
 
 
@@ -259,11 +315,9 @@ if (huntbotState.autoMode) {
             huntbotState.activeHunt = huntbotState.activeHunt || {};
             huntbotState.activeHunt.returnTime = returnTime;
             
-            const hours = parseInt(returnTime.match(/(\d+)\s*H/i)?.[1] || "0");
-            const minutes = parseInt(returnTime.match(/(\d+)\s*M/i)?.[1] || "0");
+            const totalMs = parseReturnTimeMs(returnTime);
             
-            if (hours > 0 || minutes > 0) {
-                const totalMs = (hours * 60 + minutes) * 60 * 1000;
+            if (totalMs > 0) {
                 huntbotState.activeHunt.endTime = Date.now() + totalMs;
                 
                 const endTimeStr = new Date(huntbotState.activeHunt.endTime).toLocaleString('id-ID', {
@@ -375,10 +429,10 @@ if (huntbotState.autoMode) {
         };
         
         if (returnTime !== "unknown") {
-            const hours = parseInt(returnTime.match(/(\d+)\s*H/i)?.[1] || "0");
-            const minutes = parseInt(returnTime.match(/(\d+)\s*M/i)?.[1] || "0");
-            const totalMs = (hours * 60 + minutes) * 60 * 1000;
-            huntbotState.activeHunt.endTime = Date.now() + totalMs;
+            const totalMs = parseReturnTimeMs(returnTime);
+            if (totalMs > 0) {
+                huntbotState.activeHunt.endTime = Date.now() + totalMs;
+            }
         }
         
         telegramService.send(
@@ -442,7 +496,8 @@ async sendHuntBotCommand(cmd) {
         // Asumsi: shouldAbort adalah metode valid dari class/objek ini yang mengecek status pause bot.
         if (this.shouldAbort(`sendHuntBotCommand(${cmd}) post-sleep`)) return;
 
-        await channel.send(cmd);
+        const sentMessage = await channel.send(cmd);
+        this.trackOutgoingCommand(sentMessage, cmd);
         log.info(`${accountPrefix(state)}💬 [HuntBot Channel] Terkirim: ${cmd}`);
 
     } catch (error) {

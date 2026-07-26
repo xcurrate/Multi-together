@@ -23,7 +23,7 @@ async function waitUntilCaptchaClear(state) {
     }
 }
 
-async function sendStartupCommand(state, channel, cmd) {
+async function sendStartupCommand(state, channel, cmd, huntbotManager) {
     await waitUntilCaptchaClear(state);
     if (!state.client?.isReady()) return false;
 
@@ -36,7 +36,10 @@ async function sendStartupCommand(state, channel, cmd) {
     }
 
     try {
-        await channel.send(cmd);
+        const sentMessage = await channel.send(cmd);
+        if (/^whb(?:\s|$)/i.test(cmd.trim()) && huntbotManager && typeof huntbotManager.trackOutgoingCommand === 'function') {
+            huntbotManager.trackOutgoingCommand(sentMessage, cmd);
+        }
 
         if (/^wboss\s+t(?:icket)?$/i.test(cmd.trim())) {
             state.lastTicketCheck = Date.now();
@@ -118,9 +121,9 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
                     log.info(`${accountPrefix(state)}🚀 Menjalankan startup command setiap client ready/login...`);
 
                     log.info(`${accountPrefix(state)}⚔️ Mengecek status World Boss untuk akun saat ini...`);
-                    await sendStartupCommand(state, channel, "wboss t");
+                    await sendStartupCommand(state, channel, "wboss t", huntbotManager);
 
-                    await sendStartupCommand(state, channel, "whb 1d");
+                    await sendStartupCommand(state, channel, "whb 1d", huntbotManager);
                     
                     log.info(`${accountPrefix(state)}✅ Routine startup command selesai dieksekusi. Respons startup tetap dipantau selama ${STARTUP_RESPONSE_GRACE_MS / 1000} detik.`);
                 } catch (err) {

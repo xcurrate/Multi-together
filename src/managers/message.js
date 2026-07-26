@@ -13,6 +13,10 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             bossManager.trackManualTicketCommand(msg);
         }
 
+        if (huntbotManager && typeof huntbotManager.trackManualHuntbotCommand === 'function') {
+            huntbotManager.trackManualHuntbotCommand(msg);
+        }
+
         // ✅ FITUR BARU: Deteksi SEMUA pesan dari admin/orang lain di channel aktif
         await this.handleUserMessages(msg);
 

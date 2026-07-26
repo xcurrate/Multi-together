@@ -166,7 +166,6 @@ const createHuntbotState = () => ({
     lastProgress: null,
     lastResponse: null,
     monitorInterval: null,
-    outgoingCommands: new Map(),
     timeouts: new Set(),
     notifiedSoon: false
 });

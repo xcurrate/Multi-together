@@ -64,6 +64,26 @@ module.exports = (state, commandSender) => ({
         this._scheduleLoop(key, fn, remaining);
     },
 
+
+    async hunt() {
+        if (state.config.botStatus.paused || !state.config.settings?.hunt) return;
+
+        // HAPUS: commandSender.clearResponseTimeout();
+
+        try {
+            await commandSender.send('wb', 'Battle');
+        } catch (error) {
+            console.error(`❌ Gagal Hunt: ${error.message || error}`);
+        } finally {
+            const d = randomInt(
+                state.config.delays.hunt.min,
+                state.config.delays.hunt.max
+            );
+
+            this._scheduleLoop('hunt', () => this.hunt(), d);
+        }
+    },
+    
     async battle() {
         if (state.config.botStatus.paused || !state.config.settings?.battle) return;
 

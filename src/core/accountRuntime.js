@@ -51,7 +51,8 @@ const ensureRuntimeShape = (config = {}) => {
             ...(config.delays[key] || {})
         };
     });
-    config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true };
+    config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false };
+    config.huntbot.sellAllAfterReturn = config.huntbot.sellAllAfterReturn === true;
     config.captcha = config.captcha || {};
     return config;
 };

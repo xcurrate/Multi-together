@@ -82,7 +82,8 @@
     "autoMode": true,
     "defaultUpgrade": "radar",
     "defaultDuration": "1D",
-    "notifyProgress": true
+    "notifyProgress": true,
+    "sellAllAfterReturn": false
   },
   "token": "",
   "captcha": {

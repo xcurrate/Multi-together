@@ -20,7 +20,8 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.delays = config.delays || {};
         config.safety = config.safety || { cctv: false };
         config.tiketandhb = config.tiketandhb || { channelId: "" };
-        config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true };
+        config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false };
+        config.huntbot.sellAllAfterReturn = config.huntbot.sellAllAfterReturn === true;
         config.multiAccount = config.multiAccount || { enabled: true, maxAccounts: 0 };
         config.multiAccount.enabled = config.multiAccount.enabled !== false;
         config.multiAccount.maxAccounts = Math.max(0, Math.min(4, parseInt(config.multiAccount.maxAccounts, 10) || 0));
@@ -115,6 +116,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.huntbot.enabled = this.toBool(body.hbEnabled);
         config.huntbot.autoMode = this.toBool(body.hbAutoMode);
         config.huntbot.notifyProgress = this.toBool(body.hbNotify);
+        config.huntbot.sellAllAfterReturn = this.toBool(body.hbSellAllAfterReturn);
         config.huntbot.defaultUpgrade = body.hbUpgrade || 'duration';
         config.huntbot.defaultDuration = body.hbDuration || '1D';
         config.tiketandhb.channelId = body.tiketandhbChannel || '';

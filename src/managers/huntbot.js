@@ -382,7 +382,13 @@ if (huntbotState.autoMode) {
         );
         
         if (huntbotState.autoMode) {
-            this.scheduleDelayedAction(() => this.sacrificeAll(), 1000);
+            const useSellAll = state.config?.huntbot?.sellAllAfterReturn === true;
+            if (useSellAll) {
+                log.info(`${accountPrefix(state)}💰 Sell All setelah penjemputan aktif: mengirim wsell all lalu skip upgrade.`);
+                this.scheduleDelayedAction(() => this.sellAll(), 1000);
+            } else {
+                this.scheduleDelayedAction(() => this.sacrificeAll(), 1000);
+            }
         }
         
         return true;
@@ -396,6 +402,13 @@ if (huntbotState.autoMode) {
         const cowoncy = cowoncyMatch ? parseInt(cowoncyMatch[1].replace(/,/g, '')) : 0;
         
         telegramService.send(`💰 <b>Sale Complete</b>\nCowoncy gained: ${cowoncy.toLocaleString()}`);
+
+        if (huntbotState.autoMode && state.config?.huntbot?.sellAllAfterReturn === true) {
+            const duration = CONSTANTS.HUNTBOT.DEFAULT_DURATION;
+            log.info(`${accountPrefix(state)}🚀 Sell All selesai: skip wupg dan memulai HuntBot lagi (${duration}).`);
+            this.scheduleDelayedAction(() => this.startHunt(duration), 1000);
+        }
+
         return true;
     },
 

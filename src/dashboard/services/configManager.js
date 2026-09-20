@@ -33,6 +33,17 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
         config.settings.telegram = config.settings.telegram || { token: "", chatId: "" };
         config.settings.voice = config.settings.voice || { enabled: false, channelId: "" };
+        config.otherCommands = Array.isArray(config.otherCommands) ? config.otherCommands : [];
+        config.otherCommands = [0, 1, 2].map(index => {
+            const command = config.otherCommands[index] || {};
+            return {
+                text: String(command.text || ''),
+                delayMs: Math.max(0, this.toInt(command.delayMs, 5000)),
+                count: Math.max(1, this.toInt(command.count, 1)),
+                channelId: String(command.channelId || ''),
+                enabled: command.enabled === true
+            };
+        });
 
         // Ensure captcha config shape
         config.captcha = config.captcha || {};
@@ -75,6 +86,17 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
 
         config.settings.text1 = body.text1 || '';
         config.settings.text2 = body.text2 || '';
+
+        config.otherCommands = [0, 1, 2].map(index => {
+            const current = config.otherCommands[index] || {};
+            return {
+                text: String(body[`other${index + 1}Text`] || '').trim(),
+                delayMs: Math.max(0, this.toInt(body[`other${index + 1}Delay`], Math.floor((current.delayMs || 5000) / 1000))) * 1000,
+                count: Math.max(1, this.toInt(body[`other${index + 1}Count`], current.count || 1)),
+                channelId: String(body[`other${index + 1}Channel`] || '').trim(),
+                enabled: current.enabled === true
+            };
+        });
 
         config.delays.hunt.min = this.toInt(body.huntMin, config.delays.hunt.min);
         config.delays.hunt.max = this.toInt(body.huntMax, config.delays.hunt.max);
@@ -151,6 +173,15 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
                 config.botStatus.paused = true;
                 config.botStatus.running = false;
                 break;
+            default: {
+                const match = /^other(Command)?(Start|Stop)([1-3])$/.exec(String(action || ''));
+                if (match) {
+                    const index = Number(match[3]) - 1;
+                    config.otherCommands = config.otherCommands || [];
+                    config.otherCommands[index] = config.otherCommands[index] || {};
+                    config.otherCommands[index].enabled = match[2] === 'Start';
+                }
+            }
         }
         return config;
     },

@@ -4,7 +4,7 @@ const { sleep, randomInt, accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
 
 module.exports = (state, channelManager, emergencyHandler) => ({
-    async send(cmd, type = '') {
+    async send(cmd, type = '', targetChannelId = '') {
         if (state.hasActiveCaptcha) {
             log.warn(`${accountPrefix(state)}⚠️ Command [${cmd}] ditahan: CAPTCHA sedang aktif.`);
             return;
@@ -12,9 +12,10 @@ module.exports = (state, channelManager, emergencyHandler) => ({
         if ((state.config.botStatus.paused || !state.config.botStatus.running) && !state.isStartupReadyRoutine) return;
         if (!state.client?.isReady()) return;
 
-        if (!state.activeChannelId && !channelManager.updateActive()) return;
+        const requestedChannelId = String(targetChannelId || '').trim();
+        if (!requestedChannelId && !state.activeChannelId && !channelManager.updateActive()) return;
 
-        const channel = state.client.channels.cache.get(state.activeChannelId);
+        const channel = state.client.channels.cache.get(requestedChannelId || state.activeChannelId);
         if (!channel) return;
 
         await channel.sendTyping();

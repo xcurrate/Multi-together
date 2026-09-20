@@ -140,6 +140,36 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                         </div>
                     </div>
 
+                    <div id="tab-other" class="tab-content">
+                        <div class="category-heading">
+                            <div>
+                                <span class="section-label">Advanced / Add-ons</span>
+                                <h3>🧩 OTHER</h3>
+                            </div>
+                        </div>
+                        <div class="input-hint">Setiap slot dikirim ke channel pilihannya sendiri. Start menjalankan sejumlah pengiriman yang diatur; Stop membatalkan slot tersebut.</div>
+                        ${(config.otherCommands || []).map((command, index) => {
+                            const slot = index + 1;
+                            return `
+                                <div class="card">
+                                    <label>Custom Command ${slot}</label>
+                                    <label>Command Text</label>
+                                    <input type="text" name="other${slot}Text" value="${escapeHtml(command.text)}" placeholder="Contoh: !test">
+                                    <div class="row">
+                                        <div class="col"><label>Delay / Jeda (detik)</label><input type="number" min="0" step="1" name="other${slot}Delay" value="${Math.floor((command.delayMs || 0) / 1000)}"></div>
+                                        <div class="col"><label>Jumlah Pengiriman</label><input type="number" min="1" step="1" name="other${slot}Count" value="${command.count || 1}"></div>
+                                    </div>
+                                    <label>Target Channel</label>
+                                    <input type="text" name="other${slot}Channel" value="${escapeHtml(command.channelId)}" placeholder="Discord Channel ID">
+                                    <div class="action-group" style="margin-top: 12px;">
+                                        <button type="submit" name="action" value="otherCommandStart${slot}" class="btn btn-start">▶ START</button>
+                                        <button type="submit" name="action" value="otherCommandStop${slot}" class="btn btn-pause">⏸ STOP</button>
+                                        <span class="input-hint">${command.enabled ? '▶ Menunggu / berjalan' : '⏹ Berhenti'}</span>
+                                    </div>
+                                </div>`;
+                        }).join('')}
+                    </div>
+
                     <div id="tab-captcha" class="tab-content">
                         <div class="category-heading">
                             <div>
@@ -377,6 +407,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                             <div class="settings-menu-group">
                                 <span>Advanced / Add-ons</span>
                                 <button type="button" class="settings-menu-item" data-menu-label="Notifikasi" onclick="switchTab(event, 'tab-notifications')">📱 Notifikasi</button>
+                                <button type="button" class="settings-menu-item" data-menu-label="OTHER" onclick="switchTab(event, 'tab-other')">🧩 OTHER</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Captcha" onclick="switchTab(event, 'tab-captcha')">🛡️ Captcha</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Integrasi Sistem" onclick="switchTab(event, 'tab-integrations')">🔌 Integrasi Sistem</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Safety & Filter" onclick="switchTab(event, 'tab-safety')">🛡️ Safety & Filter</button>

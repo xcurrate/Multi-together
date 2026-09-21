@@ -7,6 +7,14 @@ const statsService = require('../services/stats');
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const STARTUP_RESPONSE_GRACE_MS = 120000;
 
+function describeToken(token) {
+    if (typeof token !== 'string') return 'missing';
+    const normalized = token.trim();
+    if (!normalized) return 'empty';
+    const parts = normalized.split('.');
+    return `present (length=${normalized.length}, segments=${parts.length}, whitespace=${normalized.length !== token.length})`;
+}
+
 function markStartupReadyRoutine(state, graceMs = STARTUP_RESPONSE_GRACE_MS) {
     state.isStartupReadyRoutine = true;
     state.startupReadyRoutineUntil = Math.max(
@@ -83,6 +91,10 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
 
         state.client = new Client({ checkUpdate: false });
 
+        state.client.on('error', (error) => {
+            log.error(`${accountPrefix(state)}❌ Discord client error: ${error.name || 'Error'}${error.code ? ` (${error.code})` : ''}: ${error.message || error}`);
+        });
+
         state.client.on('ready', () => {
             state.accountUsername = state.client.user.tag || state.client.user.username || '';
             log.success(`${accountPrefix(state)}✅ Login Sukses: ${state.client.user.tag}`);
@@ -138,9 +150,11 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
 
         state.client.on('messageCreate', (msg) => messageHandler.handle(msg));
 
-        if (state.activeToken && state.activeToken.length > 20) {
-            state.client.login(state.activeToken).catch(e => {
-                log.error(`${accountPrefix(state)}❌ Token Invalid / Login Gagal: ${e.message}`);
+        const token = typeof state.activeToken === 'string' ? state.activeToken.trim() : '';
+        log.info(`${accountPrefix(state)}🔎 Diagnostik login: token ${describeToken(state.activeToken)}.`);
+        if (token.length > 20) {
+            state.client.login(token).catch(e => {
+                log.error(`${accountPrefix(state)}❌ Token Invalid / Login Gagal: ${e.name || 'Error'}${e.code ? ` (${e.code})` : ''}: ${e.message || e}`);
             });
         } else {
             log.error(`${accountPrefix(state)}❌ Tidak ada token yang valid di config!`);

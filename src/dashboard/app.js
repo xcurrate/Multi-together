@@ -13,7 +13,6 @@ const createConfigManager = require('./services/configManager');
 const createLogService = require('./services/logService');
 const createStatsService = require('./services/statsService');
 const discordProfileService = require('./services/discordProfileService');
-const createDashboardAuth = require('./auth');
 const createUiComponents = require('./ui/components');
 const createDashboardRoutes = require('./routes');
 const { escapeHtml, serializeForScript } = require('./utils/html');
@@ -35,7 +34,6 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
 
     const app = express();
     app.use(bodyParser.urlencoded({ extended: true }));
-    app.use(createDashboardAuth());
 
     const initialConfig = configManager.ensureShape(configManager.get());
     const port = process.env.SERVER_PORT || process.env.PORT || initialConfig.port || CONSTANTS.DEFAULT_PORT;

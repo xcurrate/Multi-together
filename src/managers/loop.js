@@ -174,7 +174,7 @@ module.exports = (state, commandSender) => ({
     async otherCommand(index, remaining) {
         const command = state.config.otherCommands?.[index];
         const key = `other${index + 1}`;
-        if (!command?.enabled || !command.text?.trim() || !command.channelId?.trim()) return;
+        if (state.config.botStatus.paused || !command?.enabled || !command.text?.trim() || !command.channelId?.trim()) return;
 
         const sendsLeft = Math.max(1, Number(remaining) || Number(command.count) || 1);
         try {
@@ -183,7 +183,7 @@ module.exports = (state, commandSender) => ({
             log.error(`${accountPrefix(state)}❌ Gagal Other Command ${index + 1}: ${error.message || error}`);
         }
 
-        if (sendsLeft > 1 && command.enabled) {
+        if (sendsLeft > 1 && command.enabled && !state.config.botStatus.paused) {
             this._scheduleLoop(key, () => this.otherCommand(index, sendsLeft - 1), command.delayMs);
         } else {
             state.loops[key] = null;
@@ -191,31 +191,6 @@ module.exports = (state, commandSender) => ({
             if (typeof state.persistConfig === 'function') state.persistConfig();
             log.info(`${accountPrefix(state)}✅ Other Command ${index + 1} selesai (${command.count} pengiriman).`);
         }
-    },
-
-    startOtherCommand(index) {
-        const command = state.config.otherCommands?.[index];
-        if (!command?.enabled || !command.text?.trim() || !command.channelId?.trim()) return false;
-
-        const key = `other${index + 1}`;
-        if (state.loops[key]) clearTimeout(state.loops[key]);
-        state.loops[key] = null;
-        this.otherCommand(index, command.count);
-        return true;
-    },
-
-    stopOtherCommand(index) {
-        const command = state.config.otherCommands?.[index];
-        const key = `other${index + 1}`;
-        if (state.loops[key]) clearTimeout(state.loops[key]);
-        state.loops[key] = null;
-        if (command) command.enabled = false;
-        if (typeof state.persistConfig === 'function') state.persistConfig();
-        log.info(`${accountPrefix(state)}⏹️ Other Command ${index + 1} dihentikan.`);
-    },
-
-    stopOtherCommands() {
-        (state.config.otherCommands || []).forEach((_, index) => this.stopOtherCommand(index));
     },
 
     startAll() {
@@ -260,12 +235,18 @@ module.exports = (state, commandSender) => ({
                 scheduleStartup('custom2', () => this.custom2());
         }
 
+        (state.config.otherCommands || []).forEach((command, index) => {
+            if (command.enabled && command.text?.trim() && command.channelId?.trim()) {
+                scheduleStartup(`other${index + 1}`, () => this.otherCommand(index, command.count));
+            }
+        });
+
         log.success(`${accountPrefix(state)}🔄 Semua loop dimulai / resume`);
     },
 
     stopAll() {
         let stopped = false;
-        ['battle', 'hunt', 'pray', 'custom1', 'custom2'].forEach(key => {
+        Object.keys(state.loops || {}).forEach(key => {
             if (state.loops[key]) {
                 clearTimeout(state.loops[key]);
                 state.loops[key] = null;

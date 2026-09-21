@@ -2,6 +2,9 @@
   "name": "owo-selfbot-pro",
   "version": "2.0.0",
   "main": "index.js",
+  "scripts": {
+    "test": "node --test"
+  },
   "dependencies": {
     "@discordjs/voice": "^0.19.2",
     "2captcha": "^3.0.5-2",

@@ -6,6 +6,32 @@ const statsService = require('../services/stats');
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const STARTUP_RESPONSE_GRACE_MS = 120000;
+const LOGIN_CONNECTION_TIMEOUT_MS = 30000;
+
+function describeToken(token) {
+    if (typeof token !== 'string') return 'missing';
+    const normalized = token.trim();
+    if (!normalized) return 'empty';
+    const parts = normalized.split('.');
+    return `present (length=${normalized.length}, segments=${parts.length}, whitespace=${normalized.length !== token.length})`;
+}
+
+function getSafeGatewayDebugMessage(info) {
+    const message = String(info || '').replace(/\s+/g, ' ').trim();
+    if (!message || /provided token/i.test(message)) return null;
+
+    const safePatterns = [
+        /preparing to connect to the gateway/i,
+        /fetched gateway information/i,
+        /spawning shards/i,
+        /\[(connected|ready|close|reconnect|invalid session)\]/i,
+        /did not receive hello in time/i,
+        /possible network error occurred/i,
+        /failed to connect to the gateway/i
+    ];
+
+    return safePatterns.some(pattern => pattern.test(message)) ? message.slice(0, 220) : null;
+}
 
 function markStartupReadyRoutine(state, graceMs = STARTUP_RESPONSE_GRACE_MS) {
     state.isStartupReadyRoutine = true;
@@ -67,6 +93,12 @@ async function sendStartupCommand(state, channel, cmd, huntbotManager) {
 
 module.exports = (state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager) => ({
     initialize() {
+        let loginTimeout = null;
+        const clearLoginTimeout = () => {
+            if (loginTimeout) clearTimeout(loginTimeout);
+            loginTimeout = null;
+        };
+
         if (state.client) {
             log.warn(`${accountPrefix(state)}🔄 Merestart sesi Discord...`);
             try {
@@ -83,7 +115,27 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
 
         state.client = new Client({ checkUpdate: false });
 
+        state.client.on('error', (error) => {
+            log.error(`${accountPrefix(state)}❌ Discord client error: ${error.name || 'Error'}${error.code ? ` (${error.code})` : ''}: ${error.message || error}`);
+        });
+        state.client.on('shardError', (error, shardId) => {
+            log.error(`${accountPrefix(state)}❌ Gateway shard ${shardId} error: ${error.name || 'Error'}${error.code ? ` (${error.code})` : ''}: ${error.message || error}`);
+        });
+        state.client.on('shardDisconnect', (event, shardId) => {
+            clearLoginTimeout();
+            log.error(`${accountPrefix(state)}❌ Gateway shard ${shardId} disconnected: code=${event?.code ?? 'unknown'}${event?.reason ? `, reason=${event.reason}` : ''}`);
+        });
+        state.client.on('invalidated', () => {
+            clearLoginTimeout();
+            log.error(`${accountPrefix(state)}❌ Sesi gateway tidak valid atau ditolak.`);
+        });
+        state.client.on('debug', (info) => {
+            const message = getSafeGatewayDebugMessage(info);
+            if (message) log.diagnostic(`${accountPrefix(state)}🌐 Gateway: ${message}`);
+        });
+
         state.client.on('ready', () => {
+            clearLoginTimeout();
             state.accountUsername = state.client.user.tag || state.client.user.username || '';
             log.success(`${accountPrefix(state)}✅ Login Sukses: ${state.client.user.tag}`);
             telegramService.send(`🤖 <b>Bot Started</b>\nUser: ${state.client.user.tag}`);
@@ -138,10 +190,20 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
 
         state.client.on('messageCreate', (msg) => messageHandler.handle(msg));
 
-        if (state.activeToken && state.activeToken.length > 20) {
-            state.client.login(state.activeToken).catch(e => {
-                log.error(`${accountPrefix(state)}❌ Token Invalid / Login Gagal: ${e.message}`);
-            });
+        const token = typeof state.activeToken === 'string' ? state.activeToken.trim() : '';
+        log.diagnostic(`${accountPrefix(state)}🔎 Diagnostik login: token ${describeToken(state.activeToken)}.`);
+        if (token.length > 20) {
+            loginTimeout = setTimeout(() => {
+                if (!state.client?.isReady()) {
+                    log.error(`${accountPrefix(state)}❌ Login belum mencapai READY setelah ${LOGIN_CONNECTION_TIMEOUT_MS / 1000} detik. Periksa log Gateway/shard untuk masalah koneksi atau penolakan sesi.`);
+                }
+            }, LOGIN_CONNECTION_TIMEOUT_MS);
+            state.client.login(token)
+                .then(() => log.diagnostic(`${accountPrefix(state)}🌐 Permintaan login selesai; menunggu event READY.`))
+                .catch(e => {
+                    clearLoginTimeout();
+                    log.error(`${accountPrefix(state)}❌ Token Invalid / Login Gagal: ${e.name || 'Error'}${e.code ? ` (${e.code})` : ''}: ${e.message || e}`);
+                });
         } else {
             log.error(`${accountPrefix(state)}❌ Tidak ada token yang valid di config!`);
         }

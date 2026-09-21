@@ -116,37 +116,32 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     router.get('/api/profile', async (req, res) => {
         const config = configManager.get();
         let token = config.token;
-        let accountId = profileManager.getUserId(token);
 
         if (req.query.profileId) {
             const profilePath = profileManager.getProfilePath(String(req.query.profileId));
             if (fs.existsSync(profilePath)) {
                 const profileConfig = fileService.readJson(profilePath);
                 token = profileConfig.token || token;
-                accountId = String(req.query.profileId);
             }
         }
         
         if (!token) return res.status(400).json({ error: 'Tidak ada token.' });
 
-        const runtime = state?.accountRuntimes?.get(accountId);
-        const client = runtime?.state?.client || (accountId === profileManager.getUserId(config.token) ? state?.client : null);
-        const liveProfile = discordProfileService.getCurrentProfile(client);
-
-        if (liveProfile) {
-            profileManager.saveProfileMeta(
-                liveProfile.id,
-                liveProfile.username,
-                liveProfile.global_name,
-                liveProfile.avatar
-            );
-            return res.json(liveProfile);
+        try {
+            const parsedData = await discordProfileService.fetchCurrentProfile(token);
+            if (parsedData && parsedData.id && parsedData.username) {
+                profileManager.saveProfileMeta(
+                    parsedData.id,
+                    parsedData.username,
+                    parsedData.global_name,
+                    parsedData.avatar
+                );
+            }
+            res.json(parsedData);
+        } catch (error) {
+            console.error('API Profile Error:', error.message);
+            res.status(500).json({ error: error.message });
         }
-
-        const savedProfile = accountId !== 'default' ? profileManager.getProfileMeta(accountId) : null;
-        if (savedProfile?.username) return res.json({ id: accountId, ...savedProfile });
-
-        return res.status(503).json({ error: 'Akun belum terhubung ke Discord. Silakan connect akun terlebih dahulu.' });
     });
 
     router.get('/', (req, res) => {

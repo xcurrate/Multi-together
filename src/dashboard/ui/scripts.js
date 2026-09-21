@@ -161,7 +161,7 @@ function getLogRefreshScript(profileOptions = [], viewingProfileId = '', isContr
                                 </div>
                             \`;
                         } else {
-                            profileBox.innerHTML = '❌ Gagal memuat data akun. (Cek token)';
+                            profileBox.textContent = '❌ ' + (data.error || 'Gagal memuat data akun. (Cek token)');
                         }
                     } catch (err) {
                         document.getElementById('userProfileBox').innerHTML = '⚠️ Koneksi ke Discord API gagal.';

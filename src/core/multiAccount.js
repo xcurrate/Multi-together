@@ -28,6 +28,7 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
     const configPath = path.join(baseDir, 'config.json');
     const profilesDir = path.join(baseDir, 'profiles');
     const runtimes = new Map();
+    let lastDiscoverySummary = '';
     rootState.accountRuntimes = runtimes;
     rootState.multiAccountManager = null;
 
@@ -43,10 +44,19 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
     function discoverAccountConfigs(mainConfig) {
         const maxAccounts = Math.max(0, Math.min(ABSOLUTE_MAX_ACCOUNTS, parseInt(mainConfig.multiAccount?.maxAccounts, 10) || DEFAULT_MAX_ACCOUNTS));
         const configsById = new Map();
+        let ignoredMissingToken = 0;
+        let ignoredInvalidId = 0;
 
         const addConfig = (config, filePath) => {
-            if (!config?.token || String(config.token).length <= 20) return;
+            if (!config?.token || String(config.token).trim().length <= 20) {
+                ignoredMissingToken += 1;
+                return;
+            }
             const accountId = getAccountIdFromToken(config.token);
+            if (accountId === 'default') {
+                ignoredInvalidId += 1;
+                return;
+            }
             if (configsById.has(accountId)) return;
             const profileStatus = config.botStatus || { running: false, paused: true };
             configsById.set(accountId, {
@@ -71,7 +81,13 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
                 .forEach(file => addConfig(readJson(path.join(profilesDir, file)), path.join(profilesDir, file)));
         }
 
-        return Array.from(configsById.values()).slice(0, maxAccounts);
+        const discovered = Array.from(configsById.values());
+        const discoverySummary = `ditemukan=${discovered.length}, slot=${maxAccounts}, token kosong/pendek=${ignoredMissingToken}, ID token tidak dapat dibaca=${ignoredInvalidId}`;
+        if (discoverySummary !== lastDiscoverySummary) {
+            lastDiscoverySummary = discoverySummary;
+            log.info(`🔎 Diagnostik akun: ${discoverySummary}.`);
+        }
+        return discovered.slice(0, maxAccounts);
     }
 
     function reconcile() {
@@ -157,7 +173,10 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
         connectAccount(accountId) {
             reconcile();
             const runtime = getRuntime(accountId);
-            if (!runtime) return false;
+            if (!runtime) {
+                log.warn(`[account:${accountId}] ⚠️ Connect/Login dibatalkan: runtime tidak ditemukan. Periksa nama file profil, format token, dan jumlah slot akun.`);
+                return false;
+            }
             runtime.connect();
             syncDashboardState();
             return true;

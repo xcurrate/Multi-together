@@ -174,6 +174,20 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
             runtime.pause();
             return true;
         },
+        startOtherCommand(accountId, index) {
+            reconcile();
+            const runtime = getRuntime(accountId);
+            if (!runtime || typeof runtime.startOtherCommand !== 'function') return false;
+            const started = runtime.startOtherCommand(index);
+            syncDashboardState();
+            return started;
+        },
+        stopOtherCommand(accountId, index) {
+            reconcile();
+            const runtime = getRuntime(accountId);
+            if (!runtime || typeof runtime.stopOtherCommand !== 'function') return false;
+            return runtime.stopOtherCommand(index);
+        },
         logoutAccount(accountId) {
             const runtime = getRuntime(accountId);
             if (!runtime) return false;

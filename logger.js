@@ -103,10 +103,7 @@ function filterEntries(options = {}) {
         filtered = entries.filter(entry =>
             entry.accountIds.includes(accountId) ||
             entry.rawPlainLine?.includes(accountPrefix) ||
-            entry.rawPlainLine?.includes(accountId) ||
-            // Diagnostic lines describe account discovery before an account runtime
-            // exists, so keep them visible while a profile is selected.
-            entry.level === '[DIAG]'
+            entry.rawPlainLine?.includes(accountId)
         );
     } else if (globalOnly) {
         filtered = entries.filter(entry => entry.important);
@@ -147,7 +144,6 @@ module.exports = {
     warn: (msg) => write('[WARN]', chalk.yellow('[WARN]'), msg),
     error: (msg) => write('[ERR]', chalk.red('[ERR]'), msg),
     success: (msg) => write('[OK]', chalk.green('[OK]'), msg),
-    diagnostic: (msg) => write('[DIAG]', chalk.cyan('[DIAG]'), msg),
     battle: (msg) => write('[BATTLE]', chalk.magenta('[BATTLE]'), msg),
     captcha: (msg) => write('[CAPTCHA]', chalk.bgRed.white('[CAPTCHA]'), msg),
     getRecent: (options = {}) => filterEntries(options).map(entry => entry.plainLine)

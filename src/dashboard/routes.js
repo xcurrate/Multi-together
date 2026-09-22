@@ -376,6 +376,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 const profilePath = profileManager.getProfilePath(viewingProfileId);
                 config = configManager.ensureShape(fs.existsSync(profilePath) ? fileService.readJson(profilePath) : configManager.get());
                 config = configManager.applySave(config, body);
+                config = configManager.applyAction(config, body.action);
                 saveTarget = profilePath;
             } else {
                 config = configManager.ensureShape(configManager.get());

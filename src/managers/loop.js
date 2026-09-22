@@ -171,6 +171,28 @@ module.exports = (state, commandSender) => ({
         }
     },
 
+    async otherCommand(index, remaining) {
+        const command = state.config.otherCommands?.[index];
+        const key = `other${index + 1}`;
+        if (state.config.botStatus.paused || !command?.enabled || !command.text?.trim() || !command.channelId?.trim()) return;
+
+        const sendsLeft = Math.max(1, Number(remaining) || Number(command.count) || 1);
+        try {
+            await commandSender.send(command.text.trim(), `Other Command ${index + 1}`, command.channelId.trim());
+        } catch (error) {
+            log.error(`${accountPrefix(state)}❌ Gagal Other Command ${index + 1}: ${error.message || error}`);
+        }
+
+        if (sendsLeft > 1 && command.enabled && !state.config.botStatus.paused) {
+            this._scheduleLoop(key, () => this.otherCommand(index, sendsLeft - 1), command.delayMs);
+        } else {
+            state.loops[key] = null;
+            command.enabled = false;
+            if (typeof state.persistConfig === 'function') state.persistConfig();
+            log.info(`${accountPrefix(state)}✅ Other Command ${index + 1} selesai (${command.count} pengiriman).`);
+        }
+    },
+
     startAll() {
         this.init();
         this.stopAll();
@@ -212,6 +234,12 @@ module.exports = (state, commandSender) => ({
             if (state.config.settings.text2?.trim())
                 scheduleStartup('custom2', () => this.custom2());
         }
+
+        (state.config.otherCommands || []).forEach((command, index) => {
+            if (command.enabled && command.text?.trim() && command.channelId?.trim()) {
+                scheduleStartup(`other${index + 1}`, () => this.otherCommand(index, command.count));
+            }
+        });
 
         log.success(`${accountPrefix(state)}🔄 Semua loop dimulai / resume`);
     },

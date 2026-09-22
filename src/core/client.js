@@ -6,6 +6,7 @@ const statsService = require('../services/stats');
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const STARTUP_RESPONSE_GRACE_MS = 120000;
+const LOGIN_DIAGNOSTIC_TIMEOUT_MS = 60000;
 
 function markStartupReadyRoutine(state, graceMs = STARTUP_RESPONSE_GRACE_MS) {
     state.isStartupReadyRoutine = true;
@@ -81,9 +82,20 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             }
         }
 
-        state.client = new Client({ checkUpdate: false });
+        const client = new Client({ checkUpdate: false });
+        state.client = client;
+        const loginStartedAt = Date.now();
+        let loginSettled = false;
 
-        state.client.on('ready', () => {
+        log.info(`${accountPrefix(state)}🔐 Memulai client.login() untuk sesi Discord baru...`);
+
+        client.on('error', (error) => {
+            log.error(`${accountPrefix(state)}❌ Discord client error: ${error.message}`);
+        });
+
+        client.on('ready', () => {
+            loginSettled = true;
+            log.success(`${accountPrefix(state)}🔐 client.login() → READY dalam ${Date.now() - loginStartedAt}ms.`);
             state.accountUsername = state.client.user.tag || state.client.user.username || '';
             log.success(`${accountPrefix(state)}✅ Login Sukses: ${state.client.user.tag}`);
             telegramService.send(`🤖 <b>Bot Started</b>\nUser: ${state.client.user.tag}`);
@@ -139,9 +151,20 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
         state.client.on('messageCreate', (msg) => messageHandler.handle(msg));
 
         if (state.activeToken && state.activeToken.length > 20) {
-            state.client.login(state.activeToken).catch(e => {
-                log.error(`${accountPrefix(state)}❌ Token Invalid / Login Gagal: ${e.message}`);
+            client.login(state.activeToken).then(() => {
+                loginSettled = true;
+                log.info(`${accountPrefix(state)}🔐 client.login() promise selesai setelah ${Date.now() - loginStartedAt}ms; menunggu event READY bila belum diterima.`);
+            }).catch(e => {
+                loginSettled = true;
+                log.error(`${accountPrefix(state)}❌ Token Invalid / Login Gagal setelah ${Date.now() - loginStartedAt}ms: ${e.message}`);
             });
+
+            setTimeout(() => {
+                if (loginSettled || state.client !== client) return;
+                log.error(`${accountPrefix(state)}⏱️ Login belum READY setelah ${LOGIN_DIAGNOSTIC_TIMEOUT_MS / 1000} detik. Kemungkinan client.login() hang / koneksi Discord dari hosting bermasalah. Client akan di-reset agar Connect berikutnya dapat mencoba sesi baru.`);
+                try { client.destroy(); } catch (e) { }
+                if (state.client === client) state.client = null;
+            }, LOGIN_DIAGNOSTIC_TIMEOUT_MS);
         } else {
             log.error(`${accountPrefix(state)}❌ Tidak ada token yang valid di config!`);
         }

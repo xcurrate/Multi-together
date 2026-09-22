@@ -223,6 +223,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
 
     let readyLoopWatcher = null;
+    const otherCommandReadyWatchers = new Map();
     let runtimeRunning = false;
     let loopsActive = false;
     let loopConfigSignature = '';
@@ -286,6 +287,18 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
                 readyLoopWatcher = null;
             }
         }, 1000);
+    };
+
+    const startOtherCommandWhenReady = (index) => {
+        if (otherCommandReadyWatchers.has(index)) clearInterval(otherCommandReadyWatchers.get(index));
+        const watcher = setInterval(() => {
+            if (state.client?.isReady()) {
+                loopManager.startOtherCommand(index);
+                clearInterval(watcher);
+                otherCommandReadyWatchers.delete(index);
+            }
+        }, 1000);
+        otherCommandReadyWatchers.set(index, watcher);
     };
 
     return {
@@ -359,6 +372,27 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
                 activateReadyRuntime(wasRuntimeRunning ? 'reconcile' : 'start');
             }
         },
+        startOtherCommand(index) {
+            const command = state.config.otherCommands?.[index];
+            if (!command?.enabled || !command.text?.trim() || !command.channelId?.trim()) return false;
+
+            if (state.client?.isReady()) return loopManager.startOtherCommand(index);
+
+            if (!state.client) {
+                log.info(`${accountPrefix(state)}▶️ Menjalankan Other Command tanpa START Global.`);
+                clientManager.initialize();
+            }
+            startOtherCommandWhenReady(index);
+            return true;
+        },
+        stopOtherCommand(index) {
+            if (otherCommandReadyWatchers.has(index)) {
+                clearInterval(otherCommandReadyWatchers.get(index));
+                otherCommandReadyWatchers.delete(index);
+            }
+            loopManager.stopOtherCommand(index);
+            return true;
+        },
         joinVoice(source = 'dashboard-button') {
             if (!state.client?.isReady()) {
                 log.warn(`${accountPrefix(state)}⚠️ Client belum ready, tombol Join Voice dibatalkan.`);
@@ -381,8 +415,11 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         },
         destroy() {
             this.pause();
+            loopManager.stopOtherCommands();
             if (readyLoopWatcher) clearInterval(readyLoopWatcher);
             readyLoopWatcher = null;
+            otherCommandReadyWatchers.forEach(watcher => clearInterval(watcher));
+            otherCommandReadyWatchers.clear();
             if (huntbotManager && typeof huntbotManager.stop === 'function') {
                 huntbotManager.stop({ notify: false });
             }

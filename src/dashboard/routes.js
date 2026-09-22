@@ -396,6 +396,18 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
             if (saved) dashboardLog('success', savedAccountId !== 'default' ? savedAccountId : '', `💾 Config dashboard disimpan (${saveTarget === 'main' ? 'main' : 'profile'}).`);
 
             if (saved) {
+                const otherCommandAction = /^other(Command)?(Start|Stop)([1-3])$/.exec(String(body.action || ''));
+                if (otherCommandAction) {
+                    const index = Number(otherCommandAction[3]) - 1;
+                    const manager = state?.multiAccountManager;
+                    if (manager) {
+                        const actionMethod = otherCommandAction[2] === 'Start' ? 'startOtherCommand' : 'stopOtherCommand';
+                        const acted = typeof manager[actionMethod] === 'function' && manager[actionMethod](savedAccountId, index);
+                        dashboardLog(acted ? 'info' : 'warn', savedAccountId !== 'default' ? savedAccountId : '', acted
+                            ? `🧩 Other Command ${index + 1} ${otherCommandAction[2] === 'Start' ? 'dimulai' : 'dihentikan'} tanpa memengaruhi START Global.`
+                            : `⚠️ Other Command ${index + 1} tidak dapat ${otherCommandAction[2] === 'Start' ? 'dimulai' : 'dihentikan'}: runtime akun belum tersedia.`);
+                    }
+                }
                 if (saveTarget === 'main') {
                     const activeId = profileManager.getUserId(config.token);
                     if (activeId !== 'default') {

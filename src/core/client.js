@@ -7,6 +7,10 @@ const statsService = require('../services/stats');
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const STARTUP_RESPONSE_GRACE_MS = 120000;
 
+// Guard setiap sesi agar timer/event dari client lama tidak dapat menjalankan startup command setelah logout/reconnect.
+let sessionGeneration = 0;
+let startupTimer = null;
+
 function markStartupReadyRoutine(state, graceMs = STARTUP_RESPONSE_GRACE_MS) {
     state.isStartupReadyRoutine = true;
     state.startupReadyRoutineUntil = Math.max(
@@ -67,6 +71,10 @@ async function sendStartupCommand(state, channel, cmd, huntbotManager) {
 
 module.exports = (state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager) => ({
     initialize() {
+        sessionGeneration += 1;
+        const currentSession = sessionGeneration;
+        if (startupTimer) { clearTimeout(startupTimer); startupTimer = null; }
+
         if (state.client) {
             log.warn(`${accountPrefix(state)}🔄 Merestart sesi Discord...`);
             try {
@@ -81,9 +89,14 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             }
         }
 
-        state.client = new Client({ checkUpdate: false });
+        const client = new Client({ checkUpdate: false });
+        state.client = client;
 
-        state.client.on('ready', () => {
+        client.on('ready', () => {
+            if (state.client !== client || currentSession !== sessionGeneration) {
+                log.warn(`${accountPrefix(state)}⚠️ READY dari sesi Discord lama diabaikan.`);
+                return;
+            }
             state.accountUsername = state.client.user.tag || state.client.user.username || '';
             log.success(`${accountPrefix(state)}✅ Login Sukses: ${state.client.user.tag}`);
             telegramService.send(`🤖 <b>Bot Started</b>\nUser: ${state.client.user.tag}`);
@@ -108,10 +121,15 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
             }
 
             // Startup command wajib dieksekusi setiap client ready/login, termasuk mode connect/prepare.
-            setTimeout(async () => {
+            startupTimer = setTimeout(async () => {
+                startupTimer = null;
                 try {
+                    if (state.client !== client || currentSession !== sessionGeneration || !client.isReady()) {
+                        log.warn(`${accountPrefix(state)}⚠️ Startup command sesi lama dibatalkan.`);
+                        return;
+                    }
                     const channelId = state.config.tiketandhb?.channelId;
-                    const channel = state.client.channels.cache.get(channelId);
+                    const channel = client.channels.cache.get(channelId);
 
                     if (!channel) {
                         log.warn(`${accountPrefix(state)}⚠️ Channel ${channelId} tidak ditemukan untuk mengirim command awal.`);
@@ -139,7 +157,7 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
         state.client.on('messageCreate', (msg) => messageHandler.handle(msg));
 
         if (state.activeToken && state.activeToken.length > 20) {
-            state.client.login(state.activeToken).catch(e => {
+            client.login(state.activeToken).catch(e => {
                 log.error(`${accountPrefix(state)}❌ Token Invalid / Login Gagal: ${e.message}`);
             });
         } else {

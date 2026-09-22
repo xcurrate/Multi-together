@@ -240,6 +240,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
     router.post('/save', (req, res) => {
         try {
+            const isAjax = req.get('X-Requested-With') === 'XMLHttpRequest';
             const body = req.body;
             
             if (body.action === 'loadProfile') {
@@ -413,6 +414,9 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     if (activeId !== 'default') {
                         fileService.writeJson(profileManager.getProfilePath(activeId), config);
                     }
+                }
+                if (isAjax) {
+                    return res.json({ success: true, message: 'Configuration saved' });
                 }
                 res.send(uiComponents.getSavedResponse());
             } else {

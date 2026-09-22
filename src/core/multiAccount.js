@@ -6,8 +6,8 @@ const log = require('../../logger');
 
 const CONSTANTS = require('../constants');
 
-const DEFAULT_MAX_ACCOUNTS = 0;
 const ABSOLUTE_MAX_ACCOUNTS = 4;
+const DEFAULT_MAX_ACCOUNTS = ABSOLUTE_MAX_ACCOUNTS;
 
 const readJson = (filePath, fallback = null) => {
     try {
@@ -41,12 +41,27 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
     }
 
     function discoverAccountConfigs(mainConfig) {
-        const maxAccounts = Math.max(0, Math.min(ABSOLUTE_MAX_ACCOUNTS, parseInt(mainConfig.multiAccount?.maxAccounts, 10) || DEFAULT_MAX_ACCOUNTS));
+        const configuredMax = Number.parseInt(mainConfig.multiAccount?.maxAccounts, 10);
+        const maxAccounts = Math.max(
+            1,
+            Math.min(
+                ABSOLUTE_MAX_ACCOUNTS,
+                Number.isFinite(configuredMax) && configuredMax > 0
+                    ? configuredMax
+                    : DEFAULT_MAX_ACCOUNTS
+            )
+        );
         const configsById = new Map();
 
         const addConfig = (config, filePath) => {
             if (!config?.token || String(config.token).length <= 20) return;
-            const accountId = getAccountIdFromToken(config.token);
+            const tokenAccountId = getAccountIdFromToken(config.token);
+            // Token parsing is useful when it yields a real Discord user ID, but
+            // invalid/unsupported token formats previously collapsed every profile
+            // into "default" and caused all but the first account to be skipped.
+            const fallbackId = path.basename(filePath, path.extname(filePath))
+                .replace(/[^a-zA-Z0-9_-]/g, '_') || 'main';
+            const accountId = tokenAccountId === 'default' ? fallbackId : tokenAccountId;
             if (configsById.has(accountId)) return;
             const profileStatus = config.botStatus || { running: false, paused: true };
             configsById.set(accountId, {
@@ -128,7 +143,16 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
         const mainConfig = readMainConfig();
         mainConfig.multiAccount = mainConfig.multiAccount || {};
         mainConfig.multiAccount.enabled = true;
-        mainConfig.multiAccount.maxAccounts = Math.max(0, Math.min(ABSOLUTE_MAX_ACCOUNTS, parseInt(mainConfig.multiAccount.maxAccounts, 10) || DEFAULT_MAX_ACCOUNTS));
+        const configuredMax = Number.parseInt(mainConfig.multiAccount.maxAccounts, 10);
+        mainConfig.multiAccount.maxAccounts = Math.max(
+            1,
+            Math.min(
+                ABSOLUTE_MAX_ACCOUNTS,
+                Number.isFinite(configuredMax) && configuredMax > 0
+                    ? configuredMax
+                    : DEFAULT_MAX_ACCOUNTS
+            )
+        );
         writeJson(configPath, mainConfig);
         rootState.config = mainConfig;
         return mainConfig;

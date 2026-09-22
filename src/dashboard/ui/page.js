@@ -66,7 +66,7 @@ function renderPage(config) {
                     ${isControlPanel ? '🧭 Control Panel — tidak ada akun default. Pilih akun tersimpan untuk melihat profil Discord.' : '⏳ Menghubungi Discord API...'}
                 </div>
 
-                <form action="/save" method="POST">
+                <form id="configForm" action="/save" method="POST">
                     ${viewingProfileId ? `<input type="hidden" name="viewingProfileId" value="${viewingProfileId}">` : ''}
                     <div class="action-group">
                         ${viewingProfileId ? '<button type="submit" name="action" value="connectProfile" class="btn btn-connect">🔌 CONNECT / LOGIN</button>' : ''}
@@ -107,6 +107,54 @@ function renderPage(config) {
             </div>
 
             ${getLogRefreshScript(profileOptions, viewingProfileId, isControlPanel)}
+
+            <script>
+            (() => {
+                const form = document.getElementById('configForm');
+                if (!form) return;
+
+                form.addEventListener('submit', async (event) => {
+                    const submitter = event.submitter;
+                    if (!submitter || submitter.name !== 'action' || submitter.value !== 'save') return;
+
+                    event.preventDefault();
+
+                    const originalText = submitter.textContent;
+                    submitter.disabled = true;
+                    submitter.textContent = '⏳ SAVING...';
+
+                    try {
+                        const formData = new FormData(form);
+                        formData.set('action', 'save');
+
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            body: formData,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+
+                        const result = await response.json();
+
+                        if (!response.ok || !result.success) {
+                            throw new Error(result.message || 'Failed to save configuration');
+                        }
+
+                        submitter.textContent = '✓ SAVED';
+                        setTimeout(() => {
+                            submitter.disabled = false;
+                            submitter.textContent = originalText;
+                        }, 1200);
+                    } catch (error) {
+                        console.error('[DASHBOARD] Save configuration error:', error);
+                        submitter.disabled = false;
+                        submitter.textContent = '✗ SAVE FAILED';
+                        setTimeout(() => {
+                            submitter.textContent = originalText;
+                        }, 1800);
+                    }
+                });
+            })();
+            </script>
         </body>
         </html>
         `;

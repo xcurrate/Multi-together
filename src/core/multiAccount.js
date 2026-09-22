@@ -6,8 +6,8 @@ const log = require('../../logger');
 
 const CONSTANTS = require('../constants');
 
-const DEFAULT_MAX_ACCOUNTS = ABSOLUTE_MAX_ACCOUNTS;
 const ABSOLUTE_MAX_ACCOUNTS = 4;
+const DEFAULT_MAX_ACCOUNTS = ABSOLUTE_MAX_ACCOUNTS;
 
 const readJson = (filePath, fallback = null) => {
     try {

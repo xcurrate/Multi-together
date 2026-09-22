@@ -143,7 +143,7 @@ function renderPage(config) {
                         });
 
                         if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}`);
+                            throw new Error('HTTP ' + response.status);
                         }
 
                         const contentType = response.headers.get('content-type') || '';

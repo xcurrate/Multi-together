@@ -39,17 +39,6 @@ const ensureRuntimeShape = (config = {}) => {
     config.settings.boss = config.settings.boss || { enabled: true, allowedGuilds: [] };
     config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
     config.settings.telegram = config.settings.telegram || { token: '', chatId: '' };
-    config.otherCommands = Array.isArray(config.otherCommands) ? config.otherCommands : [];
-    config.otherCommands = [0, 1, 2].map(index => {
-        const command = config.otherCommands[index] || {};
-        return {
-            text: String(command.text || ''),
-            delayMs: Math.max(0, parseInt(command.delayMs, 10) || 5000),
-            count: Math.max(1, parseInt(command.count, 10) || 1),
-            channelId: String(command.channelId || ''),
-            enabled: command.enabled === true
-        };
-    });
     config.settings.huntbot = config.settings.huntbot || { enabled: true };
     config.botStatus = config.botStatus || { running: false, paused: true };
     config.channels = Array.isArray(config.channels) ? config.channels : [];
@@ -101,10 +90,7 @@ const createRuntimeState = ({ config, sharedStats }) => ({
         hunt: null,
         pray: null,
         custom1: null,
-        custom2: null,
-        other1: null,
-        other2: null,
-        other3: null
+        custom2: null
     }
 });
 
@@ -191,7 +177,6 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const state = createRuntimeState({ config, sharedStats });
     state.accountId = accountId;
     const configManager = createRuntimeConfigManager(state, filePath);
-    state.persistConfig = () => configManager.save();
     const telegramService = createTelegramService(state);
     const dailyResetManager = createDailyResetManager(state, telegramService);
     const macrodroidService = createMacrodroidService(state);
@@ -236,8 +221,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             pray: nextConfig.settings?.pray,
             custom: nextConfig.settings?.custom,
             text1: nextConfig.settings?.text1,
-            text2: nextConfig.settings?.text2,
-            otherCommands: nextConfig.otherCommands || []
+            text2: nextConfig.settings?.text2
         },
         rotation: nextConfig.settings?.channelRotation || {}
     });

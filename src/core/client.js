@@ -27,6 +27,10 @@ async function waitUntilCaptchaClear(state) {
     }
 }
 
+function clientIdentity(state) {
+    return state.client?.user?.tag || state.client?.user?.username || 'unknown';
+}
+
 async function sendStartupCommand(state, channel, cmd, huntbotManager) {
     await waitUntilCaptchaClear(state);
     if (!state.client?.isReady()) return false;
@@ -41,6 +45,7 @@ async function sendStartupCommand(state, channel, cmd, huntbotManager) {
 
     try {
         const sentMessage = await channel.send(cmd);
+        log.success(`${accountPrefix(state)}📨 Command startup benar-benar terkirim: ${cmd} | messageId=${sentMessage?.id || '-'} | client=${clientIdentity(state)}`);
         if (/^whb(?:\s|$)/i.test(cmd.trim()) && huntbotManager && typeof huntbotManager.trackOutgoingCommand === 'function') {
             huntbotManager.trackOutgoingCommand(sentMessage, cmd);
         }

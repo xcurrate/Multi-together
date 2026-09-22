@@ -201,6 +201,9 @@ async handleBossAppear(msg, rawComponents) {
     if (fightBtn && fightBtn.disabled !== true) {
         const btnId = fightBtn.custom_id || fightBtn.customId;
 
+        // Beri jeda 6 detik setelah boss terdeteksi sebelum melakukan FIGHT.
+        await new Promise(resolve => setTimeout(resolve, 6000));
+
         // Kita bungkus proses klik dan update state di dalam try...catch
         try {
             await msg.clickButton(btnId);

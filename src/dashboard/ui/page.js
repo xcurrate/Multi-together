@@ -115,42 +115,63 @@ function renderPage(config) {
 
                 form.addEventListener('submit', async (event) => {
                     const submitter = event.submitter;
-                    if (!submitter || submitter.name !== 'action' || submitter.value !== 'save') return;
+                    if (!submitter || submitter.form !== form) return;
 
                     event.preventDefault();
 
                     const originalText = submitter.textContent;
                     submitter.disabled = true;
-                    submitter.textContent = '⏳ SAVING...';
+                    submitter.textContent = '⏳ PROCESSING...';
 
                     try {
                         const formData = new FormData(form);
-                        formData.set('action', 'save');
+
+                        // Preserve the exact action submitted by the clicked button.
+                        // This supports both action=... and profileAction=... buttons.
+                        if (submitter.name) {
+                            formData.set(submitter.name, submitter.value);
+                        }
 
                         const response = await fetch(form.action, {
                             method: 'POST',
                             body: formData,
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'Accept': 'application/json, text/html'
+                            },
+                            redirect: 'follow'
                         });
 
-                        const result = await response.json();
-
-                        if (!response.ok || !result.success) {
-                            throw new Error(result.message || 'Failed to save configuration');
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
                         }
 
-                        submitter.textContent = '✓ SAVED';
+                        const contentType = response.headers.get('content-type') || '';
+
+                        if (contentType.includes('application/json')) {
+                            const result = await response.json();
+
+                            if (result.success === false) {
+                                throw new Error(result.message || 'Action failed');
+                            }
+                        } else {
+                            await response.text();
+                        }
+
+                        submitter.textContent = '✓ BERHASIL';
+
                         setTimeout(() => {
                             submitter.disabled = false;
                             submitter.textContent = originalText;
-                        }, 1200);
+                        }, 1000);
                     } catch (error) {
-                        console.error('[DASHBOARD] Save configuration error:', error);
+                        console.error('[DASHBOARD] Action error:', error);
                         submitter.disabled = false;
-                        submitter.textContent = '✗ SAVE FAILED';
+                        submitter.textContent = '✗ GAGAL';
+
                         setTimeout(() => {
                             submitter.textContent = originalText;
-                        }, 1800);
+                        }, 1500);
                     }
                 });
             })();

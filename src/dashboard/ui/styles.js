@@ -94,6 +94,10 @@ function getStyles() {
             .btn-voice { background: #7c3aed; color: white; flex: 1; }
             .btn-logout { background: #475467; color: white; flex: 1; }
             .btn-secondary { background: var(--panel-soft); color: var(--text); border-color: var(--border); }
+            .save-toast { position: fixed; right: 20px; bottom: 20px; z-index: 100; display: flex; align-items: center; gap: 8px; max-width: min(360px, calc(100vw - 40px)); padding: 12px 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel-strong); color: var(--text); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35); font-weight: 800; opacity: 0; pointer-events: none; transform: translateY(12px); transition: opacity 160ms ease, transform 160ms ease; }
+            .save-toast.visible { opacity: 1; transform: translateY(0); }
+            .save-toast.success { border-color: #2e7a52; color: var(--green); background: var(--green-soft); }
+            .save-toast.error { border-color: #7a363c; color: var(--red); background: var(--red-soft); }
             .action-group { display: flex; gap: 10px; margin-bottom: 16px; }
             .divider { border-top: 1px solid var(--border); margin: 16px 0; }
             .dashboard-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }

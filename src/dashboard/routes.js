@@ -309,13 +309,24 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
             if (body.profileAction) {
                 const [action, accountId] = String(body.profileAction).split(':');
-                if (accountId && action === 'connect') {
-                    connectAccount(accountId);
-                    return res.send(uiComponents.getSavedResponse());
-                }
-                if (accountId && (action === 'start' || action === 'pause')) {
-                    setAccountStatus(accountId, action === 'start');
-                    return res.send(uiComponents.getSavedResponse());
+                if (accountId && (action === 'connect' || action === 'start' || action === 'pause')) {
+                    const target = getProfileConfigByAccountId(accountId);
+                    if (!target) {
+                        return res.status(404).json({ success: false, message: 'Account not found' });
+                    }
+
+                    target.config = configManager.applySave(target.config, body);
+                    const saved = saveAccountConfig(target, target.config);
+                    if (!saved) {
+                        return res.status(500).json({ success: false, message: 'Failed to save account configuration' });
+                    }
+
+                    if (action === 'connect') connectAccount(accountId);
+                    else setAccountStatus(accountId, action === 'start');
+
+                    return isAjax
+                        ? res.json({ success: true, message: 'Account configuration saved' })
+                        : res.send(uiComponents.getSavedResponse());
                 }
                 if (accountId && action === 'logout') {
                     logoutAccount(accountId);
@@ -340,14 +351,24 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
             }
 
             const viewingProfileId = body.viewingProfileId ? String(body.viewingProfileId) : '';
-            if (viewingProfileId && body.action === 'connectProfile') {
-                connectAccount(viewingProfileId);
-                return res.send(uiComponents.getSavedResponse());
-            }
+            if (viewingProfileId && (body.action === 'connectProfile' || body.action === 'startProfile' || body.action === 'pauseProfile')) {
+                const target = getProfileConfigByAccountId(viewingProfileId);
+                if (!target) {
+                    return res.status(404).json({ success: false, message: 'Account not found' });
+                }
 
-            if (viewingProfileId && (body.action === 'startProfile' || body.action === 'pauseProfile')) {
-                setAccountStatus(viewingProfileId, body.action === 'startProfile');
-                return res.send(uiComponents.getSavedResponse());
+                target.config = configManager.applySave(target.config, body);
+                const saved = saveAccountConfig(target, target.config);
+                if (!saved) {
+                    return res.status(500).json({ success: false, message: 'Failed to save account configuration' });
+                }
+
+                if (body.action === 'connectProfile') connectAccount(viewingProfileId);
+                else setAccountStatus(viewingProfileId, body.action === 'startProfile');
+
+                return isAjax
+                    ? res.json({ success: true, message: 'Account configuration saved' })
+                    : res.send(uiComponents.getSavedResponse());
             }
 
             if (viewingProfileId && body.action === 'logoutProfile') {
@@ -385,8 +406,18 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     config = configManager.applySave(config, body);
                     config = configManager.applyAction(config, body.action);
                 } else {
+                    // Save any configuration changes submitted together with START/PAUSE
+                    // before changing the runtime status of all accounts.
+                    config = configManager.applySave(config, body);
+                    const saved = configManager.save(config);
+                    if (!saved) {
+                        return res.status(500).json({ success: false, message: 'Failed to save configuration' });
+                    }
+
                     setAllAccountStatuses(body.action === 'start');
-                    return res.send(uiComponents.getSavedResponse());
+                    return isAjax
+                        ? res.json({ success: true, message: 'Configuration saved and action completed' })
+                        : res.send(uiComponents.getSavedResponse());
                 }
             }
             

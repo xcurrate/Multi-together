@@ -142,20 +142,21 @@ function renderPage(config) {
                             redirect: 'follow'
                         });
 
-                        if (!response.ok) {
-                            throw new Error('HTTP ' + response.status);
-                        }
-
                         const contentType = response.headers.get('content-type') || '';
+                        let result = null;
 
                         if (contentType.includes('application/json')) {
-                            const result = await response.json();
-
-                            if (result.success === false) {
-                                throw new Error(result.message || 'Action failed');
-                            }
+                            result = await response.json();
                         } else {
-                            await response.text();
+                            const text = await response.text();
+                            result = { success: response.ok, message: text };
+                        }
+
+                        if (!response.ok || (result && result.success === false)) {
+                            throw new Error(
+                                (result && result.message) ||
+                                ('HTTP ' + response.status)
+                            );
                         }
 
                         submitter.textContent = '✓ BERHASIL';

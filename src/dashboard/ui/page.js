@@ -132,9 +132,14 @@ function renderPage(config) {
                             formData.set(submitter.name, submitter.value);
                         }
 
+                        const requestBody = new URLSearchParams();
+                        for (const [key, value] of formData.entries()) {
+                            requestBody.append(key, value);
+                        }
+
                         const response = await fetch(form.action, {
                             method: 'POST',
-                            body: formData,
+                            body: requestBody,
                             headers: {
                                 'X-Requested-With': 'XMLHttpRequest',
                                 'Accept': 'application/json, text/html'

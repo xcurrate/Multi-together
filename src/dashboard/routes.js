@@ -455,6 +455,12 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
             }
         } catch (error) {
             dashboardLog('error', '', `❌ Error saving config: ${error.message}`);
+            if (isAjax) {
+                return res.status(500).json({
+                    success: false,
+                    message: error.message || 'Internal Server Error'
+                });
+            }
             res.status(500).send('Internal Server Error');
         }
     });

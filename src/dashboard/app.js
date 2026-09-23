@@ -1,6 +1,5 @@
 const path = require('path');
 const express = require('express');
-const bodyParser = require('body-parser');
 
 const state = require('../state');
 const runtimeStatsService = require('../services/stats');
@@ -34,7 +33,9 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
     });
 
     const app = express();
-    app.use(bodyParser.urlencoded({ extended: true }));
+    // Dashboard submissions are encoded as URLSearchParams by the browser script.
+    // Keep this parser in sync with that request format so POST /save receives req.body.
+    app.use(express.urlencoded({ extended: true }));
     app.use(createDashboardAuth());
 
     const initialConfig = configManager.ensureShape(configManager.get());

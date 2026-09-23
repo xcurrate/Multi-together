@@ -105,19 +105,40 @@ function renderPage(config) {
                 ${getDashboardStatsCard(statsSnapshot)}
                 ${getLogCard()}
             </div>
+            <div id="saveToast" class="save-toast" role="status" aria-live="polite"></div>
 
             ${getLogRefreshScript(profileOptions, viewingProfileId, isControlPanel)}
 
             <script>
             (() => {
                 const form = document.getElementById('configForm');
+                const toast = document.getElementById('saveToast');
                 if (!form) return;
+                let toastTimeout;
+
+                function showToast(type, message) {
+                    if (!toast) return;
+                    clearTimeout(toastTimeout);
+                    toast.className = 'save-toast ' + type + ' visible';
+                    toast.textContent = (type === 'success' ? '✓ ' : '✗ ') + message;
+                    toastTimeout = setTimeout(() => {
+                        toast.classList.remove('visible');
+                    }, 2500);
+                }
+
+                function toUrlEncodedBody(formData) {
+                    const params = new URLSearchParams();
+                    formData.forEach((value, key) => {
+                        params.append(key, value);
+                    });
+                    return params.toString();
+                }
 
                 form.addEventListener('submit', async (event) => {
                     const submitter = event.submitter;
-                    if (!submitter || submitter.form !== form) return;
-
                     event.preventDefault();
+
+                    if (!submitter || submitter.form !== form) return;
 
                     const originalText = submitter.textContent;
                     submitter.disabled = true;
@@ -132,25 +153,27 @@ function renderPage(config) {
                             formData.set(submitter.name, submitter.value);
                         }
 
+                        // Explicitly serialize the form instead of relying on the browser's
+                        // FormData-to-URLSearchParams conversion. This keeps the payload
+                        // compatible with the URL-encoded parser used by POST /save.
                         const response = await fetch(form.action, {
                             method: 'POST',
-                            body: formData,
+                            body: toUrlEncodedBody(formData),
+                            credentials: 'same-origin',
                             headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
                                 'X-Requested-With': 'XMLHttpRequest',
-                                'Accept': 'application/json, text/html'
-                            },
-                            redirect: 'follow'
+                                'Accept': 'application/json'
+                            }
                         });
 
                         const contentType = response.headers.get('content-type') || '';
                         let result = null;
 
-                        if (contentType.includes('application/json')) {
-                            result = await response.json();
-                        } else {
-                            const text = await response.text();
-                            result = { success: response.ok, message: text };
+                        if (!contentType.includes('application/json')) {
+                            throw new Error('Server returned an invalid response');
                         }
+                        result = await response.json();
 
                         if (!response.ok || (result && result.success === false)) {
                             throw new Error(
@@ -160,6 +183,7 @@ function renderPage(config) {
                         }
 
                         submitter.textContent = '✓ BERHASIL';
+                        showToast('success', 'Tersimpan');
 
                         setTimeout(() => {
                             submitter.disabled = false;
@@ -169,6 +193,7 @@ function renderPage(config) {
                         console.error('[DASHBOARD] Action error:', error);
                         submitter.disabled = false;
                         submitter.textContent = '✗ GAGAL';
+                        showToast('error', error.message ? 'Gagal: ' + error.message : 'Gagal');
 
                         setTimeout(() => {
                             submitter.textContent = originalText;

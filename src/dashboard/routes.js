@@ -103,14 +103,18 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         const mainConfig = configManager.ensureShape(configManager.get());
         const ids = new Set(profileManager.getSavedProfiles());
         const mainId = profileManager.getUserId(mainConfig.token);
+        let saved = true;
         if (mainId !== 'default') ids.add(mainId);
         if (!ids.size) {
             mainConfig.botStatus = { running: !!shouldRun, paused: !shouldRun };
-            configManager.save(mainConfig);
+            saved = configManager.save(mainConfig);
         }
-        ids.forEach(id => setAccountStatus(id, shouldRun));
+        ids.forEach(id => {
+            saved = setAccountStatus(id, shouldRun) && saved;
+        });
         const manager = state?.multiAccountManager;
         if (manager && typeof manager.reconcile === 'function') manager.reconcile();
+        return saved;
     };
 
     router.get('/api/profile', async (req, res) => {
@@ -241,19 +245,23 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     router.post('/save', (req, res) => {
         try {
             const isAjax = req.get('X-Requested-With') === 'XMLHttpRequest';
-            const body = req.body;
+            const body = req.body || {};
+            const respondSuccess = (message) => isAjax
+                ? res.json({ success: true, message })
+                : res.send(uiComponents.getSavedResponse());
+            const respondError = (status, message) => isAjax
+                ? res.status(status).json({ success: false, message })
+                : res.status(status).send(message);
             
             if (body.action === 'loadProfile') {
                 const targetId = body.selectedProfile;
-                if (targetId) {
-                    const profilePath = profileManager.getProfilePath(targetId);
-                    if (fs.existsSync(profilePath)) {
-                        const loadedConfig = fileService.readJson(profilePath);
-                        configManager.save(loadedConfig); 
-                        dashboardLog('success', targetId, '📂 Profil akun berhasil dimuat ke config utama.');
-                    }
-                }
-                return res.send(uiComponents.getSavedResponse());
+                if (!targetId) return respondError(400, 'Profile must be selected');
+                const profilePath = profileManager.getProfilePath(targetId);
+                if (!fs.existsSync(profilePath)) return respondError(404, 'Profile not found');
+                const loadedConfig = fileService.readJson(profilePath);
+                if (!configManager.save(loadedConfig)) return respondError(500, 'Failed to load profile configuration');
+                dashboardLog('success', targetId, '📂 Profil akun berhasil dimuat ke config utama.');
+                return respondSuccess('Profile configuration loaded');
             }
 
             if (body.action === 'addSlot' || body.action === 'removeSlot') {
@@ -269,18 +277,20 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     dashboardLog('success', '', `${icon} Slot akun paralel ${verb} menjadi ${mainConfig.multiAccount.maxAccounts}/4.`);
                     const manager = state?.multiAccountManager;
                     if (manager && typeof manager.reconcile === 'function') manager.reconcile();
+                    return respondSuccess('Account slot updated');
                 }
-                return res.send(uiComponents.getSavedResponse());
+                return respondError(500, 'Failed to update account slot');
             }
 
             if (body.action === 'newProfile') {
                 const newToken = body.newToken;
+                if (!newToken) return respondError(400, 'Token is required');
                 if (newToken) {
                     const existingProfiles = new Set(profileManager.getSavedProfiles());
                     const targetId = profileManager.getUserId(newToken);
                     if (!existingProfiles.has(targetId) && existingProfiles.size >= 4) {
                         dashboardLog('warn', targetId, '⚠️ Slot akun penuh: maksimal 4 token/slot.');
-                        return res.send(uiComponents.getSavedResponse());
+                        return respondError(409, 'Account slots are full');
                     }
 
                     const profilePath = profileManager.getProfilePath(targetId);
@@ -291,20 +301,24 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     newConfig.multiAccount.enabled = true;
                     delete newConfig.viewingProfileId;
                     
-                    fileService.writeJson(profilePath, newConfig);
+                    if (!fileService.writeJson(profilePath, newConfig)) {
+                        return respondError(500, 'Failed to save new account configuration');
+                    }
 
                     const slotCount = Math.min(4, new Set([...existingProfiles, targetId]).size);
                     const mainConfig = configManager.ensureShape(configManager.get());
                     mainConfig.multiAccount = mainConfig.multiAccount || {};
                     mainConfig.multiAccount.enabled = true;
                     mainConfig.multiAccount.maxAccounts = slotCount;
-                    configManager.save(mainConfig);
+                    if (!configManager.save(mainConfig)) {
+                        return respondError(500, 'Failed to update account slots');
+                    }
 
                     dashboardLog('success', targetId, `➕ Token ditambahkan sebagai slot baru (${slotCount}/4). Tersisa ${4 - slotCount} slot lagi.`);
                     const manager = state?.multiAccountManager;
                     if (manager && typeof manager.reconcile === 'function') manager.reconcile();
                 }
-                return res.send(uiComponents.getSavedResponse());
+                return respondSuccess('New account profile created');
             }
 
             if (body.profileAction) {
@@ -321,16 +335,15 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                         return res.status(500).json({ success: false, message: 'Failed to save account configuration' });
                     }
 
-                    if (action === 'connect') connectAccount(accountId);
-                    else setAccountStatus(accountId, action === 'start');
-
-                    return isAjax
-                        ? res.json({ success: true, message: 'Account configuration saved' })
-                        : res.send(uiComponents.getSavedResponse());
+                    const completed = action === 'connect'
+                        ? connectAccount(accountId)
+                        : setAccountStatus(accountId, action === 'start');
+                    if (!completed) return respondError(500, 'Account action could not be completed');
+                    return respondSuccess('Account configuration saved and action completed');
                 }
                 if (accountId && action === 'logout') {
-                    logoutAccount(accountId);
-                    return res.send(uiComponents.getSavedResponse());
+                    if (!logoutAccount(accountId)) return respondError(404, 'Account runtime not found');
+                    return respondSuccess('Account logged out');
                 }
                 if (accountId && action === 'delete') {
                     logoutAccount(accountId);
@@ -340,13 +353,15 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     mainConfig.multiAccount = mainConfig.multiAccount || {};
                     mainConfig.multiAccount.enabled = true;
                     mainConfig.multiAccount.maxAccounts = Math.min(4, remainingProfiles.length);
-                    configManager.save(mainConfig);
+                    if (!configManager.save(mainConfig)) return respondError(500, 'Failed to update account slots');
                     dashboardLog(removed ? 'success' : 'warn', accountId, removed
                         ? `🗑 Slot akun dihapus. Slot aktif sekarang ${mainConfig.multiAccount.maxAccounts}/4, tersisa ${4 - mainConfig.multiAccount.maxAccounts} slot.`
                         : '⚠️ Hapus slot gagal: profil akun tidak ditemukan.');
                     const manager = state?.multiAccountManager;
                     if (manager && typeof manager.reconcile === 'function') manager.reconcile();
-                    return res.send(uiComponents.getSavedResponse());
+                    return removed
+                        ? respondSuccess('Account profile deleted')
+                        : respondError(404, 'Account profile not found');
                 }
             }
 
@@ -363,17 +378,16 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     return res.status(500).json({ success: false, message: 'Failed to save account configuration' });
                 }
 
-                if (body.action === 'connectProfile') connectAccount(viewingProfileId);
-                else setAccountStatus(viewingProfileId, body.action === 'startProfile');
-
-                return isAjax
-                    ? res.json({ success: true, message: 'Account configuration saved' })
-                    : res.send(uiComponents.getSavedResponse());
+                const completed = body.action === 'connectProfile'
+                    ? connectAccount(viewingProfileId)
+                    : setAccountStatus(viewingProfileId, body.action === 'startProfile');
+                if (!completed) return respondError(500, 'Account action could not be completed');
+                return respondSuccess('Account configuration saved and action completed');
             }
 
             if (viewingProfileId && body.action === 'logoutProfile') {
-                logoutAccount(viewingProfileId);
-                return res.send(uiComponents.getSavedResponse());
+                if (!logoutAccount(viewingProfileId)) return respondError(404, 'Account runtime not found');
+                return respondSuccess('Account logged out');
             }
 
             if (body.action === 'joinVoice') {
@@ -386,8 +400,9 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                     const activeId = profileManager.getUserId(config.token);
                     if (activeId !== 'default') fileService.writeJson(profileManager.getProfilePath(activeId), config);
                 }
-                if (saved) joinVoice(targetId);
-                return res.send(uiComponents.getSavedResponse());
+                if (!saved) return respondError(500, 'Failed to save account configuration');
+                if (!joinVoice(targetId)) return respondError(409, 'Voice action could not be completed');
+                return respondSuccess('Configuration saved and voice action completed');
             }
 
             const isGlobalAction = body.action === 'start' || body.action === 'pause';
@@ -414,7 +429,9 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                         return res.status(500).json({ success: false, message: 'Failed to save configuration' });
                     }
 
-                    setAllAccountStatuses(body.action === 'start');
+                    if (!setAllAccountStatuses(body.action === 'start')) {
+                        return respondError(500, 'Configuration saved, but the account action failed');
+                    }
                     return isAjax
                         ? res.json({ success: true, message: 'Configuration saved and action completed' })
                         : res.send(uiComponents.getSavedResponse());
@@ -451,17 +468,11 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 }
                 res.send(uiComponents.getSavedResponse());
             } else {
-                res.status(500).send('Failed to save configuration');
+                return respondError(500, 'Failed to save configuration');
             }
         } catch (error) {
             dashboardLog('error', '', `❌ Error saving config: ${error.message}`);
-            if (isAjax) {
-                return res.status(500).json({
-                    success: false,
-                    message: error.message || 'Internal Server Error'
-                });
-            }
-            res.status(500).send('Internal Server Error');
+            return respondError(500, error.message || 'Internal Server Error');
         }
     });
 

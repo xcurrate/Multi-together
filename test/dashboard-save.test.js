@@ -90,6 +90,8 @@ test('dashboard renders an accessible save status toast', async () => {
         assert.match(html, /id="saveToast" class="save-toast" role="status" aria-live="polite"/);
         assert.match(html, /function toUrlEncodedBody\(formData\)/);
         assert.match(html, /credentials: 'include'/);
+        assert.match(html, /const saveUrl = form\.getAttribute\('action'\) \|\| '\/save';/);
+        assert.doesNotMatch(html, /fetch\(form\.action,/);
         assert.match(html, /showToast\('success', 'Tersimpan'\)/);
         assert.match(html, /showToast\('error', error\.message \? 'Gagal: ' \+ error\.message : 'Gagal'\)/);
     });

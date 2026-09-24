@@ -156,7 +156,11 @@ function renderPage(config) {
                         // Explicitly serialize the form instead of relying on the browser's
                         // FormData-to-URLSearchParams conversion. This keeps the payload
                         // compatible with the URL-encoded parser used by POST /save.
-                        const response = await fetch(form.action, {
+                        // Do not read form.action: controls named "action" shadow that
+                        // DOM property and can turn it into a RadioNodeList (which stringifies
+                        // to /[object RadioNodeList]).
+                        const saveUrl = form.getAttribute('action') || '/save';
+                        const response = await fetch(saveUrl, {
                             method: 'POST',
                             body: toUrlEncodedBody(formData),
                             credentials: 'include',

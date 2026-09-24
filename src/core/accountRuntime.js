@@ -47,6 +47,7 @@ const ensureRuntimeShape = (config = {}) => {
             delayMs: Math.max(0, parseInt(command.delayMs, 10) || 5000),
             count: Math.max(1, parseInt(command.count, 10) || 1),
             channelId: String(command.channelId || ''),
+            captchaEnabled: command.captchaEnabled !== false,
             enabled: command.enabled === true
         };
     });
@@ -89,6 +90,7 @@ const createRuntimeState = ({ config, sharedStats }) => ({
     hasUsedFirstLoopStartupStagger: false,
     isBusy: false,
     nextAt: {},
+    otherCommandDelays: {},
     startupJitterMs: Math.floor(Math.random() * 4500),
     captchaSolverAbortController: null,
     captchaSolveRunId: 0,

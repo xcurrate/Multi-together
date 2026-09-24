@@ -41,6 +41,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
                 delayMs: Math.max(0, this.toInt(command.delayMs, 5000)),
                 count: Math.max(1, this.toInt(command.count, 1)),
                 channelId: String(command.channelId || ''),
+                captchaEnabled: command.captchaEnabled !== false,
                 enabled: command.enabled === true
             };
         });
@@ -94,6 +95,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
                 delayMs: Math.max(0, this.toInt(body[`other${index + 1}Delay`], Math.floor((current.delayMs || 5000) / 1000))) * 1000,
                 count: Math.max(1, this.toInt(body[`other${index + 1}Count`], current.count || 1)),
                 channelId: String(body[`other${index + 1}Channel`] || '').trim(),
+                captchaEnabled: this.toBool(body[`other${index + 1}Captcha`]),
                 enabled: current.enabled === true
             };
         });

@@ -128,6 +128,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
             state.config.botStatus.paused = true;
             state.config.botStatus.running = false;
             state.hasActiveCaptcha = true;
+            loopManager.pauseOtherCommandDelays();
             statsService.syncBotUptime(state);
             state.captchaSolveRunId = (state.captchaSolveRunId || 0) + 1;
             const solveRunId = state.captchaSolveRunId;
@@ -214,6 +215,7 @@ module.exports = (state, configManager, loopManager, telegramService, channelMan
             state.config.botStatus.paused = false;
             state.config.botStatus.running = true;
             state.hasActiveCaptcha = false;
+            loopManager.resumeOtherCommandDelays();
             statsService.syncBotUptime(state);
             if (wasActiveCaptcha) recordCaptchaSolved();
             configManager.save();

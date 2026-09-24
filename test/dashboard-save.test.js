@@ -96,3 +96,29 @@ test('dashboard renders an accessible save status toast', async () => {
         assert.match(html, /showToast\('error', error\.message \? 'Gagal: ' \+ error\.message : 'Gagal'\)/);
     });
 });
+
+test('OTHER Custom Command saves its independent CAPTCHA setting', async () => {
+    await withDashboard(async (url, baseDir) => {
+        const response = await fetch(`${url}/save`, {
+            method: 'POST',
+            headers: {
+                Authorization: authHeader(),
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                Accept: 'application/json'
+            },
+            body: new URLSearchParams({
+                action: 'save',
+                other1Text: '!test',
+                other1Channel: '12345',
+                other1Delay: '5',
+                other1Count: '10',
+                other1Captcha: 'on'
+            })
+        });
+
+        assert.equal(response.status, 200);
+        const savedConfig = JSON.parse(fs.readFileSync(path.join(baseDir, 'config.json'), 'utf8'));
+        assert.equal(savedConfig.otherCommands[0].captchaEnabled, true);
+        assert.equal(savedConfig.otherCommands[1].captchaEnabled, false);
+    });
+});

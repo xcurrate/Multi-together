@@ -4,32 +4,38 @@ const { sleep, randomInt, accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
 
 module.exports = (state, channelManager, emergencyHandler) => ({
-    async send(cmd, type = '', targetChannelId = '') {
-        if (state.hasActiveCaptcha) {
+    async send(cmd, type = '', targetChannelId = '', options = {}) {
+        const allowDuringCaptcha = options.allowDuringCaptcha === true;
+        const allowWhilePaused = options.allowWhilePaused === true;
+        if (state.hasActiveCaptcha && !allowDuringCaptcha) {
             log.warn(`${accountPrefix(state)}⚠️ Command [${cmd}] ditahan: CAPTCHA sedang aktif.`);
-            return;
+            return false;
         }
-        if ((state.config.botStatus.paused || !state.config.botStatus.running) && !state.isStartupReadyRoutine) return;
-        if (!state.client?.isReady()) return;
+        if ((state.config.botStatus.paused || !state.config.botStatus.running) && !state.isStartupReadyRoutine && !allowWhilePaused) return false;
+        if (!state.client?.isReady()) return false;
 
         const requestedChannelId = String(targetChannelId || '').trim();
-        if (!requestedChannelId && !state.activeChannelId && !channelManager.updateActive()) return;
+        if (!requestedChannelId && !state.activeChannelId && !channelManager.updateActive()) return false;
 
         const channel = state.client.channels.cache.get(requestedChannelId || state.activeChannelId);
-        if (!channel) return;
+        if (!channel) return false;
 
         await channel.sendTyping();
         await sleep(randomInt(CONSTANTS.MIN_TYPING_DELAY, CONSTANTS.MAX_TYPING_DELAY));
 
-        if (state.hasActiveCaptcha) {
+        if (state.hasActiveCaptcha && !allowDuringCaptcha) {
             log.warn(`${accountPrefix(state)}⚠️ Command [${cmd}] dibatalkan setelah typing: CAPTCHA sedang aktif.`);
-            return;
+            return false;
         }
 
         const maxRetries = 2;
         let lastError = null;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            if (state.hasActiveCaptcha && !allowDuringCaptcha) {
+                log.warn(`${accountPrefix(state)}⚠️ Command [${cmd}] dibatalkan sebelum pengiriman: CAPTCHA sedang aktif.`);
+                return false;
+            }
             try {
                 await channel.send(cmd);
                 statsService.recordCommand(state, cmd, type);
@@ -38,7 +44,7 @@ module.exports = (state, channelManager, emergencyHandler) => ({
                 if (type === 'Battle' || type === 'Hunt') {
                     this.setResponseTimeout(type);
                 }
-                return; // Success
+                return true;
             } catch (e) {
                 lastError = e;
 
@@ -63,6 +69,8 @@ module.exports = (state, channelManager, emergencyHandler) => ({
                 break;
             }
         }
+
+        return false;
     },
 
     setResponseTimeout(type) {

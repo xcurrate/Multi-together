@@ -177,14 +177,32 @@ module.exports = (state, commandSender) => ({
         if (!command?.enabled || !command.text?.trim() || !command.channelId?.trim()) return;
 
         const sendsLeft = Math.max(1, Number(remaining) || Number(command.count) || 1);
+        const pauseOnCaptcha = command.captchaEnabled !== false;
+        if (pauseOnCaptcha && state.hasActiveCaptcha) {
+            this._scheduleOtherCommandDelay(index, sendsLeft, 0);
+            return;
+        }
+
+        let sent = false;
         try {
-            await commandSender.send(command.text.trim(), `Other Command ${index + 1}`, command.channelId.trim());
+            sent = await commandSender.send(
+                command.text.trim(),
+                `Other Command ${index + 1}`,
+                command.channelId.trim(),
+                // CAPTCHA OFF hanya berlaku untuk Custom Command ini, bukan fitur lain.
+                pauseOnCaptcha ? {} : { allowDuringCaptcha: true, allowWhilePaused: true }
+            );
         } catch (error) {
             log.error(`${accountPrefix(state)}❌ Gagal Other Command ${index + 1}: ${error.message || error}`);
         }
 
-        if (sendsLeft > 1 && command.enabled) {
-            this._scheduleLoop(key, () => this.otherCommand(index, sendsLeft - 1), command.delayMs);
+        if (!command.enabled) return;
+
+        // Hanya command yang benar-benar terkirim yang mengurangi target pengiriman.
+        if (!sent) {
+            this._scheduleOtherCommandDelay(index, sendsLeft, command.delayMs);
+        } else if (sendsLeft > 1) {
+            this._scheduleOtherCommandDelay(index, sendsLeft - 1, command.delayMs);
         } else {
             state.loops[key] = null;
             command.enabled = false;
@@ -193,11 +211,69 @@ module.exports = (state, commandSender) => ({
         }
     },
 
+    _scheduleOtherCommandDelay(index, remaining, delayMs) {
+        const key = `other${index + 1}`;
+        const command = state.config.otherCommands?.[index];
+        if (!command?.enabled) return;
+
+        state.otherCommandDelays = state.otherCommandDelays || {};
+        const delay = {
+            index,
+            remaining,
+            remainingMs: Math.max(0, Number(delayMs) || 0),
+            startedAt: null,
+            timer: null,
+            paused: command.captchaEnabled !== false && state.hasActiveCaptcha
+        };
+        state.otherCommandDelays[key] = delay;
+
+        const resumeDelay = () => {
+            if (state.otherCommandDelays?.[key] !== delay || !command.enabled) return;
+            if (delay.paused) return;
+            delay.startedAt = Date.now();
+            delay.timer = setTimeout(() => {
+                if (state.otherCommandDelays?.[key] !== delay || !command.enabled) return;
+                state.otherCommandDelays[key] = null;
+                state.loops[key] = null;
+                this.otherCommand(index, remaining);
+            }, delay.remainingMs);
+            state.loops[key] = delay.timer;
+            state.nextAt[key] = Date.now() + delay.remainingMs;
+        };
+        delay.resume = resumeDelay;
+        resumeDelay();
+    },
+
+    pauseOtherCommandDelays() {
+        Object.entries(state.otherCommandDelays || {}).forEach(([key, delay]) => {
+            const command = state.config.otherCommands?.[delay?.index];
+            if (!delay || command?.captchaEnabled === false || delay.paused) return;
+            if (delay.timer) clearTimeout(delay.timer);
+            delay.timer = null;
+            delay.remainingMs = Math.max(0, delay.remainingMs - (Date.now() - (delay.startedAt || Date.now())));
+            delay.startedAt = null;
+            delay.paused = true;
+            state.loops[key] = null;
+            delete state.nextAt[key];
+        });
+    },
+
+    resumeOtherCommandDelays() {
+        Object.values(state.otherCommandDelays || {}).forEach(delay => {
+            if (!delay?.paused) return;
+            delay.paused = false;
+            delay.resume();
+        });
+    },
+
     startOtherCommand(index) {
         const command = state.config.otherCommands?.[index];
         if (!command?.enabled || !command.text?.trim() || !command.channelId?.trim()) return false;
 
         const key = `other${index + 1}`;
+        const delay = state.otherCommandDelays?.[key];
+        if (delay?.timer) clearTimeout(delay.timer);
+        if (state.otherCommandDelays) state.otherCommandDelays[key] = null;
         if (state.loops[key]) clearTimeout(state.loops[key]);
         state.loops[key] = null;
         this.otherCommand(index, command.count);
@@ -207,6 +283,9 @@ module.exports = (state, commandSender) => ({
     stopOtherCommand(index) {
         const command = state.config.otherCommands?.[index];
         const key = `other${index + 1}`;
+        const delay = state.otherCommandDelays?.[key];
+        if (delay?.timer) clearTimeout(delay.timer);
+        if (state.otherCommandDelays) state.otherCommandDelays[key] = null;
         if (state.loops[key]) clearTimeout(state.loops[key]);
         state.loops[key] = null;
         if (command) command.enabled = false;

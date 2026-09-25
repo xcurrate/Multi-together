@@ -121,7 +121,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
         `;
     }
 
-    function renderAdvancedSettings({ config, huntbot, control, rotation, boss, msgFilter, messageDebug, voice, captchaConfig, nopechaKey, twoCaptchaKey, fallbackSolvers }) {
+    function renderAdvancedSettings({ config, huntbot, control, rotation, boss, adventure, msgFilter, messageDebug, voice, captchaConfig, nopechaKey, twoCaptchaKey, fallbackSolvers }) {
         return `
                     <div id="tab-notifications" class="tab-content">
                         <div class="category-heading">
@@ -373,6 +373,22 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                             </div>
                             <label>Allowed Guilds</label>
                             <input type="text" name="bossGuilds" value="${(boss.allowedGuilds || []).join(',')}" placeholder="Guild ID">
+                        </div>
+
+                        <div class="card">
+                            <label>🗺️ AUTO ADVENTURE</label>
+                            <div class="input-hint">Memproses response target hanya pada guild dan channel yang ditentukan.</div>
+                            <label>Target Author ID</label>
+                            <input type="text" name="adventureTargetId" value="${escapeHtml(adventure.targetId || '')}" placeholder="Discord User ID">
+                            <label>Adventure Channel ID</label>
+                            <input type="text" name="adventureChannelId" value="${escapeHtml(adventure.channelId || '')}" placeholder="Channel ID">
+                            <label>Adventure Guild ID</label>
+                            <input type="text" name="adventureGuildId" value="${escapeHtml(adventure.guildId || '')}" placeholder="Guild ID">
+                            <div class="action-group" style="margin-top: 12px;">
+                                <button type="submit" name="action" value="adventureStart" class="btn btn-start">▶ AUTO ADVENTURE ON</button>
+                                <button type="submit" name="action" value="adventureStop" class="btn btn-pause">⏸ AUTO ADVENTURE OFF</button>
+                            </div>
+                            <span class="input-hint">${adventure.enabled ? '▶ Auto Adventure aktif' : '⏹ Auto Adventure nonaktif'}</span>
                         </div>
 
                         <div class="card">

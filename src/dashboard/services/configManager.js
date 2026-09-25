@@ -30,6 +30,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.settings.control = config.settings.control || { start: 'wcash', pause: 'wbuy 1', allowIds: [] };
         config.settings.channelRotation = config.settings.channelRotation || { enabled: false, minMs: 180000, maxMs: 360000 };
         config.settings.boss = config.settings.boss || { enabled: true, allowedGuilds: [] };
+        config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
         config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
         config.settings.messageDebug = config.settings.messageDebug || { enabled: false, targetId: '', channelId: '', guildId: '' };
         config.settings.telegram = config.settings.telegram || { token: "", chatId: "" };
@@ -129,6 +130,10 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.settings.boss.enabled = this.toBool(body.bossEnabled);
         config.settings.boss.allowedGuilds = this.toArray(body.bossGuilds);
 
+        config.settings.adventure.targetId = String(body.adventureTargetId || '').trim();
+        config.settings.adventure.channelId = String(body.adventureChannelId || '').trim();
+        config.settings.adventure.guildId = String(body.adventureGuildId || '').trim();
+
         config.settings.messageFilter.enabled = this.toBool(body.mfEnabled);
         config.settings.messageFilter.channelIds = this.toArray(body.mfChannelIds);
         config.settings.messageFilter.guildIds = this.toArray(body.mfGuildIds);
@@ -173,6 +178,12 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
 
     applyAction(config, action) {
         switch (action) {
+            case 'adventureStart':
+                config.settings.adventure.enabled = true;
+                break;
+            case 'adventureStop':
+                config.settings.adventure.enabled = false;
+                break;
             case 'start':
                 config.botStatus.running = true;
                 config.botStatus.paused = false;

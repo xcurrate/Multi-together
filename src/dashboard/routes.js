@@ -484,6 +484,15 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                             : `⚠️ Other Command ${index + 1} tidak dapat ${otherCommandAction[2] === 'Start' ? 'dimulai' : 'dihentikan'}: runtime akun belum tersedia.`);
                     }
                 }
+                const adventureAction = /^adventure(Start|Stop)$/.exec(String(body.action || ''));
+                if (adventureAction) {
+                    const manager = state?.multiAccountManager;
+                    const actionMethod = adventureAction[1] === 'Start' ? 'startAdventure' : 'stopAdventure';
+                    const acted = typeof manager?.[actionMethod] === 'function' && manager[actionMethod](savedAccountId);
+                    dashboardLog(acted ? 'info' : 'warn', savedAccountId !== 'default' ? savedAccountId : '', acted
+                        ? `🗺️ Auto Adventure ${adventureAction[1] === 'Start' ? 'diaktifkan' : 'dinonaktifkan'}.`
+                        : `⚠️ Auto Adventure tidak dapat ${adventureAction[1] === 'Start' ? 'diaktifkan' : 'dinonaktifkan'}: runtime akun belum tersedia.`);
+                }
                 if (saveTarget === 'main') {
                     const activeId = profileManager.getUserId(config.token);
                     if (activeId !== 'default') {

@@ -26,6 +26,12 @@
         "559475774441259008"
       ]
     },
+    "adventure": {
+      "enabled": false,
+      "targetId": "",
+      "channelId": "",
+      "guildId": ""
+    },
     "messageFilter": {
       "enabled": true,
       "channelIds": [],

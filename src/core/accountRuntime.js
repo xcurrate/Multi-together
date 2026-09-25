@@ -5,6 +5,7 @@ const createTelegramService = require('../services/telegram');
 const createMacrodroidService = require('../services/macrodroidService');
 const createChannelManager = require('../managers/channel');
 const createBossManager = require('../managers/boss');
+const createAdventureManager = require('../managers/adventure');
 const createCaptchaHandler = require('../managers/captcha');
 const createCommandSender = require('../managers/command');
 const createLoopManager = require('../managers/loop');
@@ -37,6 +38,7 @@ const ensureRuntimeShape = (config = {}) => {
     config.settings.channelRotation = config.settings.channelRotation || { enabled: false, minMs: 180000, maxMs: 360000 };
     config.settings.control = config.settings.control || { start: 'wcash', pause: 'wbuy 1', allowIds: [] };
     config.settings.boss = config.settings.boss || { enabled: true, allowedGuilds: [] };
+    config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
     config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
     config.settings.messageDebug = config.settings.messageDebug || { enabled: false, targetId: '', channelId: '', guildId: '' };
     config.settings.telegram = config.settings.telegram || { token: '', chatId: '' };
@@ -82,6 +84,10 @@ const createRuntimeState = ({ config, sharedStats }) => ({
     bossRespawnTimers: new Map(),
     bossTicketCheckTimers: new Set(),
     pendingBossTicketCheck: null,
+    adventureTimer: null,
+    adventurePaused: false,
+    adventureProcessing: false,
+    adventureActive: false,
     responseTimeout: null,
     hasActiveCaptcha: false,
     accountUsername: '',
@@ -153,6 +159,16 @@ const createRuntimeConfigManager = (state, filePath) => ({
         };
     },
 
+    getAdventureSettings() {
+        const adventure = state.config.settings?.adventure || {};
+        return {
+            enabled: adventure.enabled === true,
+            targetId: String(adventure.targetId || '').trim(),
+            channelId: String(adventure.channelId || '').trim(),
+            guildId: String(adventure.guildId || '').trim()
+        };
+    },
+
     getValidChannels() {
         const channels = Array.isArray(state.config.channels) ? state.config.channels : [];
         return channels.filter(c => c && String(c).length > 5);
@@ -207,6 +223,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const bossManager = createBossManager(state, configManager, telegramService);
     const emergencyHandler = createEmergencyHandler(state, configManager, loopManagerWrapper, channelManager, telegramService, macrodroidService);
     const commandSender = createCommandSender(state, channelManager, emergencyHandler);
+    const adventureManager = createAdventureManager(state, configManager, commandSender);
     const loopManager = createLoopManager(state, commandSender);
     const captchaHandler = createCaptchaHandler(state, configManager, loopManager, telegramService, channelManager, macrodroidService);
     const voiceManager = createVoiceManager(state, configManager);
@@ -222,7 +239,8 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         macrodroidService,
         huntbotManager,
         commandSender,
-        voiceManager
+        voiceManager,
+        adventureManager
     );
     const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
 
@@ -274,6 +292,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         }
         channelManager.scheduleRotation();
         joinConfiguredVoice(source);
+        adventureManager.start().catch(error => log.error(`${accountPrefix(state)}❌ Auto Adventure gagal dimulai: ${error.message}`));
         return true;
     };
 
@@ -314,6 +333,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         channelManager,
         loopManager,
         voiceManager,
+        adventureManager,
         dailyResetManager,
         checkDailyReset() {
             dailyResetManager.checkAndReset();
@@ -430,6 +450,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             if (bossManager && typeof bossManager.stop === 'function') {
                 bossManager.stop();
             }
+            adventureManager.stop();
             if (state.client) {
                 try { state.client.destroy(); } catch (error) { log.warn(`${accountPrefix(state)}Gagal destroy client: ${error.message}`); }
                 state.client = null;
@@ -440,6 +461,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             const oldToken = state.activeToken;
             const oldLoopSignature = getLoopConfigSignature(oldConfig);
             const oldVoice = safeJsonStringify(oldConfig.settings?.voice || {});
+            const oldAdventure = safeJsonStringify(oldConfig.settings?.adventure || {});
             const oldChannels = safeJsonStringify(oldConfig.channels || []);
             const oldStatus = safeJsonStringify(oldConfig.botStatus || {});
 
@@ -448,6 +470,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
 
             const tokenChanged = oldToken !== state.activeToken;
             const voiceChanged = oldVoice !== safeJsonStringify(state.config.settings?.voice || {});
+            const adventureChanged = oldAdventure !== safeJsonStringify(state.config.settings?.adventure || {});
             const channelsChanged = oldChannels !== safeJsonStringify(state.config.channels || []);
             const statusChanged = oldStatus !== safeJsonStringify(state.config.botStatus || {});
             const loopConfigChanged = oldLoopSignature !== getLoopConfigSignature(state.config);
@@ -461,6 +484,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             if (statusChanged) log.info(`${accountPrefix(state)}🔁 Status config berubah: running=${!!state.config.botStatus?.running}, paused=${!!state.config.botStatus?.paused}`);
             if (channelsChanged) log.info(`${accountPrefix(state)}📡 Config channel berubah (${(state.config.channels || []).length} channel).`);
             if (voiceChanged) log.info(`${accountPrefix(state)}🔊 Config voice berubah: enabled=${state.config.settings?.voice?.enabled === true}, channel=${state.config.settings?.voice?.channelId || '-'}`);
+            if (adventureChanged && state.config.settings?.adventure?.enabled !== true) adventureManager.stop();
             if (loopConfigChanged && !channelsChanged) log.info(`${accountPrefix(state)}⚙️ Config loop/delay berubah.`);
 
             if (!runtimeRunning || !state.client?.isReady()) return;

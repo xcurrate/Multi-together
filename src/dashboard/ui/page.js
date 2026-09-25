@@ -14,6 +14,7 @@ function renderPage(config) {
         const control = config.settings.control || {};
         const rotation = config.settings.channelRotation || {};
         const boss = config.settings.boss || {};
+        const adventure = config.settings.adventure || {};
         const msgFilter = config.settings.messageFilter || {};
         const messageDebug = config.settings.messageDebug || {};
         const voice = config.settings.voice || {};
@@ -87,6 +88,7 @@ function renderPage(config) {
                         control,
                         rotation,
                         boss,
+                        adventure,
                         msgFilter,
                         messageDebug,
                         voice,

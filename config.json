@@ -33,12 +33,6 @@
       "debug": false,
       "debugOnlyOwO": false
     },
-    "messageDebug": {
-      "enabled": false,
-      "targetId": "",
-      "channelId": "",
-      "guildId": ""
-    },
     "telegram": {
       "token": "",
       "chatId": ""

@@ -15,6 +15,7 @@ function renderPage(config) {
         const rotation = config.settings.channelRotation || {};
         const boss = config.settings.boss || {};
         const msgFilter = config.settings.messageFilter || {};
+        const messageDebug = config.settings.messageDebug || {};
         const voice = config.settings.voice || {};
         const statsSnapshot = statsService.getSnapshot(config);
         const viewingProfileId = config.viewingProfileId || '';
@@ -87,6 +88,7 @@ function renderPage(config) {
                         rotation,
                         boss,
                         msgFilter,
+                        messageDebug,
                         voice,
                         captchaConfig,
                         nopechaKey,
@@ -108,6 +110,72 @@ function renderPage(config) {
             <div id="saveToast" class="save-toast" role="status" aria-live="polite"></div>
 
             ${getLogRefreshScript(profileOptions, viewingProfileId, isControlPanel)}
+
+            <script>
+            (() => {
+                const output = document.getElementById('messageDebugOutput');
+                const copyButton = document.getElementById('copyMessageDebugButton');
+                const clearButton = document.getElementById('clearMessageDebugButton');
+                if (!output) return;
+
+                const profileId = ${JSON.stringify(viewingProfileId)};
+                const refresh = async () => {
+                    try {
+                        const query = profileId ? '?profileId=' + encodeURIComponent(profileId) : '';
+                        const response = await fetch('/api/message-debug' + query, { credentials: 'include' });
+                        if (!response.ok) throw new Error('Gagal memuat debug pesan');
+                        const payload = await response.json();
+                        output.textContent = payload.entries?.length
+                            ? JSON.stringify(payload.entries, null, 2)
+                            : 'Belum ada pesan yang cocok. Aktifkan fitur lalu kirim/terima pesan sesuai filter.';
+                    } catch (error) {
+                        output.textContent = 'Gagal memuat debug pesan: ' + error.message;
+                    }
+                };
+
+                refresh();
+                setInterval(refresh, 2000);
+
+                copyButton?.addEventListener('click', async () => {
+                    const text = output.textContent || '';
+                    if (!text || text.startsWith('Belum ada')) return;
+
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        copyButton.textContent = '✓ Tersalin';
+                    } catch {
+                        const selection = window.getSelection();
+                        const range = document.createRange();
+                        range.selectNodeContents(output);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                        document.execCommand('copy');
+                        selection.removeAllRanges();
+                        copyButton.textContent = '✓ Tersalin';
+                    }
+
+                    setTimeout(() => { copyButton.textContent = '📋 Salin output'; }, 1500);
+                });
+
+                clearButton?.addEventListener('click', async () => {
+                    clearButton.disabled = true;
+                    try {
+                        const response = await fetch('/api/message-debug/clear', {
+                            method: 'POST',
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                            body: new URLSearchParams(profileId ? { profileId } : {}).toString()
+                        });
+                        if (!response.ok) throw new Error('Gagal membersihkan output');
+                        output.textContent = 'Output debug telah dibersihkan.';
+                    } catch (error) {
+                        output.textContent = 'Gagal membersihkan output: ' + error.message;
+                    } finally {
+                        clearButton.disabled = false;
+                    }
+                });
+            })();
+            </script>
 
             <script>
             (() => {

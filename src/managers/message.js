@@ -15,7 +15,7 @@ const toJsonValue = (value) => {
     }
 };
 
-module.exports = (state, configManager, bossManager, captchaHandler, loopManager, channelManager, telegramService, macrodroidService, huntbotManager, commandSender, voiceManager) => ({
+module.exports = (state, configManager, bossManager, captchaHandler, loopManager, channelManager, telegramService, macrodroidService, huntbotManager, commandSender, voiceManager, adventureManager) => ({
     async handle(msg) {
         if (!state.client?.isReady()) return;
 
@@ -32,6 +32,9 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
 
         // ✅ FITUR BARU: Deteksi SEMUA pesan dari admin/orang lain di channel aktif
         await this.handleUserMessages(msg);
+
+        // Adventure adalah automasi mandiri; jangan letakkan di handleOwOMessage.
+        if (adventureManager) await adventureManager.handle(msg);
 
         if (CONSTANTS.OWO_IDS.includes(msg.author.id)) {
             await this.handleOwOMessage(msg);

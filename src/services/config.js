@@ -5,6 +5,7 @@ const { safeJsonStringify } = require('../utils');
 const ensureRuntimeShape = (config = {}) => {
     config.settings = config.settings || {};
     config.settings.voice = config.settings.voice || { enabled: false, channelId: '' };
+    config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
     return config;
 };
 
@@ -46,6 +47,16 @@ module.exports = (state) => ({
         return {
             enabled: boss.enabled === true,
             allowedGuilds: Array.isArray(boss.allowedGuilds) ? boss.allowedGuilds : []
+        };
+    },
+
+    getAdventureSettings() {
+        const adventure = state.config.settings?.adventure || {};
+        return {
+            enabled: adventure.enabled === true,
+            targetId: String(adventure.targetId || '').trim(),
+            channelId: String(adventure.channelId || '').trim(),
+            guildId: String(adventure.guildId || '').trim()
         };
     },
 

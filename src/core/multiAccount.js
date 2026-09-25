@@ -188,6 +188,20 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
             if (!runtime || typeof runtime.stopOtherCommand !== 'function') return false;
             return runtime.stopOtherCommand(index);
         },
+        startAdventure(accountId) {
+            reconcile();
+            const runtime = getRuntime(accountId);
+            if (!runtime?.adventureManager) return false;
+            runtime.adventureManager.start({ restart: true }).catch(error => log.error(`[account:${accountId}] ❌ Auto Adventure gagal dimulai: ${error.message}`));
+            return true;
+        },
+        stopAdventure(accountId) {
+            reconcile();
+            const runtime = getRuntime(accountId);
+            if (!runtime?.adventureManager) return false;
+            runtime.adventureManager.stop();
+            return true;
+        },
         logoutAccount(accountId) {
             const runtime = getRuntime(accountId);
             if (!runtime) return false;

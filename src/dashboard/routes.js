@@ -182,6 +182,18 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         }
     });
 
+    router.get('/api/message-debug', (req, res) => {
+        const accountId = String(req.query.profileId || '');
+        const runtime = accountId
+            ? state?.multiAccountManager?.getRuntime?.(accountId)
+            : Array.from(state?.accountRuntimes?.values?.() || [])[0];
+        const entries = Array.isArray(runtime?.state?.messageDebugEntries)
+            ? runtime.state.messageDebugEntries
+            : [];
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ entries });
+    });
+
     router.post('/account/:accountId/connect', (req, res) => {
         const accountId = String(req.params.accountId || '');
         const connected = connectAccount(accountId);

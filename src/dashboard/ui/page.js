@@ -15,7 +15,6 @@ function renderPage(config) {
         const rotation = config.settings.channelRotation || {};
         const boss = config.settings.boss || {};
         const msgFilter = config.settings.messageFilter || {};
-        const messageDebug = config.settings.messageDebug || {};
         const voice = config.settings.voice || {};
         const statsSnapshot = statsService.getSnapshot(config);
         const viewingProfileId = config.viewingProfileId || '';
@@ -88,7 +87,6 @@ function renderPage(config) {
                         rotation,
                         boss,
                         msgFilter,
-                        messageDebug,
                         voice,
                         captchaConfig,
                         nopechaKey,
@@ -110,31 +108,6 @@ function renderPage(config) {
             <div id="saveToast" class="save-toast" role="status" aria-live="polite"></div>
 
             ${getLogRefreshScript(profileOptions, viewingProfileId, isControlPanel)}
-
-            <script>
-            (() => {
-                const output = document.getElementById('messageDebugOutput');
-                if (!output) return;
-
-                const profileId = ${JSON.stringify(viewingProfileId)};
-                const refresh = async () => {
-                    try {
-                        const query = profileId ? '?profileId=' + encodeURIComponent(profileId) : '';
-                        const response = await fetch('/api/message-debug' + query, { credentials: 'include' });
-                        if (!response.ok) throw new Error('Gagal memuat debug pesan');
-                        const payload = await response.json();
-                        output.textContent = payload.entries?.length
-                            ? JSON.stringify(payload.entries, null, 2)
-                            : 'Belum ada pesan yang cocok. Aktifkan fitur lalu kirim/terima pesan sesuai filter.';
-                    } catch (error) {
-                        output.textContent = 'Gagal memuat debug pesan: ' + error.message;
-                    }
-                };
-
-                refresh();
-                setInterval(refresh, 2000);
-            })();
-            </script>
 
             <script>
             (() => {

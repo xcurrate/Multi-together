@@ -3,23 +3,10 @@ const log = require('../../logger');
 const { accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
 
-const MESSAGE_DEBUG_LIMIT = 25;
-
-const toJsonValue = (value) => {
-    if (value === undefined || value === null) return value;
-    try {
-        if (typeof value.toJSON === 'function') return value.toJSON();
-        return value;
-    } catch {
-        return '[Tidak dapat diserialisasi ke JSON]';
-    }
-};
-
 module.exports = (state, configManager, bossManager, captchaHandler, loopManager, channelManager, telegramService, macrodroidService, huntbotManager, commandSender, voiceManager) => ({
     async handle(msg) {
         if (!state.client?.isReady()) return;
 
-        this.captureMessageDebug(msg);
         await this.handleControlCommands(msg);
 
         if (bossManager && typeof bossManager.trackManualTicketCommand === 'function') {
@@ -43,45 +30,6 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
                 return;
             }
         }
-    },
-
-    captureMessageDebug(msg) {
-        const debug = state.config.settings?.messageDebug || {};
-        if (debug.enabled !== true) return false;
-
-        const targetId = String(debug.targetId || '').trim();
-        const channelId = String(debug.channelId || '').trim();
-        const guildId = String(debug.guildId || '').trim();
-        if ((targetId && String(msg.author?.id || '') !== targetId) ||
-            (channelId && String(msg.channel?.id || msg.channelId || '') !== channelId) ||
-            (guildId && String(msg.guild?.id || msg.guildId || '') !== guildId)) {
-            return false;
-        }
-
-        const hasEmbeds = Array.isArray(msg.embeds) && msg.embeds.length > 0;
-        const hasComponents = Array.isArray(msg.components) && msg.components.length > 0;
-        const messageType = hasComponents ? 'components' : hasEmbeds ? 'embed' : 'text';
-        const entry = {
-            capturedAt: new Date().toISOString(),
-            messageType,
-            message: {
-                id: msg.id,
-                content: msg.content || '',
-                author: toJsonValue(msg.author),
-                channelId: msg.channel?.id || msg.channelId || null,
-                guildId: msg.guild?.id || msg.guildId || null,
-                embeds: (msg.embeds || []).map(toJsonValue),
-                components: (msg.components || []).map(toJsonValue),
-                attachments: toJsonValue(msg.attachments)
-            }
-        };
-
-        state.messageDebugEntries = state.messageDebugEntries || [];
-        state.messageDebugEntries.unshift(entry);
-        if (state.messageDebugEntries.length > MESSAGE_DEBUG_LIMIT) state.messageDebugEntries.length = MESSAGE_DEBUG_LIMIT;
-
-        log.info(`${accountPrefix(state)}🔎 Debug pesan ditangkap: ${messageType}, message=${msg.id}, channel=${entry.message.channelId || '-'}, guild=${entry.message.guildId || '-'}`);
-        return true;
     },
 
     async handleControlCommands(msg) {

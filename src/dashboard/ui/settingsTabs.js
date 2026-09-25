@@ -121,7 +121,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
         `;
     }
 
-    function renderAdvancedSettings({ config, huntbot, control, rotation, boss, msgFilter, voice, captchaConfig, nopechaKey, twoCaptchaKey, fallbackSolvers }) {
+    function renderAdvancedSettings({ config, huntbot, control, rotation, boss, msgFilter, messageDebug, voice, captchaConfig, nopechaKey, twoCaptchaKey, fallbackSolvers }) {
         return `
                     <div id="tab-notifications" class="tab-content">
                         <div class="category-heading">
@@ -283,6 +283,38 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                         </div>
                     </div>
 
+                    <div id="tab-message-debug" class="tab-content">
+                        <div class="category-heading">
+                            <div>
+                                <span class="section-label">Advanced / Add-ons</span>
+                                <h3>🔎 Debug Pesan</h3>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <label>🔎 MESSAGE DEBUG</label>
+                            <div class="toggle-row">
+                                <span>Aktifkan ekstraksi pesan</span>
+                                <input type="checkbox" name="messageDebugEnabled" ${messageDebug.enabled ? 'checked' : ''}>
+                            </div>
+                            <div class="input-hint">Filter bersifat opsional. Bila seluruh ID kosong, semua pesan pada akun yang sedang dipantau akan ditangkap.</div>
+                            <label>Target User ID</label>
+                            <input type="text" name="messageDebugTargetId" value="${escapeHtml(messageDebug.targetId || '')}" placeholder="Author/User ID">
+                            <label>Target Channel ID</label>
+                            <input type="text" name="messageDebugChannelId" value="${escapeHtml(messageDebug.channelId || '')}" placeholder="Channel ID">
+                            <label>Target Guild ID</label>
+                            <input type="text" name="messageDebugGuildId" value="${escapeHtml(messageDebug.guildId || '')}" placeholder="Guild/Server ID">
+                            <div class="divider"></div>
+                            <label>RAW JSON PESAN TERAKHIR</label>
+                            <div class="input-hint">Jenis pesan ditandai sebagai <code>text</code>, <code>embed</code>, atau <code>components</code>. Untuk komponen, JSON menyertakan semua tombol dan properti yang diterima.</div>
+                            <div class="debug-output-actions">
+                                <button type="button" id="copyMessageDebugButton" class="btn btn-secondary debug-action-button">📋 Salin output</button>
+                                <button type="button" id="clearMessageDebugButton" class="btn btn-danger debug-action-button">🗑 Bersihkan output</button>
+                            </div>
+                            <pre id="messageDebugOutput" class="debug-output" aria-live="polite">Memuat debug pesan...</pre>
+                        </div>
+                    </div>
+
                     <div id="tab-automation" class="tab-content">
                         <div class="category-heading">
                             <div>
@@ -415,6 +447,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                 <button type="button" class="settings-menu-item" data-menu-label="Captcha" onclick="switchTab(event, 'tab-captcha')">🛡️ Captcha</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Integrasi Sistem" onclick="switchTab(event, 'tab-integrations')">🔌 Integrasi Sistem</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Safety & Filter" onclick="switchTab(event, 'tab-safety')">🛡️ Safety & Filter</button>
+                                <button type="button" class="settings-menu-item" data-menu-label="Debug Pesan" onclick="switchTab(event, 'tab-message-debug')">🔎 Debug Pesan</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Automasi" onclick="switchTab(event, 'tab-automation')">🤖 Automasi</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Kontrol & Sistem" onclick="switchTab(event, 'tab-control')">🎮 Kontrol & Sistem</button>
                             </div>

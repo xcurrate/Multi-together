@@ -315,6 +315,9 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                 if (newToken) {
                     const existingProfiles = new Set(profileManager.getSavedProfiles());
                     const targetId = profileManager.getUserId(newToken);
+                    if (targetId === 'default') {
+                        return respondError(400, 'Token akun tidak valid: user ID Discord tidak dapat diekstrak');
+                    }
                     if (!existingProfiles.has(targetId) && existingProfiles.size >= 4) {
                         dashboardLog('warn', targetId, '⚠️ Slot akun penuh: maksimal 4 token/slot.');
                         return respondError(409, 'Account slots are full');
@@ -322,7 +325,14 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
 
                     const profilePath = profileManager.getProfilePath(targetId);
                     const currentConfig = configManager.ensureShape(configManager.get());
-                    const newConfig = JSON.parse(JSON.stringify(currentConfig));
+                    const isTokenUpdate = existingProfiles.has(targetId);
+                    // A rotated token still belongs to the same Discord account. In that
+                    // case, keep the account's saved configuration instead of replacing it
+                    // with the control-panel/template configuration.
+                    const savedProfile = isTokenUpdate
+                        ? configManager.ensureShape(fileService.readJson(profilePath))
+                        : currentConfig;
+                    const newConfig = JSON.parse(JSON.stringify(savedProfile));
                     newConfig.token = newToken;
                     newConfig.multiAccount = newConfig.multiAccount || {};
                     newConfig.multiAccount.enabled = true;
@@ -341,11 +351,13 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
                         return respondError(500, 'Failed to update account slots');
                     }
 
-                    dashboardLog('success', targetId, `➕ Token ditambahkan sebagai slot baru (${slotCount}/4). Tersisa ${4 - slotCount} slot lagi.`);
+                    dashboardLog('success', targetId, isTokenUpdate
+                        ? '🔄 Token akun diperbarui; konfigurasi akun yang tersimpan tetap digunakan.'
+                        : `➕ Token ditambahkan sebagai slot baru (${slotCount}/4). Tersisa ${4 - slotCount} slot lagi.`);
                     const manager = state?.multiAccountManager;
                     if (manager && typeof manager.reconcile === 'function') manager.reconcile();
                 }
-                return respondSuccess('New account profile created');
+                return respondSuccess('Account profile saved');
             }
 
             if (body.profileAction) {

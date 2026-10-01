@@ -25,6 +25,10 @@ async function withDashboard(callback) {
     }
 }
 
+function tokenForUserId(userId, suffix = 'token') {
+    return `${Buffer.from(String(userId)).toString('base64url')}.${suffix}.signature`;
+}
+
 test('POST /save parses URL-encoded dashboard data and reports persistence as JSON', async () => {
     await withDashboard(async (url, baseDir) => {
         const response = await fetch(`${url}/save`, {
@@ -61,6 +65,38 @@ test('POST /save returns a JSON failure for an invalid AJAX action request', asy
 
         assert.equal(response.status, 400);
         assert.deepEqual(await response.json(), { success: false, message: 'Profile must be selected' });
+    });
+});
+
+test('POST /save keeps a saved account configuration when its token is updated', async () => {
+    await withDashboard(async (url, baseDir) => {
+        const userId = '123456789012345678';
+        const profileDir = path.join(baseDir, 'profiles');
+        fs.mkdirSync(profileDir, { recursive: true });
+        fs.writeFileSync(path.join(profileDir, `config_${userId}.json`), JSON.stringify({
+            token: tokenForUserId(userId, 'old-token'),
+            channels: ['account-channel'],
+            settings: { hunt: true, customAccountSetting: 'keep-me' },
+            delays: { hunt: { min: 111, max: 222 } }
+        }));
+
+        const response = await fetch(`${url}/save`, {
+            method: 'POST',
+            headers: {
+                Authorization: authHeader(),
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                Accept: 'application/json'
+            },
+            body: new URLSearchParams({ action: 'newProfile', newToken: tokenForUserId(userId, 'new-token') })
+        });
+
+        assert.equal(response.status, 200);
+        const savedProfile = JSON.parse(fs.readFileSync(path.join(profileDir, `config_${userId}.json`), 'utf8'));
+        assert.equal(savedProfile.token, tokenForUserId(userId, 'new-token'));
+        assert.deepEqual(savedProfile.channels, ['account-channel']);
+        assert.equal(savedProfile.settings.hunt, true);
+        assert.equal(savedProfile.settings.customAccountSetting, 'keep-me');
+        assert.deepEqual(savedProfile.delays.hunt, { min: 111, max: 222 });
     });
 });
 

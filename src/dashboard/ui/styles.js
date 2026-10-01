@@ -89,6 +89,8 @@ function getStyles() {
             .btn { width: 100%; padding: 14px; border: 1px solid transparent; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 14px; letter-spacing: 0.01em; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
             .btn-save { background: var(--accent-solid); color: white; }
             .btn-connect { background: var(--accent-solid); color: white; flex: 1; }
+            .btn-home { background: var(--panel-soft); color: var(--text); border-color: var(--border); flex: 1; }
+            .btn-home:hover { border-color: var(--accent); color: var(--accent); }
             .btn-start { background: #208a5d; color: white; flex: 1; }
             .btn-pause { background: #b93838; color: white; flex: 1; }
             .btn-voice { background: #7c3aed; color: white; flex: 1; }

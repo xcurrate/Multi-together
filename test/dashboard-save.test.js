@@ -97,6 +97,22 @@ test('dashboard renders an accessible save status toast', async () => {
     });
 });
 
+test('profile dashboard renders a Home button that returns to the main menu', async () => {
+    await withDashboard(async (url, baseDir) => {
+        const profileDir = path.join(baseDir, 'profiles');
+        fs.mkdirSync(profileDir, { recursive: true });
+        fs.writeFileSync(path.join(profileDir, 'config_profile-1.json'), JSON.stringify({ token: '', settings: {} }));
+
+        const response = await fetch(`${url}/?profileId=profile-1`, {
+            headers: { Authorization: authHeader() }
+        });
+        const html = await response.text();
+
+        assert.equal(response.status, 200);
+        assert.match(html, /<a href="\/" class="btn btn-home">⌂ MENU UTAMA<\/a>/);
+    });
+});
+
 test('OTHER Custom Command saves its independent CAPTCHA setting', async () => {
     await withDashboard(async (url, baseDir) => {
         const response = await fetch(`${url}/save`, {

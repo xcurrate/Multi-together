@@ -1,8 +1,11 @@
 const log = require('../../logger');
-const { accountPrefix, safeJsonStringify } = require('../utils');
+const { accountPrefix, safeJsonStringify, randomInt, sleep } = require('../utils');
 
-const ADVENTURE_COMMAND = 'Ladv';
-const NEXT_ADVENTURE_DELAY_MS = 2000;
+const ADVENTURE_COMMAND = 'ladv';
+const EXPLORE_DELAY_MS = 500;
+const NEXT_ADVENTURE_DELAY_MIN_MS = 1000;
+const NEXT_ADVENTURE_DELAY_MAX_MS = 3000;
+const TOO_FAST_WAIT_MS = 4000;
 
 const messageText = (msg) => {
     const embeds = (msg.embeds || []).flatMap(embed => [
@@ -88,48 +91,91 @@ module.exports = (state, configManager, commandSender) => ({
     },
 
     async sendAdventureCommand() {
-        const settings = this.getSettings();
-        if (!settings.enabled || state.adventurePaused) return false;
+    const settings = this.getSettings();
+    if (!settings.enabled || state.adventurePaused) return false;
 
-        return commandSender.send(ADVENTURE_COMMAND, 'Adventure', settings.channelId);
-    },
+    return commandSender.send(
+        ADVENTURE_COMMAND,
+        'Adventure',
+        settings.channelId,
+        { allowDuringCaptcha: true }
+    );
+},
 
-    scheduleNextCommand() {
-        if (state.adventureTimer || state.adventurePaused || !this.getSettings().enabled) return false;
+scheduleNextCommand() {
+    if (state.adventureTimer || state.adventurePaused || !this.getSettings().enabled) {
+        return false;
+    }
 
-        state.adventureTimer = setTimeout(async () => {
-            state.adventureTimer = null;
-            await this.sendAdventureCommand();
-        }, NEXT_ADVENTURE_DELAY_MS);
-        return true;
-    },
+    const delay = randomInt(
+        NEXT_ADVENTURE_DELAY_MIN_MS,
+        NEXT_ADVENTURE_DELAY_MAX_MS
+    );
+
+    state.adventureTimer = setTimeout(async () => {
+        state.adventureTimer = null;
+        await this.sendAdventureCommand();
+    }, delay);
+
+    return true;
+},
 
     async handle(msg) {
-        if (!this.matchesTarget(msg) || state.adventurePaused || state.adventureProcessing) return false;
-
-        state.adventureProcessing = true;
-        try {
-            const text = messageText(msg);
-            if (text.includes('🗺️ Adventure Map')) {
-                this.pauseForMap();
-                return true;
-            }
-
-            if (!text.includes('Sylvaris')) return false;
-
-            const exploreButton = this.findButton(msg.components, 'adv:explore');
-            if (exploreButton && exploreButton.disabled !== true) {
-                await msg.clickButton(exploreButton.custom_id || exploreButton.customId);
-                log.success(`${accountPrefix(state)}🗺️ ACTION: Explore Sylvaris!`);
-            }
-
-            this.scheduleNextCommand();
-            return true;
-        } catch (error) {
-            log.error(`${accountPrefix(state)}Handle Adventure Error: ${error.message}`);
-            return false;
-        } finally {
-            state.adventureProcessing = false;
-        }
+    if (!this.matchesTarget(msg) || state.adventurePaused || state.adventureProcessing) {
+        return false;
     }
+
+    state.adventureProcessing = true;
+
+    try {
+        const text = messageText(msg);
+        const content = msg.content || '';
+
+        // Response terlalu cepat
+        if (content.includes('Mohon pelan-pelan')) {
+            log.warn(`${accountPrefix(state)}⏱️ Adventure terlalu cepat, menunggu 4 detik...`);
+
+            this.stopTimer();
+
+            state.adventureTimer = setTimeout(async () => {
+                state.adventureTimer = null;
+                await this.sendAdventureCommand();
+            }, TOO_FAST_WAIT_MS);
+
+            return true;
+        }
+
+        // Pilih map
+        if (text.includes('🗺️ Adventure Map')) {
+            this.pauseForMap();
+            return true;
+        }
+
+        // Sylvaris terdeteksi dari components
+        if (!text.includes('Sylvaris')) {
+            return false;
+        }
+
+        const exploreButton = this.findButton(msg.components, 'adv:explore');
+
+        if (exploreButton && exploreButton.disabled !== true) {
+            const buttonId = exploreButton.custom_id || exploreButton.customId;
+
+            msg.clickButton(buttonId).catch(error => {
+                log.error(`${accountPrefix(state)}Explore click error: ${error.message}`);
+            });
+
+            log.success(`${accountPrefix(state)}🗺️ ACTION: Explore Sylvaris!`);
+        }
+
+        this.scheduleNextCommand();
+        return true;
+
+    } catch (error) {
+        log.error(`${accountPrefix(state)}Handle Adventure Error: ${error.message}`);
+        return false;
+    } finally {
+        state.adventureProcessing = false;
+    }
+}
 });

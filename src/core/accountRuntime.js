@@ -38,6 +38,7 @@ const ensureRuntimeShape = (config = {}) => {
     config.settings.channelRotation = config.settings.channelRotation || { enabled: false, minMs: 180000, maxMs: 360000 };
     config.settings.control = config.settings.control || { start: 'wcash', pause: 'wbuy 1', allowIds: [] };
     config.settings.boss = config.settings.boss || { enabled: true, allowedGuilds: [] };
+    config.settings.boss2 = config.settings.boss2 || { enabled: false, allowedGuilds: [] };
     config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
     config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
     config.settings.messageDebug = config.settings.messageDebug || { enabled: false, targetId: '', channelId: '', guildId: '' };
@@ -83,6 +84,9 @@ const createRuntimeState = ({ config, sharedStats }) => ({
     bossCooldowns: new Map(),
     bossRespawnTimers: new Map(),
     bossTicketCheckTimers: new Set(),
+    boss2Cooldowns: new Map(),
+    boss2RespawnTimers: new Map(),
+    boss2TicketCheckTimers: new Set(),
     pendingBossTicketCheck: null,
     adventureTimer: null,
     adventurePaused: false,
@@ -156,6 +160,14 @@ const createRuntimeConfigManager = (state, filePath) => ({
         return {
             enabled: boss.enabled === true,
             allowedGuilds: Array.isArray(boss.allowedGuilds) ? boss.allowedGuilds : []
+        };
+    },
+
+    getBoss2Settings() {
+        const boss2 = state.config.settings?.boss2 || {};
+        return {
+            enabled: boss2.enabled === true,
+            allowedGuilds: Array.isArray(boss2.allowedGuilds) ? boss2.allowedGuilds : []
         };
     },
 

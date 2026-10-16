@@ -121,7 +121,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
         `;
     }
 
-    function renderAdvancedSettings({ config, huntbot, control, rotation, boss, adventure, msgFilter, messageDebug, voice, captchaConfig, nopechaKey, twoCaptchaKey, fallbackSolvers }) {
+    function renderAdvancedSettings({ config, huntbot, control, rotation, boss, boss2, adventure, msgFilter, messageDebug, voice, captchaConfig, nopechaKey, twoCaptchaKey, fallbackSolvers }) {
         return `
                     <div id="tab-notifications" class="tab-content">
                         <div class="category-heading">
@@ -373,6 +373,16 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                             </div>
                             <label>Allowed Guilds</label>
                             <input type="text" name="bossGuilds" value="${(boss.allowedGuilds || []).join(',')}" placeholder="Guild ID">
+                        </div>
+
+                        <div class="card">
+                            <label>🐉 BOSS AUTOMATION 2</label>
+                            <div class="toggle-row">
+                                <span>Enable Auto-Boss 2</span>
+                                <input type="checkbox" name="boss2Enabled" ${boss2?.enabled ? 'checked' : ''}>
+                            </div>
+                            <label>Allowed Guilds</label>
+                            <input type="text" name="boss2Guilds" value="${(boss2?.allowedGuilds || []).join(',')}" placeholder="Guild ID">
                         </div>
 
                         <div class="card">

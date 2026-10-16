@@ -70,6 +70,6 @@ test('Auto Adventure starts by sending Ladv to its configured channel', async ()
     const started = await manager.start();
 
     assert.equal(started, true);
-    assert.deepEqual(sent, [['Ladv', 'Adventure', 'channel-id']]);
+    assert.deepEqual(sent, [['ladv', 'Adventure', 'channel-id', { allowDuringCaptcha: true }]]);
     manager.stop();
 });

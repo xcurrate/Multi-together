@@ -30,6 +30,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.settings.control = config.settings.control || { start: 'wcash', pause: 'wbuy 1', allowIds: [] };
         config.settings.channelRotation = config.settings.channelRotation || { enabled: false, minMs: 180000, maxMs: 360000 };
         config.settings.boss = config.settings.boss || { enabled: true, allowedGuilds: [] };
+        config.settings.boss2 = config.settings.boss2 || { enabled: false, allowedGuilds: [] };
         config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
         config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
         config.settings.messageDebug = config.settings.messageDebug || { enabled: false, targetId: '', channelId: '', guildId: '' };
@@ -129,6 +130,9 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
 
         config.settings.boss.enabled = this.toBool(body.bossEnabled);
         config.settings.boss.allowedGuilds = this.toArray(body.bossGuilds);
+
+        config.settings.boss2.enabled = this.toBool(body.boss2Enabled);
+        config.settings.boss2.allowedGuilds = this.toArray(body.boss2Guilds);
 
         config.settings.adventure.targetId = String(body.adventureTargetId || '').trim();
         config.settings.adventure.channelId = String(body.adventureChannelId || '').trim();

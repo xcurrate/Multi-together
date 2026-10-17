@@ -97,7 +97,7 @@ test('dashboard renders an accessible save status toast', async () => {
     });
 });
 
-test('OTHER Custom Command saves its independent CAPTCHA setting', async () => {
+test('Lucy Custom Commands save without CAPTCHA and the dashboard renders the Lucy tabs', async () => {
     await withDashboard(async (url, baseDir) => {
         const response = await fetch(`${url}/save`, {
             method: 'POST',
@@ -112,14 +112,34 @@ test('OTHER Custom Command saves its independent CAPTCHA setting', async () => {
                 other1Channel: '12345',
                 other1Delay: '5',
                 other1Count: '10',
-                other1Captcha: 'on'
+                other1Captcha: 'on',
+                lucyCtrlStart: 'Lucy On',
+                lucyCtrlPause: 'lucy off',
+                lucyCtrlAllowIds: '111, 222'
             })
         });
 
         assert.equal(response.status, 200);
         const savedConfig = JSON.parse(fs.readFileSync(path.join(baseDir, 'config.json'), 'utf8'));
-        assert.equal(savedConfig.otherCommands[0].captchaEnabled, true);
-        assert.equal(savedConfig.otherCommands[1].captchaEnabled, false);
+        assert.equal(savedConfig.otherCommands[0].text, '!test');
+        assert.ok(savedConfig.otherCommands.every(command => command.captchaEnabled === false));
+        assert.deepEqual(savedConfig.settings.lucyControl, { start: 'Lucy On', pause: 'lucy off', allowIds: ['111', '222'] });
+
+        const page = await (await fetch(url, { headers: { Authorization: authHeader() } })).text();
+        for (const tabId of ['tab-lucy-commands', 'tab-lucy-boss2', 'tab-lucy-gems', 'tab-lucy-adventure', 'tab-lucy-control']) {
+            assert.match(page, new RegExp(`id="${tabId}"`));
+            assert.match(page, new RegExp(`switchTab\\(event, '${tabId}'\\)`));
+        }
+        assert.doesNotMatch(page, /tab-other/);
+        assert.doesNotMatch(page, /name="other1Captcha"/);
+        assert.match(page, /Custom Command Lucy 1/);
+        assert.match(page, /Automasi OwO/);
+        assert.match(page, /name="lucyCtrlStart" value="Lucy On"/);
+        assert.match(page, /name="lucyCtrlAllowIds" value="111,222"/);
+
+        const automation = page.slice(page.indexOf('id="tab-automation"'), page.indexOf('id="tab-control"'));
+        assert.doesNotMatch(automation, /boss2Enabled|gemsEnabled|adventureTargetId/);
+        assert.match(automation, /hbEnabled/);
     });
 });
 

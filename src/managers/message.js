@@ -103,15 +103,13 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
 
     async handleControlCommands(msg) {
         const { startCmd, pauseCmd, allowIds } = configManager.getControlCommands();
-        const text = msg.content.trim().toLowerCase();
+        const text = String(msg.content || '').trim().toLowerCase();
 
         // Keamanan: Hanya eksekusi jika pengirim adalah akun bot itu sendiri atau ID yang diizinkan
-        const isController = (state.client.user && msg.author.id === state.client.user.id) ||
-                            allowIds.includes(msg.author.id);
+        const isOwnMessage = !!state.client.user && msg.author.id === state.client.user.id;
+        const isController = isOwnMessage || allowIds.includes(msg.author.id);
 
-        if (!isController) return;
-
-        if (text === startCmd) {
+        if (isController && text === startCmd) {
             state.activeChannelId = msg.channel.id;
             state.config.botStatus.paused = false;
             state.config.botStatus.running = true;
@@ -123,7 +121,7 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             return;
         }
 
-        if (text === pauseCmd) {
+        if (isController && text === pauseCmd) {
             state.config.botStatus.paused = true;
             state.config.botStatus.running = false;
             statsService.syncBotUptime(state);
@@ -133,6 +131,10 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             telegramService.send(`⏸️ <b>Bot Paused</b> via Discord command`);
             return;
         }
+
+        if (this.handleLucyControlCommand(msg, text, isOwnMessage)) return;
+
+        if (!isController) return;
 
         // --- 🔊 FITUR BARU: JOIN VC ---
         if (text.startsWith("vjoin ")) {
@@ -174,6 +176,53 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             }
             return;
         }
+    },
+
+    handleLucyControlCommand(msg, text, isOwnMessage) {
+        if (typeof configManager.getLucyControlCommands !== 'function') return false;
+        const { startCmd, pauseCmd, allowIds } = configManager.getLucyControlCommands();
+        const isStart = !!startCmd && text === startCmd;
+        const isPause = !isStart && !!pauseCmd && text === pauseCmd;
+        if (!isStart && !isPause) return false;
+        if (!isOwnMessage && !allowIds.includes(String(msg.author.id))) return false;
+
+        this.setLucyEnabled(isStart);
+        if (isStart) {
+            log.success(`${accountPrefix(state)}▶️ Lucy Start via Discord control.`);
+            telegramService.send(`▶️ <b>Lucy Started</b> via Discord command`);
+        } else {
+            log.warn(`${accountPrefix(state)}⏸️ Lucy Pause via Discord control.`);
+            telegramService.send(`⏸️ <b>Lucy Paused</b> via Discord command`);
+        }
+        return true;
+    },
+
+    // Sama seperti tombol dashboard: ubah flag, simpan, lalu jalankan/hentikan scheduler terkait.
+    setLucyEnabled(enabled) {
+        const settings = state.config.settings = state.config.settings || {};
+        ['boss2', 'gems', 'adventure'].forEach(key => {
+            settings[key] = settings[key] || {};
+            settings[key].enabled = enabled;
+        });
+        const commands = Array.isArray(state.config.otherCommands) ? state.config.otherCommands : [];
+        commands.forEach(command => {
+            if (command) command.enabled = enabled;
+        });
+        configManager.save();
+
+        if (enabled) {
+            commands.forEach((command, index) => {
+                if (command?.text?.trim() && command.channelId?.trim()) loopManager?.startOtherCommand?.(index);
+            });
+            adventureManager?.start?.({ restart: true })
+                ?.catch?.(error => log.error(`${accountPrefix(state)}❌ Auto Adventure gagal dimulai: ${error.message}`));
+            return;
+        }
+
+        commands.forEach((_, index) => loopManager?.stopOtherCommand?.(index));
+        adventureManager?.stop?.();
+        boss2Manager?.stop?.();
+        gemsManager?.stop?.();
     },
 
     // ✅ FITUR BARU: Fungsi pengawas CCTV (Semua pesan dari user lain)

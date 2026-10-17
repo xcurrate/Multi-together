@@ -14,9 +14,10 @@ function setup(settings = {}) {
         config: { settings: { gems: { enabled: true, delayMinMs: 0, delayMaxMs: 0, lootboxWaitMs: 0, ...settings } } }
     };
     const sent = [];
-    const commandSender = { send: async (cmd, type, channelId) => { sent.push([cmd, channelId]); return true; } };
+    const sentOptions = [];
+    const commandSender = { send: async (cmd, type, channelId, options) => { sent.push([cmd, channelId]); sentOptions.push(options); return true; } };
     const manager = createGemsManager(state, { getGemsSettings: () => normalizeGemsSettings(state.config.settings.gems) }, commandSender);
-    return { state, manager, sent };
+    return { state, manager, sent, sentOptions };
 }
 
 const message = (content, overrides = {}) => ({
@@ -100,5 +101,12 @@ test('reads inventory from Components V2 / embeds', async () => {
     await manager.handle(message(TRIGGER));
     await manager.handle(message('', { components: [{ type: 17, components: [{ type: 10, content: inventory(['057', '071', '078']) }] }] }));
     assert.equal(sent.at(-1)[0], 'luse 57 71 78');
+    manager.stop();
+});
+
+test('sends gems commands even when global START is paused (e.g. only Other Commands running)', async () => {
+    const { manager, sentOptions } = setup();
+    await manager.handle(message(TRIGGER));
+    assert.deepEqual(sentOptions, [{ allowWhilePaused: true }]);
     manager.stop();
 });

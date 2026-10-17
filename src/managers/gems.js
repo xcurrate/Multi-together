@@ -176,7 +176,7 @@ const createGemsManager = (state, configManager, commandSender) => {
         async sendCommand(command, type, settings) {
             await wait(randomInt(settings.delayMinMs, settings.delayMaxMs));
             if (!getSettings().enabled) return false;
-            return commandSender.send(command, type, gems.channelId || settings.channelId);
+            return commandSender.send(command, type, gems.channelId || settings.channelId, { allowWhilePaused: true });
         },
 
         async checkInventory(settings = getSettings()) {

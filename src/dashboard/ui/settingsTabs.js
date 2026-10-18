@@ -570,16 +570,27 @@ ${renderRestSettings(config.settings?.rest)}
                             <input type="text" name="gemsTriggerText" value="${escapeHtml(gems.triggerText || '')}" placeholder="menghabiskan 5 <:lucent:1523362382355759266>">
                             <label>Command Cek Inventaris</label>
                             <input type="text" name="gemsInventoryCommand" value="${escapeHtml(gems.inventoryCommand || '')}" placeholder="linv">
-                            <div class="row">
-                                <div class="col"><label>Kode Item Lootbox</label><input type="text" name="gemsLootboxItem" value="${escapeHtml(gems.lootboxItem || '')}" placeholder="049"></div>
-                                <div class="col"><label>Command Lootbox</label><input type="text" name="gemsLootboxCommand" value="${escapeHtml(gems.lootboxCommand || '')}" placeholder="llb f all"></div>
+                            <label>Jenis Lootbox yang digunakan</label>
+                            <div style="margin:8px 0;">
+                                <label style="display:inline-flex;align-items:center;gap:8px;margin-right:16px;"><input type="checkbox" name="gemsLootboxTypes" value="normal" ${(gems.lootboxTypes || ['normal']).includes('normal') ? 'checked' : ''}><span>Lootbox Biasa (049)</span></label>
+                                <label style="display:inline-flex;align-items:center;gap:8px;"><input type="checkbox" name="gemsLootboxTypes" value="fable" ${(gems.lootboxTypes || ['fable']).includes('fable') ? 'checked' : ''}><span>Fable Lootbox (060)</span></label>
                             </div>
-                            <div class="row">
-                                <div class="col"><label>Gems Wajib</label><input type="text" name="gemsRequired" value="${escapeHtml((gems.requiredGems || []).join(','))}" placeholder="57,71,78"></div>
-                                <div class="col"><label>Gems Opsional</label><input type="text" name="gemsOptional" value="${escapeHtml((gems.optionalGems || []).join(','))}" placeholder="85"></div>
+                            <label>Prioritas Lootbox</label>
+                            <select name="gemsLootboxPriority" class="input-select"><option value="fable" ${(gems.lootboxPriority || 'fable') === 'fable' ? 'selected' : ''}>Prioritaskan Fable</option><option value="normal" ${gems.lootboxPriority === 'normal' ? 'selected' : ''}>Prioritaskan Lootbox Biasa</option></select>
+                            <div class="divider"></div>
+                            <label>Tier gems yang diizinkan</label><div style="margin:8px 0;">
+                                <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="F" ${(gems.selectedTiers || ['F']).includes('F') ? 'checked' : ''}><span>F (57, 71, 78 · spesial 85)</span></label>
+                                <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="L" ${(gems.selectedTiers || ['F']).includes('L') ? 'checked' : ''}><span>L (56, 70, 77 · spesial 84)</span></label>
+                                <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="M" ${(gems.selectedTiers || ['F']).includes('M') ? 'checked' : ''}><span>M (55, 69, 76 · spesial 83)</span></label>
+                                <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="E" ${(gems.selectedTiers || ['F']).includes('E') ? 'checked' : ''}><span>E (54, 68, 75 · spesial 82)</span></label>
+                                <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="R" ${(gems.selectedTiers || ['F']).includes('R') ? 'checked' : ''}><span>R (53, 67, 74 · spesial 81)</span></label>
+                                <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="U" ${(gems.selectedTiers || ['F']).includes('U') ? 'checked' : ''}><span>U (52, 66, 73 · spesial 80)</span></label>
+                                <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="C" ${(gems.selectedTiers || ['F']).includes('C') ? 'checked' : ''}><span>C (51, 65, 72 · spesial 79)</span></label>
                             </div>
-                            <label>Command Pakai Gems</label>
-                            <input type="text" name="gemsUseCommand" value="${escapeHtml(gems.useCommand || '')}" placeholder="luse">
+                            <div class="toggle-row"><span>Gunakan Gems Opsional / Spesial</span><input type="checkbox" name="gemsUseSpecial" value="true" ${gems.useSpecialGems !== false ? 'checked' : ''}></div>
+                            <label>Strategi prioritas tier</label>
+                            <select name="gemsTierPriority" class="input-select"><option value="highest" ${(gems.tierPriority || 'highest') === 'highest' ? 'selected' : ''}>Prioritaskan Tier Tertinggi (F → C)</option><option value="lowest" ${gems.tierPriority === 'lowest' ? 'selected' : ''}>Prioritaskan Tier Terendah (C → F)</option></select>
+                            <div class="input-hint">Tier utama hanya dipilih bila ketiga gems tersedia. Gems spesial tidak wajib dan hanya digunakan bila tersedia.</div>
                             <label>Jeda Cek Inventaris saat Gems &amp; Lootbox Habis (menit)</label>
                             <input type="number" min="1" name="gemsRecheckMinutes" value="${gems.recheckMinutes ?? 5}" placeholder="5">
                             <label>Jeda sebelum kirim command (ms)</label>

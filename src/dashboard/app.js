@@ -8,6 +8,7 @@ const logger = require('../../logger');
 const CONSTANTS = require('./constants');
 const fileService = require('./services/fileService');
 const createProfileManager = require('./services/profileManager');
+const createProfilePin = require('./services/profilePin');
 const createConfigManager = require('./services/configManager');
 const createLogService = require('./services/logService');
 const createStatsService = require('./services/statsService');
@@ -20,6 +21,7 @@ const { escapeHtml, serializeForScript } = require('./utils/html');
 function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
     const configPath = path.join(baseDir, CONSTANTS.CONFIG_FILE);
     const profileManager = createProfileManager({ baseDir, fileService });
+    const profilePin = createProfilePin({ baseDir, profileManager, fileService });
     const configManager = createConfigManager({ configPath, fileService, CONSTANTS });
     const logService = createLogService({ logger });
     const statsService = createStatsService({ state, runtimeStatsService, configManager });
@@ -47,6 +49,7 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
         configManager,
         fileService,
         profileManager,
+        profilePin,
         uiComponents,
         logService,
         statsService,

@@ -45,6 +45,20 @@ const normalizeGemsSettings = (raw = {}) => {
     const delayMinMs = toNonNegativeInt(raw.delayMinMs, defaults.delayMinMs);
     const requiredGems = toIdList(raw.requiredGems);
     const optionalGems = toIdList(raw.optionalGems);
+    const useTierSelection = raw.selectedGemTiers !== undefined;
+    const inferredTier = TIER_ORDER.find(tier => JSON.stringify(GEM_TIERS[tier].required) === JSON.stringify(requiredGems));
+    const selectedGemTiers = useTierSelection
+        ? toIdList(raw.selectedGemTiers).map(tier => tier.toUpperCase()).filter(tier => TIER_ORDER.includes(tier))
+        : (inferredTier ? [inferredTier] : []);
+    const legacyLootboxItem = normalizeCode(raw.lootboxItem ?? defaults.lootboxItem);
+    const legacyLootboxCommand = toText(raw.lootboxCommand, defaults.lootboxCommand);
+    const inferredLootboxMode = legacyLootboxItem === normalizeCode(LOOTBOXES.fable.code) ? 'fable' : 'regular';
+    const lootboxMode = ['regular', 'fable', 'prioritize-fable', 'prioritize-regular'].includes(raw.lootboxMode)
+        ? raw.lootboxMode
+        : (raw.lootboxMode === undefined && raw.lootboxItem !== undefined ? inferredLootboxMode : (defaults.lootboxMode || 'prioritize-fable'));
+    const useSpecialGem = raw.useSpecialGem === undefined
+        ? (raw.optionalGems === undefined ? defaults.useSpecialGem !== false : optionalGems.length > 0)
+        : raw.useSpecialGem === true;
     return {
         enabled: raw.enabled === true,
         channelId: String(raw.channelId || '').trim(),
@@ -52,8 +66,13 @@ const normalizeGemsSettings = (raw = {}) => {
         accountName: String(raw.accountName || '').trim(),
         triggerText: toText(raw.triggerText, defaults.triggerText),
         inventoryCommand: toText(raw.inventoryCommand, defaults.inventoryCommand),
-        lootboxItem: toText(raw.lootboxItem, defaults.lootboxItem),
-        lootboxCommand: toText(raw.lootboxCommand, defaults.lootboxCommand),
+        lootboxMode,
+        lootboxItem: legacyLootboxItem || defaults.lootboxItem,
+        lootboxCommand: legacyLootboxCommand,
+        selectedGemTiers,
+        useTierSelection,
+        tierPriority: raw.tierPriority === 'low' ? 'low' : 'high',
+        useSpecialGem,
         requiredGems: requiredGems.length > 0 ? requiredGems : [...defaults.requiredGems],
         optionalGems: raw.optionalGems === undefined ? [...defaults.optionalGems] : optionalGems,
         useCommand: toText(raw.useCommand, defaults.useCommand),
@@ -93,13 +112,43 @@ const parseInventoryCodes = (text) => {
 };
 
 const decideInventoryAction = (codes, settings, { lootboxOpens = 0 } = {}) => {
-    if (codes.has(normalizeCode(settings.lootboxItem)) && lootboxOpens < settings.maxLootboxOpens) {
-        return { type: 'lootbox', command: settings.lootboxCommand };
+    if (lootboxOpens < settings.maxLootboxOpens) {
+        const modes = {
+            regular: ['regular'],
+            fable: ['fable'],
+            'prioritize-fable': ['fable', 'regular'],
+            'prioritize-regular': ['regular', 'fable']
+        };
+        for (const key of modes[settings.lootboxMode] || ['regular']) {
+            const lootbox = LOOTBOXES[key];
+            if (codes.has(normalizeCode(lootbox.code))) {
+                return { type: 'lootbox', itemCode: lootbox.code, command: lootbox.command };
+            }
+        }
     }
 
+    if (settings.useTierSelection) {
+        const tiers = settings.tierPriority === 'low' ? [...TIER_ORDER].reverse() : TIER_ORDER;
+        const selected = tiers.filter(tier => settings.selectedGemTiers.includes(tier));
+        if (selected.length === 0) return { type: 'missing', missing: ['pilih minimal satu tier gems'] };
+        const incomplete = [];
+        for (const tier of selected) {
+            const definition = GEM_TIERS[tier];
+            const missing = definition.required.filter(code => !codes.has(normalizeCode(code)));
+            if (missing.length > 0) {
+                incomplete.push({ tier, missing });
+                continue;
+            }
+            const optional = settings.useSpecialGem && codes.has(normalizeCode(definition.special)) ? [definition.special] : [];
+            const items = [...definition.required, ...optional];
+            return { type: 'use', tier, items, command: `${settings.useCommand} ${items.join(' ')}` };
+        }
+        return { type: 'missing', missing: incomplete.map(({ tier, missing }) => `${tier}: ${missing.join(',')}`) };
+    }
+
+    // Compatibility for profiles saved before tier selection was introduced.
     const missing = settings.requiredGems.filter(code => !codes.has(normalizeCode(code)));
     if (missing.length > 0) return { type: 'missing', missing };
-
     const optional = settings.optionalGems.filter(code => codes.has(normalizeCode(code)));
     const items = [...settings.requiredGems, ...optional];
     return { type: 'use', items, command: `${settings.useCommand} ${items.join(' ')}` };
@@ -227,7 +276,7 @@ const createGemsManager = (state, configManager, commandSender) => {
 
             if (action.type === 'lootbox') {
                 gems.lootboxOpens += 1;
-                log.info(`${prefix()}Item \`${settings.lootboxItem}\` ditemukan. Buka lootbox...`);
+                log.info(`${prefix()}Item `${action.itemCode}` ditemukan. Buka lootbox dengan `${action.command}`...`);
                 const sent = await this.sendCommand(action.command, 'Gems Lootbox', settings);
                 if (!sent) {
                     this.scheduleRecheck(settings);
@@ -240,7 +289,7 @@ const createGemsManager = (state, configManager, commandSender) => {
 
             if (action.type === 'missing') {
                 gems.exhausted = true;
-                log.warn(`${prefix()}Gems tidak lengkap (kurang: ${action.missing.join(', ')}) dan lootbox \`${settings.lootboxItem}\` habis. Trigger diabaikan, cek ulang tiap ${settings.recheckMinutes} menit.`);
+                log.warn(`${prefix()}Gems belum siap (kurang: ${action.missing.join(', ')}); lootbox pilihan habis atau tier belum lengkap. Trigger diabaikan, cek ulang tiap ${settings.recheckMinutes} menit.`);
                 this.scheduleRecheck(settings);
                 return 'missing';
             }

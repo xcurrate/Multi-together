@@ -37,7 +37,7 @@ const normalizeGemsSettings = (raw = {}) => {
         ? raw.lootboxTypes.filter(type => ['fable', 'normal'].includes(type))
         : (raw.lootboxItem === undefined && raw.lootboxCommand === undefined
             ? [...defaults.lootboxTypes]
-            : [raw.lootboxItem === '060' ? 'fable' : 'normal']);
+            : [raw.lootboxItem === '050' ? 'fable' : 'normal']);
     return {
         enabled: raw.enabled === true,
         channelId: String(raw.channelId || '').trim(),
@@ -98,7 +98,7 @@ const decideInventoryAction = (codes, settings, runtime = {}) => {
     const priority = settings.lootboxPriority === 'normal' ? ['normal', 'fable'] : ['fable', 'normal'];
     const sequence = priority.filter(type => enabledBoxes.includes(type));
     const nextBox = sequence.find(type => !runtime.completedLootboxes?.includes(type)
-        && normalizedCodes.has(type === 'fable' ? '60' : '49')
+        && normalizedCodes.has(type === 'fable' ? '50' : '49')
         && (runtime.lootboxOpens || 0) < settings.maxLootboxOpens);
     if (nextBox) return { type: 'lootbox', lootboxType: nextBox, command: nextBox === 'fable' ? 'llb f all' : 'llb all' };
     const tiers = settings.tierPriority === 'lowest' ? [...settings.selectedTiers].reverse() : settings.selectedTiers;

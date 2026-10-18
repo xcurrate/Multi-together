@@ -45,11 +45,11 @@ const normalizeGemsSettings = (raw = {}) => {
     const delayMinMs = toNonNegativeInt(raw.delayMinMs, defaults.delayMinMs);
     const requiredGems = toIdList(raw.requiredGems);
     const optionalGems = toIdList(raw.optionalGems);
-    const useTierSelection = raw.selectedGemTiers !== undefined;
+    const useTierSelection = raw.selectedGemTiers !== undefined || raw.requiredGems === undefined;
     const inferredTier = TIER_ORDER.find(tier => JSON.stringify(GEM_TIERS[tier].required) === JSON.stringify(requiredGems));
-    const selectedGemTiers = useTierSelection
+    const selectedGemTiers = raw.selectedGemTiers !== undefined
         ? toIdList(raw.selectedGemTiers).map(tier => tier.toUpperCase()).filter(tier => TIER_ORDER.includes(tier))
-        : (inferredTier ? [inferredTier] : []);
+        : (inferredTier ? [inferredTier] : [...(defaults.selectedGemTiers || ['F'])]);
     const legacyLootboxItem = normalizeCode(raw.lootboxItem ?? defaults.lootboxItem);
     const legacyLootboxCommand = toText(raw.lootboxCommand, defaults.lootboxCommand);
     const inferredLootboxMode = legacyLootboxItem === normalizeCode(LOOTBOXES.fable.code) ? 'fable' : 'regular';
@@ -276,7 +276,7 @@ const createGemsManager = (state, configManager, commandSender) => {
 
             if (action.type === 'lootbox') {
                 gems.lootboxOpens += 1;
-                log.info(`${prefix()}Item `${action.itemCode}` ditemukan. Buka lootbox dengan `${action.command}`...`);
+                log.info(`${prefix()}Item \`${action.itemCode}\` ditemukan. Buka lootbox dengan \`${action.command}\`...`);
                 const sent = await this.sendCommand(action.command, 'Gems Lootbox', settings);
                 if (!sent) {
                     this.scheduleRecheck(settings);

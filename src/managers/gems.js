@@ -1,4 +1,4 @@
-const CONSTANTS = require('../constants');
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { removeInvisibleChars, accountPrefix, randomInt } = require('../utils');
 const { collectTexts, toPlainData } = require('./boss2');
@@ -23,6 +23,8 @@ const normalizeCode = (code) => {
 };
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\\]\\]/g, '\\const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+');
+
 ');
 
 const GEM_TIERS = {

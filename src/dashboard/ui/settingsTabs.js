@@ -476,6 +476,16 @@ ${renderRestSettings(config.settings?.rest)}
     }
 
     function renderLucySettings({ config, boss2 = {}, gems = {}, adventure = {}, lucyControl = {} }) {
+        const selectedGemTiers = Array.isArray(gems.selectedGemTiers) ? gems.selectedGemTiers : ['F'];
+        const gemTierOptions = [
+            ['F', 'F — 57, 71, 78 + spesial 85'],
+            ['L', 'L — 56, 70, 77 + spesial 84'],
+            ['M', 'M — 55, 69, 76 + spesial 83'],
+            ['E', 'E — 54, 68, 75 + spesial 82'],
+            ['R', 'R — 53, 67, 74 + spesial 81'],
+            ['U', 'U — 52, 66, 73 + spesial 80'],
+            ['C', 'C — 51, 65, 72 + spesial 79']
+        ];
         return `
                     <div id="tab-lucy-commands" class="tab-content">
                         <div class="category-heading">
@@ -570,14 +580,27 @@ ${renderRestSettings(config.settings?.rest)}
                             <input type="text" name="gemsTriggerText" value="${escapeHtml(gems.triggerText || '')}" placeholder="menghabiskan 5 <:lucent:1523362382355759266>">
                             <label>Command Cek Inventaris</label>
                             <input type="text" name="gemsInventoryCommand" value="${escapeHtml(gems.inventoryCommand || '')}" placeholder="linv">
-                            <div class="row">
-                                <div class="col"><label>Kode Item Lootbox</label><input type="text" name="gemsLootboxItem" value="${escapeHtml(gems.lootboxItem || '')}" placeholder="049"></div>
-                                <div class="col"><label>Command Lootbox</label><input type="text" name="gemsLootboxCommand" value="${escapeHtml(gems.lootboxCommand || '')}" placeholder="llb f all"></div>
+                            <label>Mode Lootbox</label>
+                            <select name="gemsLootboxMode">
+                                <option value="regular" ${gems.lootboxMode === 'regular' ? 'selected' : ''}>Auto open lootbox biasa — kode 049 (llb all)</option>
+                                <option value="fable" ${gems.lootboxMode === 'fable' ? 'selected' : ''}>Auto open Fable lootbox — kode 060 (llb f all)</option>
+                                <option value="prioritize-fable" ${(!gems.lootboxMode || gems.lootboxMode === 'prioritize-fable') ? 'selected' : ''}>Prioritaskan Fable, lalu lootbox biasa</option>
+                                <option value="prioritize-regular" ${gems.lootboxMode === 'prioritize-regular' ? 'selected' : ''}>Prioritaskan lootbox biasa, lalu Fable</option>
+                            </select>
+                            <label>Pilih Tier Gems (bisa lebih dari satu)</label>
+                            <div class="row" style="flex-wrap:wrap">
+                                ${gemTierOptions.map(([tier, label]) => `<label class="toggle-row" style="min-width:180px;flex:1"><span>${label}</span><input type="checkbox" name="gemsTiers" value="${tier}" ${selectedGemTiers.includes(tier) ? 'checked' : ''}></label>`).join('')}
                             </div>
-                            <div class="row">
-                                <div class="col"><label>Gems Wajib</label><input type="text" name="gemsRequired" value="${escapeHtml((gems.requiredGems || []).join(','))}" placeholder="57,71,78"></div>
-                                <div class="col"><label>Gems Opsional</label><input type="text" name="gemsOptional" value="${escapeHtml((gems.optionalGems || []).join(','))}" placeholder="85"></div>
+                            <label>Prioritas Tier</label>
+                            <select name="gemsTierPriority">
+                                <option value="high" ${gems.tierPriority !== 'low' ? 'selected' : ''}>Prioritaskan dari tier tinggi (F → C)</option>
+                                <option value="low" ${gems.tierPriority === 'low' ? 'selected' : ''}>Prioritaskan dari tier rendah (C → F)</option>
+                            </select>
+                            <div class="toggle-row">
+                                <span>Gunakan special gem jika tersedia</span>
+                                <input type="checkbox" name="gemsUseSpecial" ${gems.useSpecialGem !== false ? 'checked' : ''}>
                             </div>
+                            <div class="input-hint">Special gem akan ditambahkan hanya untuk tier yang dipakai dan hanya jika item spesial tier tersebut ada di inventaris.</div>
                             <label>Command Pakai Gems</label>
                             <input type="text" name="gemsUseCommand" value="${escapeHtml(gems.useCommand || '')}" placeholder="luse">
                             <label>Jeda Cek Inventaris saat Gems &amp; Lootbox Habis (menit)</label>

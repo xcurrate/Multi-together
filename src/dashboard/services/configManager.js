@@ -166,7 +166,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
             triggerText: body.gemsTriggerText,
             inventoryCommand: body.gemsInventoryCommand,
             lootboxMode: body.gemsLootboxMode,
-            selectedGemTiers: body.gemsTiers ?? [],
+            selectedGemTiers: body.gemsTiers ?? ['F'],
             tierPriority: body.gemsTierPriority,
             useSpecialGem: this.toBool(body.gemsUseSpecial),
             useCommand: body.gemsUseCommand,

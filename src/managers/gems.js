@@ -22,7 +22,23 @@ const normalizeCode = (code) => {
     return digits ? String(parseInt(digits, 10)) : '';
 };
 
-const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\\]\\]/g, '\\const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+');
+
+const GEM_TIERS = {
+    F: { required: ['57', '71', '78'], special: '85' },
+    L: { required: ['56', '70', '77'], special: '84' },
+    M: { required: ['55', '69', '76'], special: '83' },
+    E: { required: ['54', '68', '75'], special: '82' },
+    R: { required: ['53', '67', '74'], special: '81' },
+    U: { required: ['52', '66', '73'], special: '80' },
+    C: { required: ['51', '65', '72'], special: '79' }
+};
+const TIER_ORDER = Object.keys(GEM_TIERS);
+const LOOTBOXES = {
+    regular: { code: '049', command: 'llb all' },
+    fable: { code: '060', command: 'llb f all' }
+};
 
 const normalizeGemsSettings = (raw = {}) => {
     const defaults = CONSTANTS.GEMS_DEFAULTS;

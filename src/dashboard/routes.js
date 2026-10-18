@@ -10,7 +10,12 @@ function createDashboardRoutes({ configManager, fileService, profileManager, pro
 
     const requireProfileAccess = (id, req, res, options = {}) => {
         const profileId = String(id || '');
-        if (!profileId || !profilePin?.readPin(profileId) || profilePin.isUnlocked(req, profileId)) return true;
+        if (!profileId) return true;
+        if (!safeProfileId(profileId)) {
+            res.status(404).send('Profile not found');
+            return false;
+        }
+        if (!profilePin?.readPin(profileId) || profilePin.isUnlocked(req, profileId)) return true;
         const lock = profilePin.attemptStatus(profileId, req.ip);
         const message = lock.lockedMs > 0
             ? `Terlalu banyak PIN salah. Coba lagi dalam ${Math.ceil(lock.lockedMs / 1000)} detik.`

@@ -239,13 +239,13 @@ const createGemsManager = (state, configManager, commandSender) => {
 
             if (action.type === 'lootbox') {
                 gems.lootboxOpens += 1;
-                gems.completedLootboxes = [...new Set([...(gems.completedLootboxes || []), action.lootboxType])];
                 log.info(`${prefix()}Lootbox ${action.lootboxType === 'fable' ? 'Fable' : 'Biasa'} ditemukan. Jalankan ${action.command}...`);
                 const sent = await this.sendCommand(action.command, 'Gems Lootbox', settings);
                 if (!sent) {
                     this.scheduleRecheck(settings);
                     return 'lootbox';
                 }
+                gems.completedLootboxes = [...new Set([...(gems.completedLootboxes || []), action.lootboxType])];
                 await wait(settings.lootboxWaitMs);
                 await this.checkInventory(getSettings());
                 return 'lootbox';
@@ -277,6 +277,7 @@ const createGemsManager = (state, configManager, commandSender) => {
                 const current = getSettings();
                 if (!current.enabled) return;
                 gems.lootboxOpens = 0;
+                gems.completedLootboxes = [];
                 this.checkInventory(current).catch(error => log.error(`${prefix()}Gagal cek inventaris: ${error.message || error}`));
             }, settings.recheckMinutes * 60000);
         },

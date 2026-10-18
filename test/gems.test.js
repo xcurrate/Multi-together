@@ -44,12 +44,28 @@ test('parseInventoryCodes reads backtick codes ignoring leading zeros', () => {
     assert.deepEqual([...parseInventoryCodes(inventory(['049', '057', '71']))], ['49', '57', '71']);
 });
 
-test('decideInventoryAction: lootbox first, then use gems with optional 85 only when present', () => {
+test('decideInventoryAction follows lootbox type codes and selects complete tier with optional special gem', () => {
     const settings = normalizeGemsSettings({});
-    assert.equal(decideInventoryAction(parseInventoryCodes(inventory(['049', '057'])), settings).type, 'lootbox');
+    assert.equal(decideInventoryAction(parseInventoryCodes(inventory(['049', '057'])), settings).command, 'llb all');
+    assert.equal(decideInventoryAction(parseInventoryCodes(inventory(['060', '049'])), settings).command, 'llb f all');
     assert.equal(decideInventoryAction(parseInventoryCodes(inventory(['057', '071', '078'])), settings).command, 'luse 57 71 78');
     assert.equal(decideInventoryAction(parseInventoryCodes(inventory(['057', '071', '078', '085'])), settings).command, 'luse 57 71 78 85');
-    assert.deepEqual(decideInventoryAction(parseInventoryCodes(inventory(['057', '085'])), settings), { type: 'missing', missing: ['71', '78'] });
+    assert.equal(decideInventoryAction(parseInventoryCodes(inventory(['056', '070', '077'])), settings).tier, 'L');
+    assert.equal(decideInventoryAction(parseInventoryCodes(inventory(['057', '085'])), settings).type, 'missing');
+});
+
+test('tier priority skips incomplete higher tiers and special gems are not required', () => {
+    const settings = normalizeGemsSettings({ lootboxTypes: [], selectedTiers: ['F', 'L', 'M'], useSpecialGems: false });
+    const action = decideInventoryAction(parseInventoryCodes(inventory(['057', '071', '056', '070', '077', '084'])), settings);
+    assert.equal(action.tier, 'L');
+    assert.deepEqual(action.items, ['56', '70', '77']);
+});
+
+test('special gem is only included for selected tier and when enabled and present', () => {
+    const settings = normalizeGemsSettings({ lootboxTypes: [], selectedTiers: ['F'], useSpecialGems: true });
+    assert.deepEqual(decideInventoryAction(parseInventoryCodes(inventory(['057', '071', '078', '084', '085'])), settings).items, ['57', '71', '78', '85']);
+    settings.useSpecialGems = false;
+    assert.deepEqual(decideInventoryAction(parseInventoryCodes(inventory(['057', '071', '078', '085'])), settings).items, ['57', '71', '78']);
 });
 
 test('trigger -> linv -> use gems', async () => {

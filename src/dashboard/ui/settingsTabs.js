@@ -476,7 +476,7 @@ ${renderRestSettings(config.settings?.rest)}
     }
 
     function renderLucySettings({ config, boss2 = {}, gems = {}, adventure = {}, lucyControl = {} }) {
-        const selectedGemTiers = Array.isArray(gems.selectedGemTiers) ? gems.selectedGemTiers : ['F'];
+        const selectedGemTiers = Array.isArray(gems.selectedGemTiers) && gems.selectedGemTiers.length ? gems.selectedGemTiers : ['F'];
         const gemTierOptions = [
             ['F', 'F — 57, 71, 78 + spesial 85'],
             ['L', 'L — 56, 70, 77 + spesial 84'],
@@ -565,7 +565,7 @@ ${renderRestSettings(config.settings?.rest)}
 
                         <div class="card">
                             <label>💎 AUTO USE GEMS</label>
-                            <div class="input-hint">Saat pesan "| nama** menghabiskan 5 lucent" terdeteksi: kirim cek inventaris. Jika ada item lootbox → buka lootbox lalu cek lagi. Jika gems wajib lengkap → pakai (gems opsional ikut dipakai jika ada). Jika tidak lengkap → cek inventaris ulang tiap X menit sampai lengkap.</div>
+                            <div class="input-hint">Saat gems habis terdeteksi, inventaris dicek. Lootbox pilihan dibuka lebih dulu. Sistem memakai satu tier gems yang lengkap; bila tier prioritas belum lengkap, sistem mencoba tier berikutnya tanpa mencampur tier.</div>
                             <div class="toggle-row">
                                 <span>Enable Auto Use Gems</span>
                                 <input type="checkbox" name="gemsEnabled" ${gems.enabled ? 'checked' : ''}>

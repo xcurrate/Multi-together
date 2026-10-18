@@ -592,7 +592,7 @@ ${renderRestSettings(config.settings?.rest)}
                             <input type="hidden" name="gemsUseSpecialPresent" value="true">
                             <div class="toggle-row"><span>Gunakan Gems Opsional / Spesial</span><input type="checkbox" name="gemsUseSpecial" value="true" ${gems.useSpecialGems !== false ? 'checked' : ''}></div>
                             <label>Strategi prioritas tier</label>
-                            <select name="gemsTierPriority" class="input-select"><option value="highest" ${(gems.tierPriority || 'highest') === 'highest' ? 'selected' : ''}>Prioritaskan Tier Tertinggi (F → C)</option><option value="lowest" ${gems.tierPriority === 'lowest' ? 'selected' : ''}>Prioritaskan Tier Terendah (C → F)</option></select>
+                            <select name="gemsTierPriority" class="input-select"><option value="highest" selected>Prioritaskan Tier Tertinggi (F → C)</option></select>
                             <div class="input-hint">Tier utama hanya dipilih bila ketiga gems tersedia. Gems spesial tidak wajib dan hanya digunakan bila tersedia.</div>
                             <label>Jeda Cek Inventaris saat Gems &amp; Lootbox Habis (menit)</label>
                             <input type="number" min="1" name="gemsRecheckMinutes" value="${gems.recheckMinutes ?? 5}" placeholder="5">

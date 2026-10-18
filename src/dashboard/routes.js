@@ -177,14 +177,23 @@ function createDashboardRoutes({ configManager, fileService, profileManager, pro
         const current = profilePin.readPin(id);
         const oldPin = String(req.body?.oldPin || '');
         const newPin = String(req.body?.newPin || '');
+        const attempt = profilePin.attemptStatus(id, req.ip);
+        if (attempt.lockedMs > 0) {
+            return res.status(429).send(profilePin.lockPage(id, `Terlalu banyak PIN salah. Coba lagi dalam ${Math.ceil(attempt.lockedMs / 1000)} detik.`));
+        }
         if (action === 'set') {
             if (current) return res.status(409).send('PIN sudah ada; gunakan Ganti PIN.');
             const result = profilePin.setPin(id, newPin);
             if (!result.ok) return res.status(400).send(result.message);
         } else if (action === 'change' || action === 'delete') {
             if (!current || !profilePin.timingSafePinMatch(oldPin, current)) {
-                return res.status(403).send('PIN lama salah atau belum disetel.');
+                const failed = profilePin.recordFailure(id, req.ip);
+                const message = failed.lockedMs > 0
+                    ? `PIN lama salah. Profile dikunci selama 5 menit. Coba lagi dalam ${Math.ceil(failed.lockedMs / 1000)} detik.`
+                    : `PIN lama salah. Percobaan ${failed.count}/5.`;
+                return res.status(failed.lockedMs > 0 ? 429 : 403).send(profilePin.lockPage(id, message));
             }
+            profilePin.clearFailures(id, req.ip);
             if (action === 'change') {
                 const result = profilePin.setPin(id, newPin);
                 if (!result.ok) return res.status(400).send(result.message);

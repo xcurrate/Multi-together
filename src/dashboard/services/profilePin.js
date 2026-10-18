@@ -33,6 +33,12 @@ module.exports = function createProfilePin({ baseDir, profileManager, fileServic
         }
     }
 
+    function clearProfileFailures(id) {
+        for (const key of attempts.keys()) {
+            if (key.startsWith(String(id) + ':')) attempts.delete(key);
+        }
+    }
+
     function setPin(id, pin) {
         if (!PIN_PATTERN.test(String(pin || ''))) return { ok: false, message: 'PIN harus tepat 4 digit angka' };
         const meta = profileManager.readMeta();
@@ -40,7 +46,7 @@ module.exports = function createProfilePin({ baseDir, profileManager, fileServic
         const salt = crypto.randomBytes(16).toString('hex');
         meta.profiles[id].pin = { hash: digest(String(pin), salt), salt };
         if (!writeMeta(meta)) return { ok: false, message: 'Gagal menyimpan PIN' };
-        attempts.delete(id);
+        clearProfileFailures(id);
         return { ok: true };
     }
 
@@ -50,7 +56,7 @@ module.exports = function createProfilePin({ baseDir, profileManager, fileServic
             delete meta.profiles[id].pin;
             if (!writeMeta(meta)) return false;
         }
-        attempts.delete(id);
+        clearProfileFailures(id);
         return true;
     }
 

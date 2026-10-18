@@ -45,7 +45,7 @@ const normalizeGemsSettings = (raw = {}) => {
         inventoryCommand: toText(raw.inventoryCommand, defaults.inventoryCommand),
         lootboxTypes: lootboxTypes.length ? lootboxTypes : [],
         lootboxPriority: raw.lootboxPriority === 'normal' ? 'normal' : 'fable',
-        selectedTiers: selectedTiers.length ? selectedTiers : [...defaults.selectedTiers],
+        selectedTiers: Array.isArray(raw.selectedTiers) ? selectedTiers : (selectedTiers.length ? selectedTiers : [...defaults.selectedTiers]),
         useSpecialGems: raw.useSpecialGems === undefined ? legacyOptional.length > 0 : raw.useSpecialGems === true,
         tierPriority: raw.tierPriority === 'lowest' ? 'lowest' : 'highest',
         lootboxItem: toText(raw.lootboxItem, defaults.lootboxItem),

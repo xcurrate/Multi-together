@@ -14,7 +14,7 @@ module.exports = function createSettingsTabs({ escapeHtml }) {
                                     ${profileOptions.length ? profileOptions.map(profile => `
                                         <span class="account-chip-group">
                                             <a class="account-chip ${profile.statusClass || 'paused'} ${profile.isViewing ? 'viewing' : ''}" href="/?profileId=${encodeURIComponent(profile.id)}" title="Lihat akun ${escapeHtml(profile.id)}">
-                                                <span class="account-chip-name">${escapeHtml(profile.displayName)}</span>
+                                                <span class="account-chip-name">${profile.hasPin ? '🔒 ' : ''}${escapeHtml(profile.displayName)}</span>
                                                 <span class="account-chip-id">${escapeHtml(profile.id)}</span>
                                                 <span class="account-chip-status">${profile.running ? '● START' : '● PAUSE'}</span>
                                             </a>

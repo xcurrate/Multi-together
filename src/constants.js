@@ -17,6 +17,15 @@ module.exports = {
         delayMinMs: 1000,
         delayMaxMs: 1000
     },
+    GEMS_TIERS: {
+        F: { main: ['57', '71', '78'], special: '85' },
+        L: { main: ['56', '70', '77'], special: '84' },
+        M: { main: ['55', '69', '76'], special: '83' },
+        E: { main: ['54', '68', '75'], special: '82' },
+        R: { main: ['53', '67', '74'], special: '81' },
+        U: { main: ['52', '66', '73'], special: '80' },
+        C: { main: ['51', '65', '72'], special: '79' }
+    },
     GEMS_DEFAULTS: {
         enabled: false,
         channelId: '',
@@ -26,6 +35,11 @@ module.exports = {
         inventoryCommand: 'linv',
         lootboxItem: '049',
         lootboxCommand: 'llb f all',
+        lootboxTypes: ['fable', 'normal'],
+        lootboxPriority: 'fable',
+        selectedTiers: ['F', 'L', 'M', 'E', 'R', 'U', 'C'],
+        useSpecialGems: true,
+        tierPriority: 'highest',
         requiredGems: ['57', '71', '78'],
         optionalGems: ['85'],
         useCommand: 'luse',

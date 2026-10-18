@@ -55,6 +55,7 @@ module.exports = function createProfileManager({ baseDir, fileService }) {
         let meta = this.readMeta();
         
         meta.profiles[id] = {
+            ...(meta.profiles[id] || {}),
             username,
             globalName,
             avatar

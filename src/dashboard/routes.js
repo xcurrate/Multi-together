@@ -28,7 +28,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, pro
         return false;
     };
 
-    const safeProfileId = (id) => /^\\d{17,20}$/.test(String(id || ''));
+    const safeProfileId = (id) => /^\d{17,20}$/.test(String(id || ''));
 
     const dashboardLog = (level, accountId, message) => {
         const target = logger && typeof logger[level] === 'function' ? logger[level] : logger?.info;

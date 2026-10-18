@@ -81,7 +81,7 @@ test('inventory with 049 opens lootbox then re-checks inventory', async () => {
     const { manager, sent } = setup();
     await manager.handle(message(TRIGGER));
     assert.equal(await manager.handle(message(inventory(['049', '057']))), 'lootbox');
-    assert.deepEqual(sent.map(([cmd]) => cmd), ['linv', 'llb f all', 'linv']);
+    assert.deepEqual(sent.map(([cmd]) => cmd), ['linv', 'llb all', 'linv']);
     assert.equal(await manager.handle(message(inventory(['057', '071', '078']))), 'use');
     assert.deepEqual(sent.at(-1)[0], 'luse 57 71 78');
     manager.stop();

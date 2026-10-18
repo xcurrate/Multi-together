@@ -35,7 +35,9 @@ const normalizeGemsSettings = (raw = {}) => {
         : (legacyRequired.length ? tiers.filter(tier => CONSTANTS.GEMS_TIERS[tier].main.every(code => legacyRequired.includes(code))) : [...defaults.selectedTiers]);
     const lootboxTypes = Array.isArray(raw.lootboxTypes)
         ? raw.lootboxTypes.filter(type => ['fable', 'normal'].includes(type))
-        : [raw.lootboxItem === '060' || raw.lootboxCommand === 'llb f all' ? 'fable' : 'normal'];
+        : (raw.lootboxItem === undefined && raw.lootboxCommand === undefined
+            ? [...defaults.lootboxTypes]
+            : [raw.lootboxItem === '060' ? 'fable' : 'normal']);
     return {
         enabled: raw.enabled === true,
         channelId: String(raw.channelId || '').trim(),
@@ -46,7 +48,9 @@ const normalizeGemsSettings = (raw = {}) => {
         lootboxTypes: lootboxTypes.length ? lootboxTypes : [],
         lootboxPriority: raw.lootboxPriority === 'normal' ? 'normal' : 'fable',
         selectedTiers: Array.isArray(raw.selectedTiers) ? selectedTiers : (selectedTiers.length ? selectedTiers : [...defaults.selectedTiers]),
-        useSpecialGems: raw.useSpecialGems === undefined ? legacyOptional.length > 0 : raw.useSpecialGems === true,
+        useSpecialGems: raw.useSpecialGems === undefined
+            ? (raw.optionalGems === undefined ? defaults.useSpecialGems : legacyOptional.length > 0)
+            : raw.useSpecialGems === true,
         tierPriority: raw.tierPriority === 'lowest' ? 'lowest' : 'highest',
         lootboxItem: toText(raw.lootboxItem, defaults.lootboxItem),
         lootboxCommand: toText(raw.lootboxCommand, defaults.lootboxCommand),

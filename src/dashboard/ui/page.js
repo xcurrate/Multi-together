@@ -37,7 +37,7 @@ function renderPage(config) {
             const isRunning = !!profileStatus.running && !profileStatus.paused;
             return {
                 id,
-                meta: profileManager.getProfileMeta(id),
+                meta: (() => { const meta = profileManager.getProfileMeta(id); return meta ? { username: meta.username, globalName: meta.globalName, avatar: meta.avatar } : null; })(),
                 hasPin: !!profileManager.getProfileMeta(id)?.pin,
                 displayName: profileManager.getProfileDisplayName(id),
                 isActive: id === activeProfileId,

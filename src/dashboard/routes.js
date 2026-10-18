@@ -1,8 +1,29 @@
 const express = require('express');
 const fs = require('fs');
 const { describeRestStatus } = require('../managers/rest');
-function createDashboardRoutes({ configManager, fileService, profileManager, uiComponents, logService, statsService, discordProfileService, state, logger }) {
+function createDashboardRoutes({ configManager, fileService, profileManager, profilePin, uiComponents, logService, statsService, discordProfileService, state, logger }) {
     const router = express.Router();
+
+    const isJsonRequest = (req) => req.get('X-Requested-With') === 'XMLHttpRequest'
+        || String(req.get('Accept') || '').includes('application/json')
+        || req.path.startsWith('/api/') || req.path === '/logs';
+
+    const requireProfileAccess = (id, req, res, options = {}) => {
+        const profileId = String(id || '');
+        if (!profileId || !profilePin?.readPin(profileId) || profilePin.isUnlocked(req, profileId)) return true;
+        const lock = profilePin.attemptStatus(profileId, req.ip);
+        const message = lock.lockedMs > 0
+            ? `Terlalu banyak PIN salah. Coba lagi dalam ${Math.ceil(lock.lockedMs / 1000)} detik.`
+            : 'PIN profile diperlukan';
+        if (options.page || !isJsonRequest(req)) {
+            res.status(403).send(profilePin.lockPage(profileId, message));
+        } else {
+            res.status(403).json({ success: false, message: 'PIN profile diperlukan' });
+        }
+        return false;
+    };
+
+    const safeProfileId = (id) => /^\\d{17,20}$/.test(String(id || ''));
 
     const dashboardLog = (level, accountId, message) => {
         const target = logger && typeof logger[level] === 'function' ? logger[level] : logger?.info;
@@ -118,7 +139,67 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
         return saved;
     };
 
+
+    router.post('/profile/:id/unlock', (req, res) => {
+        const id = String(req.params.id || '');
+        if (!safeProfileId(id) || !fs.existsSync(profileManager.getProfilePath(id))) {
+            return res.status(404).send('Profile not found');
+        }
+        if (!profilePin.readPin(id)) return res.redirect('/?profileId=' + encodeURIComponent(id));
+        const status = profilePin.attemptStatus(id, req.ip);
+        if (status.lockedMs > 0) {
+            return res.status(429).send(profilePin.lockPage(id, `Terlalu banyak PIN salah. Coba lagi dalam ${Math.ceil(status.lockedMs / 1000)} detik.`));
+        }
+        if (!profilePin.timingSafePinMatch(String(req.body?.pin || ''), profilePin.readPin(id))) {
+            const failed = profilePin.recordFailure(id, req.ip);
+            const message = failed.lockedMs > 0
+                ? `PIN salah. Profile dikunci selama 5 menit. Coba lagi dalam ${Math.ceil(failed.lockedMs / 1000)} detik.`
+                : `PIN salah. Percobaan ${failed.count}/5.`;
+            return res.status(failed.lockedMs > 0 ? 429 : 403).send(profilePin.lockPage(id, message));
+        }
+        profilePin.clearFailures(id, req.ip);
+        profilePin.setSessionCookie(res, id);
+        return res.redirect('/?profileId=' + encodeURIComponent(id));
+    });
+
+    router.post('/profile/:id/lock', (req, res) => {
+        const id = String(req.params.id || '');
+        profilePin.clearSessionCookie(res, id);
+        return res.redirect('/?profileId=' + encodeURIComponent(id));
+    });
+
+    router.post('/profile/:id/pin', (req, res) => {
+        const id = String(req.params.id || '');
+        if (!safeProfileId(id) || !fs.existsSync(profileManager.getProfilePath(id))) {
+            return res.status(404).send('Profile not found');
+        }
+        const action = String(req.body?.pinAction || '');
+        const current = profilePin.readPin(id);
+        const oldPin = String(req.body?.oldPin || '');
+        const newPin = String(req.body?.newPin || '');
+        if (action === 'set') {
+            if (current) return res.status(409).send('PIN sudah ada; gunakan Ganti PIN.');
+            const result = profilePin.setPin(id, newPin);
+            if (!result.ok) return res.status(400).send(result.message);
+        } else if (action === 'change' || action === 'delete') {
+            if (!current || !profilePin.timingSafePinMatch(oldPin, current)) {
+                return res.status(403).send('PIN lama salah atau belum disetel.');
+            }
+            if (action === 'change') {
+                const result = profilePin.setPin(id, newPin);
+                if (!result.ok) return res.status(400).send(result.message);
+            } else if (!profilePin.deletePin(id)) {
+                return res.status(500).send('Gagal menghapus PIN.');
+            }
+        } else {
+            return res.status(400).send('Aksi PIN tidak valid.');
+        }
+        profilePin.clearSessionCookie(res, id);
+        return res.redirect('/?profileId=' + encodeURIComponent(id));
+    });
+
     router.get('/api/profile', async (req, res) => {
+        if (req.query.profileId && !requireProfileAccess(req.query.profileId, req, res)) return;
         const config = configManager.get();
         let token = config.token;
 
@@ -150,6 +231,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.get('/', (req, res) => {
+        if (req.query.profileId && !requireProfileAccess(req.query.profileId, req, res, { page: true })) return;
         console.log('[DASHBOARD] GET / - Rendering dashboard');
         try {
             let config = configManager.ensureShape(configManager.get());
@@ -171,6 +253,8 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.get('/logs', (req, res) => {
+        const requestedId = req.query.profileId || req.query.accountId;
+        if (requestedId && !requireProfileAccess(requestedId, req, res)) return;
         try {
             let accountId = req.query.accountId ? String(req.query.accountId) : '';
             if (!accountId && req.query.profileId) accountId = String(req.query.profileId);
@@ -184,6 +268,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.get('/api/message-debug', (req, res) => {
+        if (req.query.profileId && !requireProfileAccess(req.query.profileId, req, res)) return;
         const accountId = String(req.query.profileId || '');
         const runtime = accountId
             ? state?.multiAccountManager?.getRuntime?.(accountId)
@@ -196,6 +281,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.get('/api/rest-status', (req, res) => {
+        if (req.query.profileId && !requireProfileAccess(req.query.profileId, req, res)) return;
         const accountId = String(req.query.profileId || '');
         const runtimes = Array.from(state?.accountRuntimes?.values?.() || []);
         const accounts = runtimes
@@ -215,6 +301,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.post('/api/message-debug/clear', (req, res) => {
+        if (req.body?.profileId && !requireProfileAccess(req.body.profileId, req, res)) return;
         const accountId = String(req.body?.profileId || '');
         const runtime = accountId
             ? state?.multiAccountManager?.getRuntime?.(accountId)
@@ -227,6 +314,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.post('/account/:accountId/connect', (req, res) => {
+        if (!requireProfileAccess(req.params.accountId, req, res)) return;
         const accountId = String(req.params.accountId || '');
         const connected = connectAccount(accountId);
         if (!connected) return res.status(404).send('Account not found');
@@ -234,6 +322,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.post('/account/:accountId/start', (req, res) => {
+        if (!requireProfileAccess(req.params.accountId, req, res)) return;
         const accountId = String(req.params.accountId || '');
         const saved = setAccountStatus(accountId, true);
         if (!saved) return res.status(404).send('Account not found');
@@ -241,6 +330,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.post('/account/:accountId/pause', (req, res) => {
+        if (!requireProfileAccess(req.params.accountId, req, res)) return;
         const accountId = String(req.params.accountId || '');
         const saved = setAccountStatus(accountId, false);
         if (!saved) return res.status(404).send('Account not found');
@@ -248,6 +338,7 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.get('/api/stats', (req, res) => {
+        if (req.query.profileId && !requireProfileAccess(req.query.profileId, req, res)) return;
         try {
             let config = configManager.ensureShape(configManager.get());
             if (req.query.profileId) {
@@ -287,6 +378,12 @@ function createDashboardRoutes({ configManager, fileService, profileManager, uiC
     });
 
     router.post('/save', (req, res) => {
+        const saveBody = req.body || {};
+        const viewedId = String(saveBody.viewingProfileId || '');
+        const profileActionId = String(saveBody.profileAction || '').split(':')[1] || '';
+        const targetId = viewedId || (['connect', 'start', 'pause', 'logout', 'delete'].includes(String(saveBody.profileAction || '').split(':')[0]) ? profileActionId : '');
+        if (targetId && !requireProfileAccess(targetId, req, res)) return;
+        if (saveBody.action === 'loadProfile' && saveBody.selectedProfile && !requireProfileAccess(saveBody.selectedProfile, req, res)) return;
         try {
             // Some reverse proxies strip X-Requested-With. The dashboard also
             // explicitly asks for JSON, so accept that as the AJAX contract.

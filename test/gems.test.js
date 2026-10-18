@@ -54,6 +54,19 @@ test('decideInventoryAction follows lootbox type codes and selects complete tier
     assert.equal(decideInventoryAction(parseInventoryCodes(inventory(['057', '085'])), settings).type, 'missing');
 });
 
+test('lootbox priority runs selected types sequentially and respects disabled types', () => {
+    const settings = normalizeGemsSettings({ lootboxTypes: ['fable', 'normal'], lootboxPriority: 'fable' });
+    const codes = parseInventoryCodes(inventory(['060', '049']));
+    const first = decideInventoryAction(codes, settings, { completedLootboxes: [], lootboxOpens: 0 });
+    assert.equal(first.command, 'llb f all');
+    const second = decideInventoryAction(codes, settings, { completedLootboxes: ['fable'], lootboxOpens: 1 });
+    assert.equal(second.command, 'llb all');
+    const normalOnly = normalizeGemsSettings({ lootboxTypes: ['normal'], lootboxPriority: 'fable' });
+    assert.equal(decideInventoryAction(codes, normalOnly, {}).command, 'llb all');
+    const disabled = normalizeGemsSettings({ lootboxTypes: [] });
+    assert.equal(decideInventoryAction(codes, disabled, {}).type, 'use');
+});
+
 test('tier priority skips incomplete higher tiers and special gems are not required', () => {
     const settings = normalizeGemsSettings({ lootboxTypes: [], selectedTiers: ['F', 'L', 'M'], useSpecialGems: false });
     const action = decideInventoryAction(parseInventoryCodes(inventory(['057', '071', '056', '070', '077', '084'])), settings);

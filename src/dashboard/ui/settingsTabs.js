@@ -571,6 +571,8 @@ ${renderRestSettings(config.settings?.rest)}
                             <label>Command Cek Inventaris</label>
                             <input type="text" name="gemsInventoryCommand" value="${escapeHtml(gems.inventoryCommand || '')}" placeholder="linv">
                             <label>Jenis Lootbox yang digunakan</label>
+                            <input type="hidden" name="gemsLootboxTypesPresent" value="true">
+                            <input type="hidden" name="gemsLootboxTypes" value="">
                             <div style="margin:8px 0;">
                                 <label style="display:inline-flex;align-items:center;gap:8px;margin-right:16px;"><input type="checkbox" name="gemsLootboxTypes" value="normal" ${(gems.lootboxTypes || ['normal']).includes('normal') ? 'checked' : ''}><span>Lootbox Biasa (049)</span></label>
                                 <label style="display:inline-flex;align-items:center;gap:8px;"><input type="checkbox" name="gemsLootboxTypes" value="fable" ${(gems.lootboxTypes || ['fable']).includes('fable') ? 'checked' : ''}><span>Fable Lootbox (060)</span></label>
@@ -578,7 +580,7 @@ ${renderRestSettings(config.settings?.rest)}
                             <label>Prioritas Lootbox</label>
                             <select name="gemsLootboxPriority" class="input-select"><option value="fable" ${(gems.lootboxPriority || 'fable') === 'fable' ? 'selected' : ''}>Prioritaskan Fable</option><option value="normal" ${gems.lootboxPriority === 'normal' ? 'selected' : ''}>Prioritaskan Lootbox Biasa</option></select>
                             <div class="divider"></div>
-                            <label>Tier gems yang diizinkan</label><div style="margin:8px 0;">
+                            <label>Tier gems yang diizinkan</label><input type="hidden" name="gemsTierPresent" value="true"><input type="hidden" name="gemsTier" value=""><div style="margin:8px 0;">
                                 <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="F" ${(gems.selectedTiers || ['F']).includes('F') ? 'checked' : ''}><span>F (57, 71, 78 · spesial 85)</span></label>
                                 <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="L" ${(gems.selectedTiers || ['F']).includes('L') ? 'checked' : ''}><span>L (56, 70, 77 · spesial 84)</span></label>
                                 <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="M" ${(gems.selectedTiers || ['F']).includes('M') ? 'checked' : ''}><span>M (55, 69, 76 · spesial 83)</span></label>
@@ -587,6 +589,7 @@ ${renderRestSettings(config.settings?.rest)}
                                 <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="U" ${(gems.selectedTiers || ['F']).includes('U') ? 'checked' : ''}><span>U (52, 66, 73 · spesial 80)</span></label>
                                 <label style="display:inline-flex;align-items:center;gap:8px;margin:6px 14px 6px 0;"><input type="checkbox" name="gemsTier" value="C" ${(gems.selectedTiers || ['F']).includes('C') ? 'checked' : ''}><span>C (51, 65, 72 · spesial 79)</span></label>
                             </div>
+                            <input type="hidden" name="gemsUseSpecialPresent" value="true">
                             <div class="toggle-row"><span>Gunakan Gems Opsional / Spesial</span><input type="checkbox" name="gemsUseSpecial" value="true" ${gems.useSpecialGems !== false ? 'checked' : ''}></div>
                             <label>Strategi prioritas tier</label>
                             <select name="gemsTierPriority" class="input-select"><option value="highest" ${(gems.tierPriority || 'highest') === 'highest' ? 'selected' : ''}>Prioritaskan Tier Tertinggi (F → C)</option><option value="lowest" ${gems.tierPriority === 'lowest' ? 'selected' : ''}>Prioritaskan Tier Terendah (C → F)</option></select>

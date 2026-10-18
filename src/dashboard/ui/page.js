@@ -24,6 +24,7 @@ function renderPage(config) {
         const statsSnapshot = statsService.getSnapshot(config);
         const viewingProfileId = config.viewingProfileId || '';
         const isControlPanel = !viewingProfileId;
+        const viewingProfileHasPin = !!profileManager.getProfileMeta(viewingProfileId)?.pin;
 
         const profiles = profileManager.getSavedProfiles();
         const activeProfileId = profileManager.getUserId(config.token);
@@ -36,7 +37,8 @@ function renderPage(config) {
             const isRunning = !!profileStatus.running && !profileStatus.paused;
             return {
                 id,
-                meta: profileManager.getProfileMeta(id),
+                meta: (() => { const meta = profileManager.getProfileMeta(id); return meta ? { username: meta.username, globalName: meta.globalName, avatar: meta.avatar } : null; })(),
+                hasPin: !!profileManager.getProfileMeta(id)?.pin,
                 displayName: profileManager.getProfileDisplayName(id),
                 isActive: id === activeProfileId,
                 isViewing: id === viewingProfileId,
@@ -106,6 +108,36 @@ function renderPage(config) {
                     })}
                     <button type="submit" name="action" value="save" class="btn btn-save" style="margin-top: 10px;">💾 SAVE CONFIGURATION</button>
                 </form>
+
+                ${viewingProfileId ? `
+                <section class="card" style="margin-top:16px">
+                    <label>🔒 PIN PROFILE</label>
+                    <p style="font-size:13px;color:#aeb7c8">${viewingProfileHasPin ? 'Profile ini dilindungi PIN.' : 'PIN opsional. Tanpa PIN, profile dapat dibuka langsung.'}</p>
+                    ${viewingProfileHasPin ? `
+                    <form method="POST" action="/profile/${encodeURIComponent(viewingProfileId)}/pin" style="margin-bottom:12px">
+                        <input type="hidden" name="pinAction" value="change">
+                        <input type="password" name="oldPin" inputmode="numeric" pattern="\\d{4}" maxlength="4" minlength="4" autocomplete="current-password" placeholder="PIN lama (4 digit)" required>
+                        <input type="password" name="newPin" inputmode="numeric" pattern="\\d{4}" maxlength="4" minlength="4" autocomplete="new-password" placeholder="PIN baru (4 digit)" required>
+                        <button class="btn btn-save" type="submit">Ganti PIN</button>
+                    </form>
+                    <form method="POST" action="/profile/${encodeURIComponent(viewingProfileId)}/pin" style="margin-bottom:12px">
+                        <input type="hidden" name="pinAction" value="delete">
+                        <input type="password" name="oldPin" inputmode="numeric" pattern="\\d{4}" maxlength="4" minlength="4" autocomplete="current-password" placeholder="PIN lama (4 digit)" required>
+                        <button class="btn btn-pause" type="submit">Hapus PIN</button>
+                    </form>
+                    <form method="POST" action="/profile/${encodeURIComponent(viewingProfileId)}/lock">
+                        <button class="btn btn-home" type="submit">🔒 Kunci Profile</button>
+                    </form>
+                    ` : `
+                    <form method="POST" action="/profile/${encodeURIComponent(viewingProfileId)}/pin">
+                        <input type="hidden" name="pinAction" value="set">
+                        <input type="password" name="newPin" inputmode="numeric" pattern="\\d{4}" maxlength="4" minlength="4" autocomplete="new-password" placeholder="PIN baru (4 digit)" required>
+                        <button class="btn btn-save" type="submit">Tambah PIN</button>
+                    </form>
+                    `}
+                    <p style="font-size:12px;color:#aeb7c8">Lupa PIN? Pemilik server harus menghapus properti <code>profiles[${viewingProfileId}].pin</code> dari <code>profiles/meta.json</code>. Tidak ada reset PIN dari dashboard.</p>
+                </section>
+                ` : ''}
 
                 <div class="status-box ${statusClass}">
                     <span style="font-size: 16px;">${statusText}</span>

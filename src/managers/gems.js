@@ -27,8 +27,17 @@ const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const normalizeGemsSettings = (raw = {}) => {
     const defaults = CONSTANTS.GEMS_DEFAULTS;
     const delayMinMs = toNonNegativeInt(raw.delayMinMs, defaults.delayMinMs);
-    const requiredGems = toIdList(raw.requiredGems);
-    const optionalGems = toIdList(raw.optionalGems);
+    const legacyRequired = toIdList(raw.requiredGems);
+    const legacyOptional = toIdList(raw.optionalGems);
+    const tiers = ['F', 'L', 'M', 'E', 'R', 'U', 'C'];
+    const selectedTiers = Array.isArray(raw.selectedTiers)
+        ? raw.selectedTiers.filter(tier => tiers.includes(tier))
+        : (legacyRequired.length ? tiers.filter(tier => CONSTANTS.GEMS_TIERS[tier].main.every(code => legacyRequired.includes(code))) : [...defaults.selectedTiers]);
+    const lootboxTypes = Array.isArray(raw.lootboxTypes)
+        ? raw.lootboxTypes.filter(type => ['fable', 'normal'].includes(type))
+        : (raw.lootboxItem === undefined && raw.lootboxCommand === undefined
+            ? [...defaults.lootboxTypes]
+            : [raw.lootboxItem === '060' ? 'fable' : 'normal']);
     return {
         enabled: raw.enabled === true,
         channelId: String(raw.channelId || '').trim(),
@@ -36,10 +45,17 @@ const normalizeGemsSettings = (raw = {}) => {
         accountName: String(raw.accountName || '').trim(),
         triggerText: toText(raw.triggerText, defaults.triggerText),
         inventoryCommand: toText(raw.inventoryCommand, defaults.inventoryCommand),
+        lootboxTypes: lootboxTypes.length ? lootboxTypes : [],
+        lootboxPriority: raw.lootboxPriority === 'normal' ? 'normal' : 'fable',
+        selectedTiers: Array.isArray(raw.selectedTiers) ? selectedTiers : (selectedTiers.length ? selectedTiers : [...defaults.selectedTiers]),
+        useSpecialGems: raw.useSpecialGems === undefined
+            ? (raw.optionalGems === undefined ? defaults.useSpecialGems : legacyOptional.length > 0)
+            : raw.useSpecialGems === true,
+        tierPriority: raw.tierPriority === 'lowest' ? 'lowest' : 'highest',
         lootboxItem: toText(raw.lootboxItem, defaults.lootboxItem),
         lootboxCommand: toText(raw.lootboxCommand, defaults.lootboxCommand),
-        requiredGems: requiredGems.length > 0 ? requiredGems : [...defaults.requiredGems],
-        optionalGems: raw.optionalGems === undefined ? [...defaults.optionalGems] : optionalGems,
+        requiredGems: legacyRequired.length ? legacyRequired : [...defaults.requiredGems],
+        optionalGems: raw.optionalGems === undefined ? [...defaults.optionalGems] : legacyOptional,
         useCommand: toText(raw.useCommand, defaults.useCommand),
         recheckMinutes: Math.max(1, toNonNegativeInt(raw.recheckMinutes, defaults.recheckMinutes)),
         delayMinMs,
@@ -76,17 +92,27 @@ const parseInventoryCodes = (text) => {
     return codes;
 };
 
-const decideInventoryAction = (codes, settings, { lootboxOpens = 0 } = {}) => {
-    if (codes.has(normalizeCode(settings.lootboxItem)) && lootboxOpens < settings.maxLootboxOpens) {
-        return { type: 'lootbox', command: settings.lootboxCommand };
+const decideInventoryAction = (codes, settings, runtime = {}) => {
+    const normalizedCodes = new Set([...codes].map(normalizeCode));
+    const enabledBoxes = settings.lootboxTypes || ['fable'];
+    const priority = settings.lootboxPriority === 'normal' ? ['normal', 'fable'] : ['fable', 'normal'];
+    const sequence = priority.filter(type => enabledBoxes.includes(type));
+    const nextBox = sequence.find(type => !runtime.completedLootboxes?.includes(type)
+        && normalizedCodes.has(type === 'fable' ? '60' : '49')
+        && (runtime.lootboxOpens || 0) < settings.maxLootboxOpens);
+    if (nextBox) return { type: 'lootbox', lootboxType: nextBox, command: nextBox === 'fable' ? 'llb f all' : 'llb all' };
+    const tiers = settings.tierPriority === 'lowest' ? [...settings.selectedTiers].reverse() : settings.selectedTiers;
+    const tier = tiers.find(name => CONSTANTS.GEMS_TIERS[name]?.main.every(code => normalizedCodes.has(normalizeCode(code))));
+    if (!tier) {
+        const missing = tiers.length && CONSTANTS.GEMS_TIERS[tiers[0]]
+            ? CONSTANTS.GEMS_TIERS[tiers[0]].main.filter(code => !normalizedCodes.has(normalizeCode(code)))
+            : [...CONSTANTS.GEMS_DEFAULTS.requiredGems];
+        return { type: 'missing', missing, noCompleteTier: true };
     }
-
-    const missing = settings.requiredGems.filter(code => !codes.has(normalizeCode(code)));
-    if (missing.length > 0) return { type: 'missing', missing };
-
-    const optional = settings.optionalGems.filter(code => codes.has(normalizeCode(code)));
-    const items = [...settings.requiredGems, ...optional];
-    return { type: 'use', items, command: `${settings.useCommand} ${items.join(' ')}` };
+    const tierConfig = CONSTANTS.GEMS_TIERS[tier];
+    const items = [...tierConfig.main];
+    if (settings.useSpecialGems && normalizedCodes.has(normalizeCode(tierConfig.special))) items.push(tierConfig.special);
+    return { type: 'use', tier, items, command: `${settings.useCommand} ${items.join(' ')}` };
 };
 
 const createGemsManager = (state, configManager, commandSender) => {
@@ -95,6 +121,7 @@ const createGemsManager = (state, configManager, commandSender) => {
         awaitingSince: 0,
         channelId: '',
         lootboxOpens: 0,
+        completedLootboxes: [],
         exhausted: false,
         recheckTimer: null,
         timers: new Set()
@@ -165,6 +192,7 @@ const createGemsManager = (state, configManager, commandSender) => {
                 log.info(`${prefix()}Gems habis terdeteksi. Cek inventaris...`);
                 cancelRecheck();
                 gems.lootboxOpens = 0;
+                gems.completedLootboxes = [];
                 gems.channelId = settings.channelId || msg.channel?.id || msg.channelId || '';
                 await this.checkInventory(settings);
                 return 'trigger';
@@ -211,12 +239,13 @@ const createGemsManager = (state, configManager, commandSender) => {
 
             if (action.type === 'lootbox') {
                 gems.lootboxOpens += 1;
-                log.info(`${prefix()}Item \`${settings.lootboxItem}\` ditemukan. Buka lootbox...`);
+                log.info(`${prefix()}Lootbox ${action.lootboxType === 'fable' ? 'Fable' : 'Biasa'} ditemukan. Jalankan ${action.command}...`);
                 const sent = await this.sendCommand(action.command, 'Gems Lootbox', settings);
                 if (!sent) {
                     this.scheduleRecheck(settings);
                     return 'lootbox';
                 }
+                gems.completedLootboxes = [...new Set([...(gems.completedLootboxes || []), action.lootboxType])];
                 await wait(settings.lootboxWaitMs);
                 await this.checkInventory(getSettings());
                 return 'lootbox';
@@ -224,7 +253,7 @@ const createGemsManager = (state, configManager, commandSender) => {
 
             if (action.type === 'missing') {
                 gems.exhausted = true;
-                log.warn(`${prefix()}Gems tidak lengkap (kurang: ${action.missing.join(', ')}) dan lootbox \`${settings.lootboxItem}\` habis. Trigger diabaikan, cek ulang tiap ${settings.recheckMinutes} menit.`);
+                log.warn(`${prefix()}${action.noCompleteTier ? 'Tidak ada tier gems lengkap' : `Gems tidak lengkap (kurang: ${action.missing.join(', ')})`}. Trigger diabaikan, cek ulang tiap ${settings.recheckMinutes} menit.`);
                 this.scheduleRecheck(settings);
                 return 'missing';
             }
@@ -233,7 +262,7 @@ const createGemsManager = (state, configManager, commandSender) => {
             if (sent) {
                 cancelRecheck();
                 gems.exhausted = false;
-                log.success(`${prefix()}✅ Pakai gems: ${action.items.join(' ')}. Menunggu gems habis lagi...`);
+                log.success(`${prefix()}✅ Pakai gems tier ${action.tier}: ${action.items.join(' ')}. Menunggu gems habis lagi...`);
             } else {
                 this.scheduleRecheck(settings);
             }
@@ -248,6 +277,7 @@ const createGemsManager = (state, configManager, commandSender) => {
                 const current = getSettings();
                 if (!current.enabled) return;
                 gems.lootboxOpens = 0;
+                gems.completedLootboxes = [];
                 this.checkInventory(current).catch(error => log.error(`${prefix()}Gagal cek inventaris: ${error.message || error}`));
             }, settings.recheckMinutes * 60000);
         },
@@ -259,6 +289,7 @@ const createGemsManager = (state, configManager, commandSender) => {
             gems.awaitingInventory = false;
             gems.exhausted = false;
             gems.lootboxOpens = 0;
+            gems.completedLootboxes = [];
         }
     };
 };

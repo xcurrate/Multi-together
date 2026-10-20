@@ -26,11 +26,6 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.tiketandhb = config.tiketandhb || { channelId: "" };
         config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false };
         config.huntbot.sellAllAfterReturn = config.huntbot.sellAllAfterReturn === true;
-        config.huntbot2 = config.huntbot2 || { enabled: false, autoMode: false, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false, messageTriggers: ['BEEP BOOP', 'I AM STILL HUNTING', 'I WILL BE BACK IN', 'BACK IN', '% DONE', 'ANIMALS CAPTURED'], staticVariables: { defaultDuration: '1D', defaultUpgrade: 'duration' } };
-        config.huntbot2.enabled = config.huntbot2.enabled === true;
-        config.huntbot2.autoMode = config.huntbot2.autoMode === true;
-        config.huntbot2.messageTriggers = Array.isArray(config.huntbot2.messageTriggers) ? config.huntbot2.messageTriggers.map(String).filter(Boolean).slice(0, 50) : ['BEEP BOOP', 'I AM STILL HUNTING', 'I WILL BE BACK IN', 'BACK IN', '% DONE', 'ANIMALS CAPTURED'];
-        config.huntbot2.staticVariables = config.huntbot2.staticVariables && typeof config.huntbot2.staticVariables === 'object' && !Array.isArray(config.huntbot2.staticVariables) ? config.huntbot2.staticVariables : { defaultDuration: '1D', defaultUpgrade: 'duration' };
         config.multiAccount = config.multiAccount || { enabled: true, maxAccounts: 0 };
         config.multiAccount.enabled = config.multiAccount.enabled !== false;
         config.multiAccount.maxAccounts = Math.max(0, Math.min(4, parseInt(config.multiAccount.maxAccounts, 10) || 0));
@@ -224,21 +219,6 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.huntbot.sellAllAfterReturn = this.toBool(body.hbSellAllAfterReturn);
         config.huntbot.defaultUpgrade = body.hbUpgrade || 'duration';
         config.huntbot.defaultDuration = body.hbDuration || '1D';
-        config.huntbot2 = config.huntbot2 || {};
-        config.huntbot2.enabled = this.toBool(body.hb2Enabled);
-        config.huntbot2.autoMode = this.toBool(body.hb2AutoMode);
-        config.huntbot2.notifyProgress = this.toBool(body.hb2Notify);
-        config.huntbot2.sellAllAfterReturn = this.toBool(body.hb2SellAllAfterReturn);
-        config.huntbot2.defaultUpgrade = String(body.hb2Upgrade || 'duration').trim();
-        config.huntbot2.defaultDuration = String(body.hb2Duration || '1D').trim();
-        try {
-            const parsedTriggers = JSON.parse(String(body.hb2MessageTriggers || '[]'));
-            if (Array.isArray(parsedTriggers)) config.huntbot2.messageTriggers = parsedTriggers.map(v => String(v).trim()).filter(Boolean).slice(0, 50);
-        } catch {}
-        try {
-            const parsedVariables = JSON.parse(String(body.hb2StaticVariables || '{}'));
-            if (parsedVariables && typeof parsedVariables === 'object' && !Array.isArray(parsedVariables)) config.huntbot2.staticVariables = parsedVariables;
-        } catch {}
         config.tiketandhb.channelId = body.tiketandhbChannel || '';
         
         config.safety.cctv = this.toBool(body.cctvEnabled);

@@ -1,8 +1,7 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
-const fetch = require('node-fetch');
-const { recognizePassword } = require('./TooEz');
+
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
 const RETURN_TIME_PATTERN = /I WILL BE BACK IN\s+([\d\sDHM]+)/i;
@@ -63,24 +62,15 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         if (/ini passwordmu/i.test(combinedText) && /rbot/i.test(combinedText)) {
             const imageUrl = getMessageImageUrl(msg);
             if (!imageUrl) {
-                log.error(`${accountPrefix(state)}❌ Trigger A terdeteksi, tetapi URL gambar tidak ditemukan.`);
-                return true;
-            }
-            try {
-                const response = await fetch(imageUrl, { timeout: 15000 });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const imageBuffer = await response.buffer();
-                const password = String(recognizePassword(imageBuffer) || '').trim().toUpperCase();
-                if (!/^[A-Z]{2,20}$/.test(password)) throw new Error('hasil TooEz bukan password huruf yang valid');
-                const duration = this.getConfiguredDuration();
-                log.info(`${accountPrefix(state)}🔑 Password gambar terbaca; mengirim lhb ${duration} [password].`);
-                await this.startHunt(duration, password);
-            } catch (error) {
-                log.error(`${accountPrefix(state)}❌ Gagal mengambil/membaca gambar password Huntbot: ${error.message}`);
-                telegramService?.send?.(`⚠️ <b>Huntbot2:</b> gambar password gagal dibaca (${error.message}).`);
+                log.error(`${accountPrefix(state)}❌ Trigger A terdeteksi, tetapi URL gambar tidak ditemukan di komponen/attachment.`);
+                telegramService?.send?.('⚠️ <b>Huntbot2:</b> trigger password diterima, tetapi URL gambar tidak ditemukan.');
+            } else {
+                log.warn(`${accountPrefix(state)}🔑 Trigger A: gambar password tersedia untuk dibaca manual: ${imageUrl}`);
+                telegramService?.send?.(`🔑 <b>Huntbot2 — Password gambar</b>\nBuka gambar dan baca password secara manual, lalu kirim <code>lhb ${this.getConfiguredDuration()} [password]</code> ke channel Huntbot.\n${imageUrl}`);
             }
             return true;
         }
+
         if (msg.channel?.id !== state.config?.tiketandhb?.channelId) return false;
         if (/konfirmasi pengorbanan rank/i.test(combinedText) && /kamu akan sacrifice/i.test(combinedText)) {
             if (state.config?.huntbot2?.sellAllAfterReturn === true) {
@@ -537,8 +527,6 @@ if (huntbotState.autoMode) {
 // HUNTBOT.JS
 
 async sendHuntBotCommand(cmd) {
-    // 1. PERBAIKAN: Menggunakan state secara konsisten dan mengecek hasActiveCaptcha sebagai boolean.
-    // Ditambahkan log agar kamu tahu persis kapan command ditahan.
     if (this.shouldAbort(`sendHuntBotCommand(${cmd})`)) return;
 
     try {

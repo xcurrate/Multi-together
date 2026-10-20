@@ -18,6 +18,7 @@ const createLoopManager = require('../managers/loop');
 const createEmergencyHandler = require('../managers/emergency');
 const createMessageHandler = require('../managers/message');
 const createHuntbotManager = require('../managers/huntbot');
+const createHuntbot2Manager = require('../managers/Huntbot2');
 const createDailyResetManager = require('../managers/dailyReset');
 const createVoiceManager = require('../managers/voice');
 const createClientManager = require('./client');
@@ -261,6 +262,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const captchaHandler = createCaptchaHandler(state, configManager, loopManager, telegramService, channelManager, macrodroidService);
     const voiceManager = createVoiceManager(state, configManager);
     const huntbotManager = createHuntbotManager(state, createHuntbotState(), configManager, commandSender, telegramService, captchaSolver);
+    const huntbot2Manager = createHuntbot2Manager(state, createHuntbotState(), configManager, commandSender, telegramService, null);
     const messageHandler = createMessageHandler(
         state,
         configManager,
@@ -275,7 +277,8 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         voiceManager,
         adventureManager,
         boss2Manager,
-        gemsManager
+        gemsManager,
+        huntbot2Manager
     );
     const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
 

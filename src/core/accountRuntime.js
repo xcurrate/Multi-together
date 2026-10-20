@@ -285,7 +285,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         gemsManager,
         huntbot2Manager
     );
-    const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
+    const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager, huntbot2Manager);
 
     let readyLoopWatcher = null;
     const otherCommandReadyWatchers = new Map();

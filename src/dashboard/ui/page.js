@@ -18,6 +18,7 @@ function renderPage(config) {
         const boss2 = config.settings.boss2 || {};
         const gems = config.settings.gems || {};
         const adventure = config.settings.adventure || {};
+        const huntbot2 = config.settings.huntbot2 || {};
         const msgFilter = config.settings.messageFilter || {};
         const messageDebug = config.settings.messageDebug || {};
         const voice = config.settings.voice || {};
@@ -91,6 +92,7 @@ function renderPage(config) {
                         custom1,
                         custom2,
                         huntbot,
+                        huntbot2,
                         control,
                         lucyControl,
                         rotation,

@@ -186,7 +186,8 @@ isPaused() {
         // Balasan `whb 1d` saat HuntBot belum bisa dijemput sering berupa plain text
         // `I WILL BE BACK IN ...` tanpa nama akun. Karena tiap akun memakai channel
         // HuntBot/tiket khusus, teks HuntBot di channel config akun ini dianggap milik akun ini.
-        if (HUNTBOT_CHANNEL_RESPONSE_PATTERN.test(rawText)) return true;
+        const configuredTriggers = Array.isArray(state.config?.huntbot2?.messageTriggers) ? state.config.huntbot2.messageTriggers : [];
+        if (HUNTBOT_CHANNEL_RESPONSE_PATTERN.test(rawText) || configuredTriggers.some(trigger => trigger && normalizedText.includes(String(trigger).toLowerCase()))) return true;
 
         this.pruneTrackedCommands();
         const referenceId = getMessageReferenceId(msg);
@@ -409,7 +410,7 @@ if (huntbotState.autoMode) {
         telegramService.send(`💰 <b>Sale Complete</b>\nCowoncy gained: ${cowoncy.toLocaleString()}`);
 
         if (huntbotState.autoMode && state.config?.huntbot2?.sellAllAfterReturn === true) {
-            const duration = CONSTANTS.HUNTBOT.DEFAULT_DURATION;
+            const duration = (state.config?.huntbot2?.staticVariables?.defaultDuration || state.config?.huntbot2?.defaultDuration || CONSTANTS.HUNTBOT.DEFAULT_DURATION);
             log.info(`${accountPrefix(state)}🚀 Sell All selesai: skip wupg dan memulai HuntBot lagi (${duration}).`);
             this.scheduleDelayedAction(() => this.startHunt(duration), 1000);
         }
@@ -539,12 +540,12 @@ async checkStatus() {
         await this.sendHuntBotCommand(CONSTANTS.HUNTBOT.COMMANDS.SACRIFICE);
     },
 
-    async upgrade(type = CONSTANTS.HUNTBOT.DEFAULT_UPGRADE, amount = "all") {
+    async upgrade(type = (state.config?.huntbot2?.staticVariables?.defaultUpgrade || state.config?.huntbot2?.defaultUpgrade || CONSTANTS.HUNTBOT.DEFAULT_UPGRADE), amount = "all") {
         const cmd = `${CONSTANTS.HUNTBOT.COMMANDS.UPGRADE} ${type} ${amount}`;
         await this.sendHuntBotCommand(cmd);
     },
 
-    async startHunt(duration = CONSTANTS.HUNTBOT.DEFAULT_DURATION, password = "") {
+    async startHunt(duration = (state.config?.huntbot2?.staticVariables?.defaultDuration || state.config?.huntbot2?.defaultDuration || CONSTANTS.HUNTBOT.DEFAULT_DURATION), password = "") {
         if (password) {
             huntbotState.activeHunt = null;
             huntbotState.notifiedSoon = false;

@@ -640,11 +640,13 @@ ${renderRestSettings(config.settings?.rest)}
                             <div class="toggle-row"><span>Jual hewan (lewati sacrifice)</span><input type="checkbox" name="hb2SellAnimals" ${config.settings?.huntbot2?.sellAnimals ? 'checked' : ''}></div>
                             <label>Channel ID Lucy (command & notifikasi DM)</label>
                             <input type="text" name="hb2ChannelId" value="${escapeHtml(config.settings?.huntbot2?.channelId || '')}" placeholder="Discord Channel ID">
-                            <label>Durasi Hunt</label>
-                            <select name="hb2Duration" class="input-select">
-                                ${['1M','5M','10M','30M','1H','6H','12H','1D'].map(duration => `<option value="${duration}" ${(config.settings?.huntbot2?.duration || '1D') === duration ? 'selected' : ''}>${duration}</option>`).join('')}
-                            </select>
-                            <div class="input-hint">Setelah konfirmasi sacrifice/jual, tunggu 2–3 detik lalu kirim <code>lhb DURASI</code>. Password dikirim sebagai <code>lhb DURASI PASSWORD</code>.</div>
+                            <label>Durasi Hunt (contoh: 1D, 1H, 30M)</label>
+                            <input type="text" name="hb2Duration" value="${escapeHtml(config.settings?.huntbot2?.duration || '1D')}" placeholder="1D">
+                            <div class="divider"></div>
+                            <div class="toggle-row"><span>Upgrade setelah sacrifice</span><input type="checkbox" name="hb2UpgradeEnabled" ${config.settings?.huntbot2?.upgradeEnabled ? 'checked' : ''}></div>
+                            <label>Gain untuk upgrade</label>
+                            <input type="text" name="hb2UpgradeGain" value="${escapeHtml(config.settings?.huntbot2?.upgradeGain || '')}" placeholder="Contoh: 1D">
+                            <div class="input-hint">Jika upgrade aktif: setelah klik konfirmasi sacrifice tunggu 2 detik, kirim <code>lucy upgrade GAIN all</code>, tunggu 2 detik lagi, lalu kirim <code>lhb 1D</code>. Jika gambar password gagal diunduh atau tidak dikenali, Huntbot2 mencoba lagi dengan <code>lhb 1D</code> setelah 10 menit.</div>
                         </div>
                     </div>
 

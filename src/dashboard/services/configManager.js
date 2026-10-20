@@ -33,6 +33,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
             D: { type: 'Component', content: '**HUNTBOT sedang berburu!**' },
             E: { type: 'Component', content: 'BEEP BOOP. dzula AKU AKAN KEMBALI DALAM' },
             F: { type: 'Component', content: 'BEEP BOOP. AKU KEMBALI' },
+            SELL: { type: 'Component', content: '## Konfirmasi Jual Rank' },
             DM: { type: 'Component', content: 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!' }
         }, staticVariables: { defaultDuration: '1D', defaultUpgrade: 'duration' } };
         config.huntbot2.enabled = config.huntbot2.enabled === true;
@@ -257,6 +258,8 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.huntbot2.sellAllAfterReturn = this.toBool(body.hb2SellAllAfterReturn);
         config.huntbot2.defaultUpgrade = String(body.hb2Upgrade || 'duration').trim();
         config.huntbot2.defaultDuration = String(body.hb2Duration || '1D').trim();
+        config.huntbot2.staticVariables = config.huntbot2.staticVariables || {};
+        config.huntbot2.staticVariables.defaultDuration = config.huntbot2.defaultDuration;
         try {
             const parsedTriggers = JSON.parse(String(body.hb2MessageTriggers || '{}'));
             if (parsedTriggers && typeof parsedTriggers === 'object' && !Array.isArray(parsedTriggers)) {

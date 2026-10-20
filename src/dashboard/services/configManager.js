@@ -45,6 +45,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
             D: { type: 'Component', content: '**HUNTBOT sedang berburu!**' },
             E: { type: 'Component', content: 'BEEP BOOP. dzula AKU AKAN KEMBALI DALAM' },
             F: { type: 'Component', content: 'BEEP BOOP. AKU KEMBALI' },
+            SELL: { type: 'Component', content: '## Konfirmasi Jual Rank' },
             DM: { type: 'Component', content: 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!' }
         };
         if (!config.huntbot2.messageTriggers || Array.isArray(config.huntbot2.messageTriggers) || typeof config.huntbot2.messageTriggers !== 'object') {

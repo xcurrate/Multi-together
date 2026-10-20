@@ -4,7 +4,7 @@ const { accountPrefix, randomInt } = require('../utils');
 const TooEz = require('./TooEz');
 
 const DEFAULTS = { enabled: false, channelId: '', duration: '1D', sellAnimals: false, upgradeEnabled: false, upgradeGain: '' };
-const DURATION_PATTERN = /^\\d+[MHD]$/i;
+const DURATION_PATTERN = /^\d+[MHD]$/i;
 const GAIN_PATTERN = /^[A-Za-z0-9_-]+$/;
 const RETURN_TIME_PATTERN = /AKU AKAN KEMBALI DALAM\s+(.+?)\s+DENGAN\b/i;
 const DM_DONE_TEXT = 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!';

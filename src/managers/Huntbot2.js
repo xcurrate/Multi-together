@@ -93,7 +93,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
             if (clicked) this.scheduleDelayedAction(() => this.startHunt(this.getConfiguredDuration()), 2500);
             return true;
         }
-        if (/konfirmasi jual rank/i.test(combinedText)) {
+        if (matchesConfiguredTrigger('SELL', combinedText, /konfirmasi jual rank/i)) {
             if (state.config?.huntbot2?.sellAllAfterReturn !== true) return true;
             const clicked = await this.clickComponentByCustomId(msg, 'sell_confirm');
             if (clicked) this.scheduleDelayedAction(() => this.startHunt(this.getConfiguredDuration()), 2500);
@@ -144,7 +144,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
     getConfiguredDuration() {
         const config = state.config?.huntbot2 || {};
-        return String(config.staticVariables?.defaultDuration || config.defaultDuration || '1D').trim().toUpperCase() || '1D';
+        return String(config.defaultDuration || config.staticVariables?.defaultDuration || '1D').trim().toUpperCase() || '1D';
     },
 
     async clickComponentByCustomId(msg, customId) {

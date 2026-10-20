@@ -37,7 +37,6 @@ function extractImageUrl(msg) {
     for (const attachment of (msg?.attachments?.values?.() || [])) if (attachment?.url) candidates.push(attachment.url);
     candidates.push(...collectStrings(msg?.components || []), ...collectStrings(msg?.embeds || []), String(msg?.content || ''));
     const isImageUrl = url => /\.(png|jpe?g|webp)(?:\?|$)/i.test(url) || /cdn\.discordapp\.com\/attachments\//i.test(url);
-    // Prefer Markdown link destinations; the first URL may be only a displayed label without CDN query parameters.
     for (const candidate of candidates) {
         const targets = [...String(candidate).matchAll(/\]\((https?:\/\/[^)\s]+)\)/gi)].map(match => match[1].replace(/&amp;/g, '&'));
         for (const url of targets.reverse()) if (isImageUrl(url)) return url;
@@ -102,13 +101,15 @@ module.exports = function createHuntbot2Manager(state) {
             const text = getMessageText(msg), lower = text.toLowerCase();
             if (!text) return false;
 
-            if (msg.channel?.type === 'DM' && lower.includes(DM_DONE_TEXT)) {
+            const myName = (msg.guild?.members?.me?.displayName || msg.client?.user?.displayName || msg.client?.user?.username || '').toLowerCase();
+
+            if ((!msg.guild || msg.channel?.type === 'DM' || msg.channel?.type === 1) && lower.includes('selesai berburu')) {
                 if (markHandled(msg)) return false;
                 await sendCommand('lucy hb');
                 log.success(prefix() + 'DM selesai berburu terdeteksi; perintah lucy hb dikirim.');
                 return true;
             }
-            if (lower.includes('dzula, ini passwordmu')) {
+            if (lower.includes(myName) && lower.includes('ini passwordmu')) {
                 if (markHandled(msg)) return false;
                 const imageUrl = extractImageUrl(msg);
                 if (!imageUrl) { log.error(prefix() + 'Pesan password terdeteksi tetapi URL gambar tidak ditemukan.'); return false; }
@@ -149,12 +150,12 @@ module.exports = function createHuntbot2Manager(state) {
                 log.info(prefix() + 'Waktu kembali: ' + (parseReturnTime(text) || 'tidak terdeteksi'));
                 return true;
             }
-            if (lower.includes('## dzula - huntbot') && lower.includes('saya akan berburu untukmu tuan')) {
+            if (lower.includes(myName) && lower.includes('huntbot') && lower.includes('saya akan berburu untukmu tuan')) {
                 if (markHandled(msg)) return false;
                 log.info(prefix() + 'Lucy Huntbot siap berburu.');
                 return true;
             }
-            if (lower.includes('## dzula - huntbot') && lower.includes('huntbot sedang berburu')) {
+            if (lower.includes(myName) && lower.includes('huntbot') && lower.includes('huntbot sedang berburu')) {
                 if (markHandled(msg)) return false;
                 log.info(prefix() + 'Huntbot sedang berburu.');
                 return true;

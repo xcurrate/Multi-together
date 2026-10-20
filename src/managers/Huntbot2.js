@@ -156,6 +156,7 @@ module.exports = (state, configManager) => {
             const text = collectMessageText(msg);
             const isDm = msg.channel?.type === 'DM' || !msg.guildId && !msg.guild;
             const isConfiguredChannel = String(msg.channel?.id || msg.channelId || '') === settings.channelId;
+            if (!isDm && (!Array.isArray(msg.components) || msg.components.length === 0)) return false;
 
             if (isDm && DM_FINISHED_TRIGGER.test(text)) {
                 return sendCommand('lucy hb');

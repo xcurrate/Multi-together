@@ -226,7 +226,9 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
             enabled: this.toBool(body.hb2Enabled),
             channelId: String(body.hb2ChannelId || '').trim(),
             duration: body.hb2Duration || config.settings.huntbot2?.duration || '1D',
-            sellAnimals: this.toBool(body.hb2SellAnimals)
+            sellAnimals: this.toBool(body.hb2SellAnimals),
+            upgradeEnabled: this.toBool(body.hb2UpgradeEnabled),
+            upgradeGain: String(body.hb2UpgradeGain || '').trim()
         });
         config.tiketandhb.channelId = body.tiketandhbChannel || '';
         

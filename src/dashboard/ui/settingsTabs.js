@@ -646,7 +646,7 @@ ${renderRestSettings(config.settings?.rest)}
                             <textarea name="hb2MessageTriggers" rows="4" spellcheck="false">${escapeHtml(JSON.stringify(hb2Triggers && !Array.isArray(hb2Triggers) && typeof hb2Triggers === 'object' ? hb2Triggers : { A: { type: 'Component', content: '**<:rbot:1541929444334374942> | dzula**, ini passwordmu!' }, B: { type: 'Component', content: 'BEEP. BOOP. SAYA HUNTBOT. SAYA AKAN BERBURU UNTUKMU TUAN.' }, C: { type: 'Component', content: '## Konfirmasi Pengorbanan Rank\\nKamu akan sacrifice' }, D: { type: 'Component', content: '**HUNTBOT sedang berburu!**' }, E: { type: 'Component', content: 'BEEP BOOP. dzula AKU AKAN KEMBALI DALAM' }, F: { type: 'Component', content: 'BEEP BOOP. AKU KEMBALI' }, DM: { type: 'Component', content: 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!' } }, null, 2))}</textarea>
                             <label>Static Variables (JSON object)</label>
                             <textarea name="hb2StaticVariables" rows="5" spellcheck="false">${escapeHtml(JSON.stringify(hb2Variables, null, 2))}</textarea>
-                            <div class="input-hint">Trigger list accepts up to 50 strings. Static variables must be a JSON object; defaultDuration and defaultUpgrade are used as runtime defaults.</div>
+                            <div class="input-hint">Setiap trigger harus memiliki type Component dan content berupa teks pemicu. Static variables harus berupa JSON object; defaultDuration dipakai untuk perintah lhb.</div>
                         </div>
                     </div>
                     <div id="tab-lucy-control" class="tab-content">

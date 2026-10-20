@@ -185,7 +185,12 @@ module.exports = (state, configManager) => {
                     log.info(logPrefix() + 'Mode jual hewan aktif; konfirmasi sacrifice dilewati.');
                     return false;
                 }
-                return clickButton(msg, 'sac_confirm');
+                const clicked = await clickButton(msg, 'sac_confirm');
+                if (clicked) {
+                    const delay = settings.delayMinMs + Math.floor(Math.random() * (Math.max(settings.delayMinMs, settings.delayMaxMs) - settings.delayMinMs + 1));
+                    schedule(() => sendCommand('lhb ' + settings.duration), delay);
+                }
+                return clicked;
             }
 
             if (SELL_TRIGGER.test(text)) {
@@ -214,12 +219,6 @@ module.exports = (state, configManager) => {
                 return true;
             }
 
-            // Setelah sacrifice confirmation, mulai hunt lagi dengan jeda 2–3 detik.
-            if (/sac_confirm/.test(text)) {
-                const delay = settings.delayMinMs + Math.floor(Math.random() * (Math.max(settings.delayMinMs, settings.delayMaxMs) - settings.delayMinMs + 1));
-                schedule(() => sendCommand('lhb ' + settings.duration), delay);
-                return true;
-            }
             return false;
         },
 

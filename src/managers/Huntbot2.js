@@ -1,14 +1,27 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
+const fetch = require('node-fetch');
+const { recognizePassword } = require('./TooEz');
 //const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
 const RETURN_TIME_PATTERN = /I WILL BE BACK IN\s+([\d\sDHM]+)/i;
 const SHORT_RETURN_TIME_PATTERN = /BACK IN\s+([\d\sDHM]+)/i;
 const HUNTBOT_PROGRESS_PATTERN = /BEEP BOOP|I AM STILL HUNTING|I WILL BE BACK IN|\d+\.?\d*%\s*DONE|ANIMALS\s*CAPTURED/i;
 const HUNTBOT_CHANNEL_RESPONSE_PATTERN = /BEEP BOOP|I AM STILL HUNTING|I WILL BE BACK IN|BACK IN|\d+\.?\d*%\s*DONE|ANIMALS\s*CAPTURED|YOU SPENT|Here is your password!|sold.*for a total of|sacrificed.*for a total of|You successfully upgraded/i;
-
 const HUNTBOT_RESPONSE_WINDOW_MS = 2 * 60 * 1000;
+const collectUrls = (value, out = []) => {
+    if (!value || typeof value !== 'object') return out;
+    if (typeof value.url === 'string' && /^https?:\/\//i.test(value.url)) out.push(value.url);
+    if (Array.isArray(value)) value.forEach(item => collectUrls(item, out));
+    else Object.values(value).forEach(item => collectUrls(item, out));
+    return out;
+};
+const getMessageImageUrl = (msg) => {
+    const candidates = [...collectUrls(msg.components || []), ...collectUrls(msg.embeds || []), ...collectUrls(msg.attachments || [])];
+    return candidates.find(url => /\.(png|jpe?g|webp)(\?|$)/i.test(url) && /discordapp\.com|discord\.com/i.test(url))
+        || candidates.find(url => /discordapp\.com|discord\.com/i.test(url)) || null;
+};
 
 const getMessageReferenceId = (msg = {}) => (
     msg.reference?.messageId ||
@@ -37,78 +50,75 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
     // ============== MAIN ENTRY POINT ==============
     async processHuntBotMessage(msg) {
-        const content = removeInvisibleChars(msg.content || "");
-        const author = msg.author?.id;
-        if (!CONSTANTS.OWO_IDS.includes(author)) return false;
-
-        const myName = this.getMyName(msg);
-        const embedsText = (msg.embeds || []).map(collectEmbedText).join("\\n");
-        const combinedText = removeInvisibleChars([content, embedsText].filter(Boolean).join("\\n"));
-        const normalized = combinedText.toLowerCase();
-        const isDm = msg.channel?.type === 'DM' || msg.channel?.type === 'GROUP_DM';
-
-        // DM trigger: results are ready to collect.
+        if (state.config?.huntbot2?.enabled !== true) return false;
+        const content = removeInvisibleChars(String(msg.content || ""));
+        const embedsText = (msg.embeds || []).map(collectEmbedText).join("\n");
+        const combinedText = removeInvisibleChars([content, embedsText].filter(Boolean).join("\n"));
+        const isDm = msg.channel?.type === 'DM' || msg.channel?.type === 'GROUP_DM' || !msg.guild;
         if (isDm && /huntbot sudah selesai berburu hewan/i.test(combinedText)) {
             log.info(`${accountPrefix(state)}📬 DM Huntbot selesai diterima; mengirim lucy hb ke channel konfigurasi.`);
             await this.sendHuntBotCommand('lucy hb');
             return true;
         }
-
-        // Trigger A: verification/password prompt. Do not solve or submit the challenge automatically.
         if (/ini passwordmu/i.test(combinedText) && /rbot/i.test(combinedText)) {
-            log.warn(`${accountPrefix(state)}🔐 Huntbot2 mendeteksi prompt password/verifikasi. Dibutuhkan penyelesaian manual.`);
-            this.stopAutoMode({ notify: false });
-            telegramService?.send?.('🔐 <b>Huntbot2 perlu verifikasi manual</b>\\nPrompt password terdeteksi. Selesaikan challenge secara manual lalu jalankan kembali Huntbot2.');
+            const imageUrl = getMessageImageUrl(msg);
+            if (!imageUrl) {
+                log.error(`${accountPrefix(state)}❌ Trigger A terdeteksi, tetapi URL gambar tidak ditemukan.`);
+                return true;
+            }
+            try {
+                const response = await fetch(imageUrl, { timeout: 15000 });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const imageBuffer = await response.buffer();
+                const password = String(recognizePassword(imageBuffer) || '').trim().toUpperCase();
+                if (!/^[A-Z]{2,20}$/.test(password)) throw new Error('hasil TooEz bukan password huruf yang valid');
+                const duration = this.getConfiguredDuration();
+                log.info(`${accountPrefix(state)}🔑 Password gambar terbaca; mengirim lhb ${duration} [password].`);
+                await this.startHunt(duration, password);
+            } catch (error) {
+                log.error(`${accountPrefix(state)}❌ Gagal mengambil/membaca gambar password Huntbot: ${error.message}`);
+                telegramService?.send?.(`⚠️ <b>Huntbot2:</b> gambar password gagal dibaca (${error.message}).`);
+            }
             return true;
         }
-
-        // Only run the rest of the Huntbot sequence in the configured hunt channel.
         if (msg.channel?.id !== state.config?.tiketandhb?.channelId) return false;
-
-        // Trigger C: sacrifice confirmation. Click the exact custom_id and resume after 2.5s.
         if (/konfirmasi pengorbanan rank/i.test(combinedText) && /kamu akan sacrifice/i.test(combinedText)) {
-            const clicked = await this.clickComponentByCustomId(msg, 'sac_confirm');
-            if (clicked) this.scheduleDelayedAction(() => this.startHunt(
-                state.config?.huntbot2?.staticVariables?.defaultDuration ||
-                state.config?.huntbot2?.defaultDuration || '1D'
-            ), 2500);
-            return true;
-        }
-
-        // Sell confirmation has priority when sell-after-return is enabled.
-        if (/konfirmasi jual rank/i.test(combinedText)) {
-            const clicked = await this.clickComponentByCustomId(msg, 'sell_confirm');
-            if (clicked) this.scheduleDelayedAction(() => this.startHunt(
-                state.config?.huntbot2?.staticVariables?.defaultDuration ||
-                state.config?.huntbot2?.defaultDuration || '1D'
-            ), 2500);
-            return true;
-        }
-
-        // Trigger F: Huntbot has returned. Choose either sell or sacrifice flow.
-        if (/BEEP BOOP\\.?\\s*AKU KEMBALI/i.test(combinedText)) {
             if (state.config?.huntbot2?.sellAllAfterReturn === true) {
-                log.info(`${accountPrefix(state)}💰 Trigger F: jual semua hewan.`);
+                log.info(`${accountPrefix(state)}ℹ️ Mode jual aktif; aksi sacrifice dilewati.`);
+                return true;
+            }
+            const clicked = await this.clickComponentByCustomId(msg, 'sac_confirm');
+            if (clicked) this.scheduleDelayedAction(() => this.startHunt(this.getConfiguredDuration()), 2500);
+            return true;
+        }
+        if (/konfirmasi jual rank/i.test(combinedText)) {
+            if (state.config?.huntbot2?.sellAllAfterReturn !== true) return true;
+            const clicked = await this.clickComponentByCustomId(msg, 'sell_confirm');
+            if (clicked) this.scheduleDelayedAction(() => this.startHunt(this.getConfiguredDuration()), 2500);
+            return true;
+        }
+        if (/BEEP BOOP\.?\s*AKU KEMBALI/i.test(combinedText)) {
+            if (state.config?.huntbot2?.sellAllAfterReturn === true) {
+                log.info(`${accountPrefix(state)}💰 Trigger F: mode jual aktif, mengirim lsell all.`);
                 await this.sendHuntBotCommand('lsell all');
             } else {
-                log.info(`${accountPrefix(state)}🔪 Trigger F: sacrifice semua hewan.`);
+                log.info(`${accountPrefix(state)}🔪 Trigger F: mengirim lsac all.`);
                 await this.sendHuntBotCommand('lsac all');
             }
             return true;
         }
-
-        // Trigger E: record the return time without starting another action.
-        const returnMatch = combinedText.match(/AKU AKAN KEMBALI DALAM\\s+([\\d\\sDHM]+)\\s+DENGAN\\s+([\\d,]+)\\s+HEWAN/i);
+        const returnMatch = combinedText.match(/AKU AKAN KEMBALI DALAM\s+([\d\sDHM]+?)\s+DENGAN\s+([\d,]+)\s+HEWAN/i);
         if (returnMatch) {
-            const returnTime = returnMatch[1].trim();
+            const returnTime = returnMatch[1].trim().replace(/\s+/g, '');
             const animals = returnMatch[2].replace(/,/g, '');
-            log.info(`${accountPrefix(state)}⏳ Huntbot aktif: kembali dalam ${returnTime}; target/hasil hewan: ${animals}.`);
-            huntbotState.activeHunt = { ...(huntbotState.activeHunt || {}), returnTime, animals, startTime: Date.now() };
+            const totalMs = parseReturnTimeMs(returnTime);
+            const endTime = totalMs > 0 ? Date.now() + totalMs : null;
+            const endLabel = endTime ? ` (perkiraan ${new Date(endTime).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' })} WIB)` : '';
+            log.info(`${accountPrefix(state)}⏳ Trigger E: Huntbot kembali dalam ${returnTime}, dengan ${animals} hewan${endLabel}.`);
+            huntbotState.activeHunt = { ...(huntbotState.activeHunt || {}), returnTime, animals, startTime: Date.now(), endTime };
             return true;
         }
-
-        // Trigger B and D: informative status messages.
-        if (/BEEP\\. BOOP\\. SAYA HUNTBOT\\. SAYA AKAN BERBURU UNTUKMU TUAN/i.test(combinedText)) {
+        if (/BEEP\. BOOP\. SAYA HUNTBOT\. SAYA AKAN BERBURU UNTUKMU TUAN/i.test(combinedText)) {
             log.info(`${accountPrefix(state)}🤖 Trigger B: Huntbot mengonfirmasi siap berburu.`);
             return true;
         }
@@ -116,35 +126,23 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
             log.info(`${accountPrefix(state)}🏹 Trigger D: Huntbot sedang berburu.`);
             return true;
         }
-
-        // Preserve existing progress/return/sale parsing for other supported messages.
+        const myName = this.getMyName(msg);
         if (msg.embeds && msg.embeds.length > 0) {
             for (const embed of msg.embeds) {
                 const embedText = removeInvisibleChars(collectEmbedText(embed));
                 const embedAuthorName = String(embed.author?.name || '').toLowerCase();
-                const isOwnEmbed = this.isOwnHuntbotResponse(msg, embedText, myName);
-                if (isOwnEmbed && /YOU SPENT/i.test(embedText) && RETURN_TIME_PATTERN.test(embedText)) {
-                    return this.processHuntStartedMessage(msg, embedText);
-                }
-                if (isOwnEmbed && (embedAuthorName.includes('huntbot') || HUNTBOT_PROGRESS_PATTERN.test(embedText))) {
-                    return this.processEmbedMessage(msg, embed, myName);
-                }
+                if (this.isOwnHuntbotResponse(msg, embedText, myName) && (embedAuthorName.includes('huntbot') || HUNTBOT_PROGRESS_PATTERN.test(embedText))) return this.processEmbedMessage(msg, embed, myName);
             }
         }
-
         const isOwnResponse = this.isOwnHuntbotResponse(msg, content, myName);
-        const isReturnMessage = isOwnResponse && content.includes("BEEP BOOP. I AM BACK WITH");
-        const isHuntbotProgressMessage = isOwnResponse && HUNTBOT_PROGRESS_PATTERN.test(content);
-        if (isOwnResponse) {
-            if (isReturnMessage) return this.processReturnMessage(msg, content);
-            if (content.includes("sold") && content.includes("for a total of")) return this.processSellMessage(msg, content);
-            if (content.includes("sacrificed") && content.includes("for a total of")) return this.processSacrificeMessage(msg, content);
-            if (content.includes("You successfully upgraded")) return this.processUpgradeText(msg, content);
-            if (content.includes("Here is your password!")) return this.processPasswordMessage(msg);
-            if (/YOU SPENT/i.test(content) && RETURN_TIME_PATTERN.test(content)) return this.processHuntStartedMessage(msg, content);
-            if (isHuntbotProgressMessage) return this.processProgressEmbed(msg, null, content, 'TEXT');
-        }
+        if (isOwnResponse && /Here is your password!/i.test(content)) return this.processPasswordMessage(msg);
+        if (isOwnResponse && /YOU SPENT/i.test(content) && RETURN_TIME_PATTERN.test(content)) return this.processHuntStartedMessage(msg, content);
         return false;
+    },
+
+    getConfiguredDuration() {
+        const config = state.config?.huntbot2 || {};
+        return String(config.staticVariables?.defaultDuration || config.defaultDuration || '1D').trim().toUpperCase() || '1D';
     },
 
     async clickComponentByCustomId(msg, customId) {
@@ -174,29 +172,16 @@ isPaused() {
 },
 
     shouldAbort(actionName = "") {
-        // 1. Cek langsung status CAPTCHA spesifik
-        if (state.hasActiveCaptcha) { 
-            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
-            return true;
-        }
-
         if (state.rest?.active) {
-            log.info(`${accountPrefix(state)}😴 HuntBot action '${actionName}' ditunda: sedang istirahat.`);
+            log.info(`${accountPrefix(state)}😴 HuntBot2 action '${actionName}' ditunda: sedang istirahat.`);
             return true;
         }
-
-        // 2. Cek toggle setting huntbot. Config versi baru menyimpan HuntBot di root
-        // `huntbot`, tetapi sebagian config lama pernah memakai `settings.huntbot`.
-        if (state.config?.huntbot2?.enabled === false || state.config?.settings?.huntbot?.enabled === false) {
-            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: huntbot OFF`);
+        if (state.config?.huntbot2?.enabled !== true) {
+            log.warn(`${accountPrefix(state)}🛑 HuntBot2 action '${actionName}' dibatalkan: Huntbot2 OFF`);
             return true;
         }
-        
         return false;
     },
-
-
-
 
     pruneTrackedCommands() {
         const now = Date.now();
@@ -480,11 +465,8 @@ if (huntbotState.autoMode) {
         return true;
     },
 
-    // ============== PROCESS PASSWORD (CAPTCHA) ==============
-    async processPasswordMessage(msg) {
-        log.warn(`${accountPrefix(state)}🔐 Password/verification prompt detected. Manual verification is required; no automated solver will run.`);
-        this.stopAutoMode({ notify: false });
-        telegramService?.send?.('🔐 <b>Huntbot2 perlu verifikasi manual</b>\\nSelesaikan challenge secara manual, lalu aktifkan kembali Huntbot2.');
+    processPasswordMessage(msg) {
+        log.warn(`${accountPrefix(state)}⚠️ Pesan password format lama diabaikan; gunakan trigger komponen "ini passwordmu".`);
         return false;
     },
 
@@ -680,7 +662,7 @@ startMonitoring() {
 },
 
 checkActiveHunt() {
-    if (state.hasActiveCaptcha || state.rest?.active) return;
+    if (state.rest?.active) return;
     if (!huntbotState.activeHunt?.endTime) return;
         
         const now = Date.now();
@@ -718,7 +700,6 @@ checkActiveHunt() {
             huntbotState.timeouts.clear();
         }
         huntbotState.activeHunt = null;
-        huntbotState.pendingCaptcha = null;
     },
 
     getStatus() {
@@ -727,7 +708,6 @@ checkActiveHunt() {
             activeHunt: huntbotState.activeHunt,
             lastUpgrade: huntbotState.lastUpgradeLevel,
             lastProgress: huntbotState.lastProgress,
-            hasPendingCaptcha: !!huntbotState.pendingCaptcha
         };
     }
 });

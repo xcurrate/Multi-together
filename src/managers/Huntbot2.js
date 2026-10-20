@@ -16,6 +16,18 @@ const collectUrls = (value, out = []) => {
     else Object.values(value).forEach(item => collectUrls(item, out));
     return out;
 };
+const normalizeTriggerText = (value = '') => String(value)
+    .replace(/<a?:[^>]+>/g, ' ')
+    .replace(/[*_`#]/g, ' ')
+    .replace(/\\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+const matchesConfiguredTrigger = (key, text, fallbackPattern) => {
+    const trigger = state.config?.huntbot2?.messageTriggers?.[key];
+    const configured = typeof trigger === 'string' ? trigger : trigger?.content;
+    if (configured && normalizeTriggerText(text).includes(normalizeTriggerText(configured))) return true;
+    return fallbackPattern.test(text);
+};
 const getMessageImageUrl = (msg) => {
     const candidates = [...collectUrls(msg.components || []), ...collectUrls(msg.embeds || []), ...collectUrls(msg.attachments || [])];
     return candidates.find(url => /\.(png|jpe?g|webp)(\?|$)/i.test(url) && /discordapp\.com|discord\.com/i.test(url))
@@ -54,12 +66,12 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         const embedsText = (msg.embeds || []).map(collectEmbedText).join("\n");
         const combinedText = removeInvisibleChars([content, embedsText].filter(Boolean).join("\n"));
         const isDm = msg.channel?.type === 'DM' || msg.channel?.type === 'GROUP_DM' || !msg.guild;
-        if (isDm && /huntbot sudah selesai berburu hewan/i.test(combinedText)) {
+        if (isDm && matchesConfiguredTrigger('DM', combinedText, /huntbot sudah selesai berburu hewan/i)) {
             log.info(`${accountPrefix(state)}📬 DM Huntbot selesai diterima; mengirim lucy hb ke channel konfigurasi.`);
             await this.sendHuntBotCommand('lucy hb');
             return true;
         }
-        if (/ini passwordmu/i.test(combinedText) && /rbot/i.test(combinedText)) {
+        if (matchesConfiguredTrigger('A', combinedText, /ini passwordmu/i)) {
             const imageUrl = getMessageImageUrl(msg);
             if (!imageUrl) {
                 log.error(`${accountPrefix(state)}❌ Trigger A terdeteksi, tetapi URL gambar tidak ditemukan di komponen/attachment.`);
@@ -72,7 +84,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         }
 
         if (msg.channel?.id !== state.config?.tiketandhb?.channelId) return false;
-        if (/konfirmasi pengorbanan rank/i.test(combinedText) && /kamu akan sacrifice/i.test(combinedText)) {
+        if (matchesConfiguredTrigger('C', combinedText, /konfirmasi pengorbanan rank/i) && /kamu akan sacrifice/i.test(combinedText)) {
             if (state.config?.huntbot2?.sellAllAfterReturn === true) {
                 log.info(`${accountPrefix(state)}ℹ️ Mode jual aktif; aksi sacrifice dilewati.`);
                 return true;
@@ -112,7 +124,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
             log.info(`${accountPrefix(state)}🤖 Trigger B: Huntbot mengonfirmasi siap berburu.`);
             return true;
         }
-        if (/HUNTBOT sedang berburu/i.test(combinedText)) {
+        if (matchesConfiguredTrigger('D', combinedText, /HUNTBOT sedang berburu/i)) {
             log.info(`${accountPrefix(state)}🏹 Trigger D: Huntbot sedang berburu.`);
             return true;
         }

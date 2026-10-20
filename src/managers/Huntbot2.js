@@ -99,7 +99,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
             if (clicked) this.scheduleDelayedAction(() => this.startHunt(this.getConfiguredDuration()), 2500);
             return true;
         }
-        if (/BEEP BOOP\.?\s*AKU KEMBALI/i.test(combinedText)) {
+        if (matchesConfiguredTrigger('F', combinedText, /BEEP BOOP\.?\s*AKU KEMBALI/i)) {
             if (state.config?.huntbot2?.sellAllAfterReturn === true) {
                 log.info(`${accountPrefix(state)}💰 Trigger F: mode jual aktif, mengirim lsell all.`);
                 await this.sendHuntBotCommand('lsell all');
@@ -109,7 +109,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
             }
             return true;
         }
-        const returnMatch = combinedText.match(/AKU AKAN KEMBALI DALAM\s+([\d\sDHM]+?)\s+DENGAN\s+([\d,]+)\s+HEWAN/i);
+        const returnMatch = matchesConfiguredTrigger('E', combinedText, /AKU AKAN KEMBALI DALAM/i) ? combinedText.match(/AKU AKAN KEMBALI DALAM\s+([\d\sDHM]+?)\s+DENGAN\s+([\d,]+)\s+HEWAN/i) : null;
         if (returnMatch) {
             const returnTime = returnMatch[1].trim().replace(/\s+/g, '');
             const animals = returnMatch[2].replace(/,/g, '');

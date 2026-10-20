@@ -443,10 +443,10 @@ const diterima = terbaik.skor >= AMBANG_COCOK;
 
     });
 
+    const password = hasil.map(h => h.huruf).join('');
     console.log('\n=== HASIL AKHIR ===');
-    console.log(
-        hasil.map(h => h.huruf).join('')
-    );
+    console.log(password);
+    return password;
 }
 
 if (require.main === module) main();

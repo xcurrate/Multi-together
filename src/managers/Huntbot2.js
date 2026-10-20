@@ -4,9 +4,9 @@ const { accountPrefix, randomInt } = require('../utils');
 const TooEz = require('./TooEz');
 
 const DEFAULTS = { enabled: false, channelId: '', duration: '1D', sellAnimals: false, upgradeEnabled: false, upgradeGain: '' };
-const DURATION_PATTERN = /^\\d+[MHD]$/i;
+const DURATION_PATTERN = /^\d+[MHD]$/i;
 const GAIN_PATTERN = /^[A-Za-z0-9_-]+$/;
-const RETURN_TIME_PATTERN = /AKU AKAN KEMBALI DALAM\\s+(.+?)\\s+DENGAN\\b/i;
+const RETURN_TIME_PATTERN = /AKU AKAN KEMBALI DALAM\s+(.+?)\s+DENGAN\b/i;
 const DM_DONE_TEXT = 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!';
 
 function normalizeSettings(raw = {}) {
@@ -24,7 +24,7 @@ function normalizeSettings(raw = {}) {
     };
 }
 function cleanText(value) {
-    return String(value || '').replace(/[\\u0000-\\u001F\\u007F\\u200B-\\u200D\\uFEFF]/g, ' ').replace(/\\s+/g, ' ').trim();
+    return String(value || '').replace(/[\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 function collectStrings(node, output = []) {
     if (node == null) return output;
@@ -36,7 +36,7 @@ function collectStrings(node, output = []) {
     }
     return output;
 }
-function getMessageText(msg) { return cleanText([msg?.content || '', ...collectStrings(msg?.components || []), ...collectStrings(msg?.embeds || [])].join('\\n')); }
+function getMessageText(msg) { return cleanText([msg?.content || '', ...collectStrings(msg?.components || []), ...collectStrings(msg?.embeds || [])].join('\n')); }
 function findButton(node, customId) {
     if (!node || typeof node !== 'object') return null;
     if ((node.custom_id || node.customId) === customId) return node;
@@ -47,12 +47,12 @@ function extractImageUrl(msg) {
     const candidates = [];
     for (const attachment of (msg?.attachments?.values?.() || [])) if (attachment?.url) candidates.push(attachment.url);
     candidates.push(...collectStrings(msg?.components || []), ...collectStrings(msg?.embeds || []), String(msg?.content || ''));
-    const isImageUrl = url => /\\.(png|jpe?g|webp)(?:\\?|$)/i.test(url) || /cdn\\.discordapp\\.com\\/attachments\\//i.test(url);
+    const isImageUrl = url => /\.(png|jpe?g|webp)(?:\?|$)/i.test(url) || /cdn\.discordapp\.com\/attachments\//i.test(url);
     for (const candidate of candidates) {
-        const targets = [...String(candidate).matchAll(/\\]\\((https?:\\/\\/[^)\\s]+)\\)/gi)].map(match => match[1].replace(/&amp;/g, '&'));
+        const targets = [...String(candidate).matchAll(/\]\((https?:\/\/[^)\s]+)\)/gi)].map(match => match[1].replace(/&amp;/g, '&'));
         for (const url of targets.reverse()) if (isImageUrl(url)) return url;
     }
-    for (const candidate of candidates) for (const raw of (String(candidate).match(/https?:\\/\\/[^\\s<>\\])"']+/gi) || [])) {
+    for (const candidate of candidates) for (const raw of (String(candidate).match(/https?:\/\/[^\s<>\])"']+/gi) || [])) {
         const url = raw.replace(/[),.;]+$/g, '').replace(/&amp;/g, '&');
         if (isImageUrl(url)) return url;
     }

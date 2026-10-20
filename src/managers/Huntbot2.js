@@ -62,6 +62,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
     // ============== MAIN ENTRY POINT ==============
     async processHuntBotMessage(msg) {
         if (state.config?.huntbot2?.enabled !== true) return false;
+        if (!CONSTANTS.OWO_IDS.includes(msg.author?.id)) return false;
         const content = removeInvisibleChars(String(msg.content || ""));
         const embedsText = (msg.embeds || []).map(collectEmbedText).join("\n");
         const combinedText = removeInvisibleChars([content, embedsText].filter(Boolean).join("\n"));
@@ -84,7 +85,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         }
 
         if (msg.channel?.id !== state.config?.tiketandhb?.channelId) return false;
-        if (matchesConfiguredTrigger('C', combinedText, /konfirmasi pengorbanan rank/i) && /kamu akan sacrifice/i.test(combinedText)) {
+        if (matchesConfiguredTrigger('C', combinedText, /konfirmasi pengorbanan rank/i)) {
             if (state.config?.huntbot2?.sellAllAfterReturn === true) {
                 log.info(`${accountPrefix(state)}ℹ️ Mode jual aktif; aksi sacrifice dilewati.`);
                 return true;
@@ -120,7 +121,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
             huntbotState.activeHunt = { ...(huntbotState.activeHunt || {}), returnTime, animals, startTime: Date.now(), endTime };
             return true;
         }
-        if (/BEEP\. BOOP\. SAYA HUNTBOT\. SAYA AKAN BERBURU UNTUKMU TUAN/i.test(combinedText)) {
+        if (matchesConfiguredTrigger('B', combinedText, /BEEP\. BOOP\. SAYA HUNTBOT\. SAYA AKAN BERBURU UNTUKMU TUAN/i)) {
             log.info(`${accountPrefix(state)}🤖 Trigger B: Huntbot mengonfirmasi siap berburu.`);
             return true;
         }

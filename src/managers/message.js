@@ -15,7 +15,7 @@ const toJsonValue = (value) => {
     }
 };
 
-module.exports = (state, configManager, bossManager, captchaHandler, loopManager, channelManager, telegramService, macrodroidService, huntbotManager, commandSender, voiceManager, adventureManager, boss2Manager, gemsManager, huntbot2Manager) => ({
+module.exports = (state, configManager, bossManager, captchaHandler, loopManager, channelManager, telegramService, macrodroidService, huntbotManager, commandSender, voiceManager, adventureManager, boss2Manager, gemsManager) => ({
     async handleUpdate(msg) {
         if (!state.client?.isReady() || !boss2Manager) return;
         try {
@@ -280,9 +280,6 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
 
         if (huntbotManager && typeof huntbotManager.processHuntBotMessage === 'function') {
             huntbotManager.processHuntBotMessage(msg);
-        }
-        if (huntbot2Manager && typeof huntbot2Manager.processHuntBotMessage === 'function') {
-            huntbot2Manager.processHuntBotMessage(msg);
         }
     },
 

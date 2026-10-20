@@ -3,17 +3,28 @@ const log = require('../../logger');
 const { accountPrefix, randomInt } = require('../utils');
 const TooEz = require('./TooEz');
 
-const DEFAULTS = { enabled: false, channelId: '', duration: '1D', sellAnimals: false };
-const VALID_DURATIONS = new Set(['1M','5M','10M','30M','1H','6H','12H','1D']);
-const RETURN_TIME_PATTERN = /AKU AKAN KEMBALI DALAM\s+(.+?)\s+DENGAN\b/i;
+const DEFAULTS = { enabled: false, channelId: '', duration: '1D', sellAnimals: false, upgradeEnabled: false, upgradeGain: '' };
+const DURATION_PATTERN = /^\\d+[MHD]$/i;
+const GAIN_PATTERN = /^[A-Za-z0-9_-]+$/;
+const RETURN_TIME_PATTERN = /AKU AKAN KEMBALI DALAM\\s+(.+?)\\s+DENGAN\\b/i;
 const DM_DONE_TEXT = 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!';
 
 function normalizeSettings(raw = {}) {
-    const duration = String(raw.duration || DEFAULTS.duration).trim().toUpperCase();
-    return { enabled: raw.enabled === true, channelId: String(raw.channelId || '').trim(), duration: VALID_DURATIONS.has(duration) ? duration : DEFAULTS.duration, sellAnimals: raw.sellAnimals === true };
+    const inputDuration = String(raw.duration || DEFAULTS.duration).trim().toUpperCase();
+    const duration = DURATION_PATTERN.test(inputDuration) ? inputDuration : DEFAULTS.duration;
+    const rawGain = String(raw.upgradeGain || '').trim();
+    const upgradeGain = GAIN_PATTERN.test(rawGain) ? rawGain : '';
+    return {
+        enabled: raw.enabled === true,
+        channelId: String(raw.channelId || '').trim(),
+        duration,
+        sellAnimals: raw.sellAnimals === true,
+        upgradeEnabled: raw.upgradeEnabled === true && !!upgradeGain,
+        upgradeGain
+    };
 }
 function cleanText(value) {
-    return String(value || '').replace(/[\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g, ' ').replace(/\s+/g, ' ').trim();
+    return String(value || '').replace(/[\\u0000-\\u001F\\u007F\\u200B-\\u200D\\uFEFF]/g, ' ').replace(/\\s+/g, ' ').trim();
 }
 function collectStrings(node, output = []) {
     if (node == null) return output;
@@ -25,7 +36,7 @@ function collectStrings(node, output = []) {
     }
     return output;
 }
-function getMessageText(msg) { return cleanText([msg?.content || '', ...collectStrings(msg?.components || []), ...collectStrings(msg?.embeds || [])].join('\n')); }
+function getMessageText(msg) { return cleanText([msg?.content || '', ...collectStrings(msg?.components || []), ...collectStrings(msg?.embeds || [])].join('\\n')); }
 function findButton(node, customId) {
     if (!node || typeof node !== 'object') return null;
     if ((node.custom_id || node.customId) === customId) return node;
@@ -36,13 +47,12 @@ function extractImageUrl(msg) {
     const candidates = [];
     for (const attachment of (msg?.attachments?.values?.() || [])) if (attachment?.url) candidates.push(attachment.url);
     candidates.push(...collectStrings(msg?.components || []), ...collectStrings(msg?.embeds || []), String(msg?.content || ''));
-    const isImageUrl = url => /\.(png|jpe?g|webp)(?:\?|$)/i.test(url) || /cdn\.discordapp\.com\/attachments\//i.test(url);
-    // Prefer Markdown link destinations; the first URL may be only a displayed label without CDN query parameters.
+    const isImageUrl = url => /\\.(png|jpe?g|webp)(?:\\?|$)/i.test(url) || /cdn\\.discordapp\\.com\\/attachments\\//i.test(url);
     for (const candidate of candidates) {
-        const targets = [...String(candidate).matchAll(/\]\((https?:\/\/[^)\s]+)\)/gi)].map(match => match[1].replace(/&amp;/g, '&'));
+        const targets = [...String(candidate).matchAll(/\\]\\((https?:\\/\\/[^)\\s]+)\\)/gi)].map(match => match[1].replace(/&amp;/g, '&'));
         for (const url of targets.reverse()) if (isImageUrl(url)) return url;
     }
-    for (const candidate of candidates) for (const raw of (String(candidate).match(/https?:\/\/[^\s<>\])"']+/gi) || [])) {
+    for (const candidate of candidates) for (const raw of (String(candidate).match(/https?:\\/\\/[^\\s<>\\])"']+/gi) || [])) {
         const url = raw.replace(/[),.;]+$/g, '').replace(/&amp;/g, '&');
         if (isImageUrl(url)) return url;
     }
@@ -76,14 +86,27 @@ module.exports = function createHuntbot2Manager(state) {
         try { await channel.send(command); log.info(prefix() + 'Terkirim: ' + command); return true; }
         catch (error) { log.error(prefix() + 'Gagal mengirim "' + command + '": ' + (error.message || error)); return false; }
     };
-    const scheduleHunt = (delayMs = randomInt(2000, 3000)) => {
+    const schedule = (delayMs, callback) => {
         const timer = setTimeout(async () => {
             timers.delete(timer);
             if (!settings().enabled) return;
-            await sendCommand('lhb ' + settings().duration);
-            pendingAction = null;
+            try { await callback(); }
+            catch (error) { log.error(prefix() + 'Aksi terjadwal gagal: ' + (error.message || error)); }
         }, delayMs);
         timers.add(timer);
+        return timer;
+    };
+    const scheduleRetryHunt = reason => {
+        log.warn(prefix() + reason + ' Coba ulang otomatis dalam 10 menit dengan "lhb 1D".');
+        schedule(10 * 60 * 1000, async () => {
+            await sendCommand('lhb 1D');
+        });
+    };
+    const scheduleHunt = (delayMs = randomInt(2000, 3000), fixedDuration = null) => {
+        schedule(delayMs, async () => {
+            await sendCommand('lhb ' + (fixedDuration || settings().duration));
+            pendingAction = null;
+        });
     };
     const clickConfirm = async (msg, customId, label) => {
         const button = findButton(msg?.components || [], customId);
@@ -91,7 +114,19 @@ module.exports = function createHuntbot2Manager(state) {
         try {
             await msg.clickButton(customId);
             log.success(prefix() + 'Konfirmasi ' + label + ' diklik (' + customId + ').');
-            scheduleHunt(randomInt(2000, 3000));
+            const cfg = settings();
+            if (customId === 'sac_confirm' && cfg.upgradeEnabled && cfg.upgradeGain) {
+                schedule(2000, async () => {
+                    const sent = await sendCommand('lucy upgrade ' + settings().upgradeGain + ' all');
+                    if (sent) {
+                        scheduleHunt(2000, '1D');
+                    } else {
+                        pendingAction = null;
+                    }
+                });
+            } else {
+                scheduleHunt(randomInt(2000, 3000));
+            }
             return true;
         } catch (error) { log.error(prefix() + 'Gagal klik tombol ' + customId + ': ' + (error.message || error)); return false; }
     };
@@ -111,15 +146,24 @@ module.exports = function createHuntbot2Manager(state) {
             if (lower.includes('dzula, ini passwordmu')) {
                 if (markHandled(msg)) return false;
                 const imageUrl = extractImageUrl(msg);
-                if (!imageUrl) { log.error(prefix() + 'Pesan password terdeteksi tetapi URL gambar tidak ditemukan.'); return false; }
+                if (!imageUrl) {
+                    scheduleRetryHunt('URL gambar password tidak ditemukan.');
+                    return false;
+                }
                 try {
                     const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 20000, maxContentLength: 8 * 1024 * 1024 });
                     const password = TooEz.decodeBuffer(Buffer.from(response.data));
-                    if (!password) { log.error(prefix() + 'Password dari gambar tidak berhasil dikenali oleh TooEz.'); return false; }
+                    if (!password) {
+                        scheduleRetryHunt('Password dari gambar gagal dikenali TooEz.');
+                        return false;
+                    }
                     log.success(prefix() + 'Password gambar berhasil dibaca.');
                     await sendCommand('lhb ' + settings().duration + ' ' + password);
                     return true;
-                } catch (error) { log.error(prefix() + 'Gagal mengambil/membaca gambar password: ' + (error.message || error)); return false; }
+                } catch (error) {
+                    scheduleRetryHunt('Gagal mengambil/membaca gambar password: ' + (error.message || error) + '.');
+                    return false;
+                }
             }
             if (lower.includes('konfirmasi pengorbanan rank')) {
                 if (markHandled(msg)) return false;

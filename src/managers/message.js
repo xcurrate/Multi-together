@@ -282,7 +282,7 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             huntbotManager.processHuntBotMessage(msg);
         }
         if (huntbot2Manager && typeof huntbot2Manager.processHuntBotMessage === 'function') {
-            huntbot2Manager.processHuntBotMessage(msg);
+            await huntbot2Manager.processHuntBotMessage(msg);
         }
     },
 

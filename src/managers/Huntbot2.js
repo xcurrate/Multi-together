@@ -1,14 +1,14 @@
 const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { sleep, randomInt, removeInvisibleChars, accountPrefix } = require('../utils');
-//const HUNTBOT2_CHANNEL_ID = '1378917898063446156';
+//const HUNTBOT_CHANNEL_ID = '1378917898063446156';
 
 const RETURN_TIME_PATTERN = /I WILL BE BACK IN\s+([\d\sDHM]+)/i;
 const SHORT_RETURN_TIME_PATTERN = /BACK IN\s+([\d\sDHM]+)/i;
-const HUNTBOT2_PROGRESS_PATTERN = /BEEP BOOP|I AM STILL HUNTING|I WILL BE BACK IN|\d+\.?\d*%\s*DONE|ANIMALS\s*CAPTURED/i;
-const HUNTBOT2_CHANNEL_RESPONSE_PATTERN = /BEEP BOOP|I AM STILL HUNTING|I WILL BE BACK IN|BACK IN|\d+\.?\d*%\s*DONE|ANIMALS\s*CAPTURED|YOU SPENT|Here is your password!|sold.*for a total of|sacrificed.*for a total of|You successfully upgraded/i;
+const HUNTBOT_PROGRESS_PATTERN = /BEEP BOOP|I AM STILL HUNTING|I WILL BE BACK IN|\d+\.?\d*%\s*DONE|ANIMALS\s*CAPTURED/i;
+const HUNTBOT_CHANNEL_RESPONSE_PATTERN = /BEEP BOOP|I AM STILL HUNTING|I WILL BE BACK IN|BACK IN|\d+\.?\d*%\s*DONE|ANIMALS\s*CAPTURED|YOU SPENT|Here is your password!|sold.*for a total of|sacrificed.*for a total of|You successfully upgraded/i;
 
-const HUNTBOT2_RESPONSE_WINDOW_MS = 2 * 60 * 1000;
+const HUNTBOT_RESPONSE_WINDOW_MS = 2 * 60 * 1000;
 
 const getMessageReferenceId = (msg = {}) => (
     msg.reference?.messageId ||
@@ -36,7 +36,7 @@ const collectEmbedText = (embed = {}) => [
 module.exports = (state, huntbotState, configManager, commandSender, telegramService, captchaSolver) => ({
 
     // ============== MAIN ENTRY POINT ==============
-    processHuntbot2Message(msg) {
+    processHuntBotMessage(msg) {
         const content = removeInvisibleChars(msg.content || "");
         const author = msg.author.id;
         
@@ -56,7 +56,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
                     return this.processHuntStartedMessage(msg, embedText);
                 }
 
-                if (isOwnEmbed && (embedAuthorName.includes('huntbot') || HUNTBOT2_PROGRESS_PATTERN.test(embedText))) {
+                if (isOwnEmbed && (embedAuthorName.includes('huntbot') || HUNTBOT_PROGRESS_PATTERN.test(embedText))) {
                     return this.processEmbedMessage(msg, embed, myName);
                 }
             }
@@ -64,10 +64,10 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
         const isOwnResponse = this.isOwnHuntbotResponse(msg, content, myName);
 
-        // Pengecualian khusus untuk pesan pulang/progress Huntbot2 hanya boleh diproses
+        // Pengecualian khusus untuk pesan pulang/progress HuntBot hanya boleh diproses
         // jika respons tersebut bisa dikaitkan ke command akun runtime ini.
         const isReturnMessage = isOwnResponse && content.includes("BEEP BOOP. I AM BACK WITH");
-        const isHuntbotProgressMessage = isOwnResponse && HUNTBOT2_PROGRESS_PATTERN.test(content);
+        const isHuntbotProgressMessage = isOwnResponse && HUNTBOT_PROGRESS_PATTERN.test(content);
 
 
         // CEK CONTENT 
@@ -114,19 +114,19 @@ isPaused() {
     shouldAbort(actionName = "") {
         // 1. Cek langsung status CAPTCHA spesifik
         if (state.hasActiveCaptcha) { 
-            log.warn(`${accountPrefix(state)}🛑 Huntbot2 action '${actionName}' dibatalkan: CAPTCHA aktif!`);
+            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: CAPTCHA aktif!`);
             return true;
         }
 
         if (state.rest?.active) {
-            log.info(`${accountPrefix(state)}😴 Huntbot2 action '${actionName}' ditunda: sedang istirahat.`);
+            log.info(`${accountPrefix(state)}😴 HuntBot action '${actionName}' ditunda: sedang istirahat.`);
             return true;
         }
 
-        // 2. Cek toggle setting huntbot. Config versi baru menyimpan Huntbot2 di root
+        // 2. Cek toggle setting huntbot. Config versi baru menyimpan HuntBot di root
         // `huntbot`, tetapi sebagian config lama pernah memakai `settings.huntbot`.
         if (state.config?.huntbot2?.enabled === false || state.config?.settings?.huntbot?.enabled === false) {
-            log.warn(`${accountPrefix(state)}🛑 Huntbot2 action '${actionName}' dibatalkan: huntbot OFF`);
+            log.warn(`${accountPrefix(state)}🛑 HuntBot action '${actionName}' dibatalkan: huntbot OFF`);
             return true;
         }
         
@@ -140,7 +140,7 @@ isPaused() {
         const now = Date.now();
         huntbotState.outgoingCommands = huntbotState.outgoingCommands || new Map();
         for (const [messageId, meta] of huntbotState.outgoingCommands.entries()) {
-            if (!meta?.sentAt || now - meta.sentAt > HUNTBOT2_RESPONSE_WINDOW_MS) {
+            if (!meta?.sentAt || now - meta.sentAt > HUNTBOT_RESPONSE_WINDOW_MS) {
                 huntbotState.outgoingCommands.delete(messageId);
             }
         }
@@ -167,7 +167,7 @@ isPaused() {
 
         const tracked = this.trackOutgoingCommand(msg, content);
         if (tracked) {
-            log.info(`${accountPrefix(state)}🧭 Manual Huntbot2 command tracked: ${content}`);
+            log.info(`${accountPrefix(state)}🧭 Manual HuntBot command tracked: ${content}`);
         }
         return tracked;
     },
@@ -183,10 +183,10 @@ isPaused() {
         const isMentioned = myId && (rawText.includes(`<@${myId}>`) || msg.mentions?.users?.has(myId));
         if (containsMyName || isMentioned) return true;
 
-        // Balasan `whb 1d` saat Huntbot2 belum bisa dijemput sering berupa plain text
+        // Balasan `whb 1d` saat HuntBot belum bisa dijemput sering berupa plain text
         // `I WILL BE BACK IN ...` tanpa nama akun. Karena tiap akun memakai channel
-        // Huntbot2/tiket khusus, teks Huntbot2 di channel config akun ini dianggap milik akun ini.
-        if (HUNTBOT2_CHANNEL_RESPONSE_PATTERN.test(rawText)) return true;
+        // HuntBot/tiket khusus, teks HuntBot di channel config akun ini dianggap milik akun ini.
+        if (HUNTBOT_CHANNEL_RESPONSE_PATTERN.test(rawText)) return true;
 
         this.pruneTrackedCommands();
         const referenceId = getMessageReferenceId(msg);
@@ -196,7 +196,7 @@ isPaused() {
         if (!commandMeta) return false;
         if (commandMeta.channelId && commandMeta.channelId !== msg.channel.id) return false;
 
-        return Date.now() - commandMeta.sentAt <= HUNTBOT2_RESPONSE_WINDOW_MS;
+        return Date.now() - commandMeta.sentAt <= HUNTBOT_RESPONSE_WINDOW_MS;
     },
 
 
@@ -207,7 +207,7 @@ isPaused() {
 
     // 7. HUNT BERJALAN (EMBED)
     processEmbedMessage(msg, embed, myName) {
-        log.info(`${accountPrefix(state)}📊 Huntbot2 embed detected`);
+        log.info(`${accountPrefix(state)}📊 HuntBot embed detected`);
 
         const embedText = removeInvisibleChars(collectEmbedText(embed));
         if (/BEEP BOOP|BACK IN|I WILL BE BACK IN/i.test(embedText)) {
@@ -227,7 +227,7 @@ isPaused() {
 
     // ============== PROCESS SACRIFICE ==============
     processSacrificeMessage(msg, content) {
-        log.info(`${accountPrefix(state)}🔪 Huntbot2 sacrificed items`);
+        log.info(`${accountPrefix(state)}🔪 HuntBot sacrificed items`);
         
         const cleanContent = removeInvisibleChars(content);
         log.info(`${accountPrefix(state)}🔍 Clean Sacrifice: ${cleanContent}`);
@@ -253,7 +253,7 @@ if (huntbotState.autoMode) {
     // Ambil dari state.config (mengikuti pola loop.js yang sudah berhasil)
     const upgradeType = state.config?.huntbot2?.defaultUpgrade || "duration";
 
-    log.info(`${accountPrefix(state)}🧭 Huntbot2 default upgrade dari config: ${upgradeType}`);
+    log.info(`${accountPrefix(state)}🧭 HuntBot default upgrade dari config: ${upgradeType}`);
 
     this.scheduleDelayedAction(() => this.upgrade(upgradeType, "all"), 1000);
 }
@@ -308,7 +308,7 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS PROGRESS (EMBED) ==============
     processProgressEmbed(msg, embed, progressText, source = 'EMBED') {
-        log.info(`${accountPrefix(state)}📊 Huntbot2 progress update (${source})`);
+        log.info(`${accountPrefix(state)}📊 HuntBot progress update (${source})`);
         
         const cleanText = removeInvisibleChars(progressText);
         log.info(`${accountPrefix(state)}🔍 Clean Progress: ${cleanText}`);
@@ -332,7 +332,7 @@ if (huntbotState.autoMode) {
         
         if (percentage !== null && percentage >= 90) {
             telegramService.send(
-                `⚠️ <b>Huntbot2 Almost Done!</b>\n` +
+                `⚠️ <b>HuntBot Almost Done!</b>\n` +
                 `${percentage}% complete\n` +
                 `Animals: ${animals || 'unknown'}`
             );
@@ -365,7 +365,7 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS RETURN ==============
     processReturnMessage(msg, content) {
-        log.info(`${accountPrefix(state)}🤖 Huntbot2 returned with animals!`);
+        log.info(`${accountPrefix(state)}🤖 HuntBot returned with animals!`);
         
         const cleanContent = removeInvisibleChars(content);
         
@@ -380,7 +380,7 @@ if (huntbotState.autoMode) {
         huntbotState.lastResponse = { animals, essence, exp };
         
         telegramService.send(
-            `🤖 <b>Huntbot2 Returned!</b>\n` +
+            `🤖 <b>HuntBot Returned!</b>\n` +
             `Animals: ${animals.toLocaleString()}\n` +
             `Essence: ${essence.toLocaleString()}\n` +
             `Experience: ${exp.toLocaleString()}`
@@ -401,7 +401,7 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS SELL ==============
     processSellMessage(msg, content) {
-        log.info(`${accountPrefix(state)}💰 Huntbot2 sold items`);
+        log.info(`${accountPrefix(state)}💰 HuntBot sold items`);
         const cleanContent = removeInvisibleChars(content);
         const cowoncyMatch = cleanContent.match(/total of .*?([\d,]+)/i);
         const cowoncy = cowoncyMatch ? parseInt(cowoncyMatch[1].replace(/,/g, '')) : 0;
@@ -409,8 +409,8 @@ if (huntbotState.autoMode) {
         telegramService.send(`💰 <b>Sale Complete</b>\nCowoncy gained: ${cowoncy.toLocaleString()}`);
 
         if (huntbotState.autoMode && state.config?.huntbot2?.sellAllAfterReturn === true) {
-            const duration = CONSTANTS.HUNTBOT2.DEFAULT_DURATION;
-            log.info(`${accountPrefix(state)}🚀 Sell All selesai: skip wupg dan memulai Huntbot2 lagi (${duration}).`);
+            const duration = CONSTANTS.HUNTBOT.DEFAULT_DURATION;
+            log.info(`${accountPrefix(state)}🚀 Sell All selesai: skip wupg dan memulai HuntBot lagi (${duration}).`);
             this.scheduleDelayedAction(() => this.startHunt(duration), 1000);
         }
 
@@ -419,16 +419,16 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS PASSWORD (CAPTCHA) ==============
     async processPasswordMessage(msg) {
-        // Huntbot2 never attempts to solve or submit CAPTCHA automatically.
+        // Huntbot2 does not solve or submit verification challenges automatically.
         state.hasActiveCaptcha = true;
-        log.warn(`${accountPrefix(state)}🛑 Huntbot2 detected a verification/password prompt. Automation paused for manual verification.`);
+        log.warn(`${accountPrefix(state)}🛑 Huntbot2 detected a verification prompt. Pause for manual verification.`);
         telegramService?.send?.('🛑 <b>Huntbot2 paused</b>\nVerification detected. Complete it manually before resuming automation.');
         return false;
     },
 
     // ============== PROCESS HUNT STARTED ==============
     processHuntStartedMessage(msg, content) {
-        log.info(`${accountPrefix(state)}🚀 Huntbot2 started successfully`);
+        log.info(`${accountPrefix(state)}🚀 HuntBot started successfully`);
         
         const cleanContent = removeInvisibleChars(content);
         const spentMatch = cleanContent.match(/YOU SPENT ([\d,]+) COWONCY/i);
@@ -454,7 +454,7 @@ if (huntbotState.autoMode) {
         }
         
         telegramService.send(
-            `🚀 <b>Huntbot2 Started!</b>\n` +
+            `🚀 <b>HuntBot Started!</b>\n` +
             `Spent: ${spent.toLocaleString()} cowoncy\n` +
             `Returns in: ${returnTime}`
         );
@@ -466,7 +466,7 @@ if (huntbotState.autoMode) {
 
     // ============== INITIALIZATION ==============
     init(options = {}) {
-        log.info(`${accountPrefix(state)}⚙️ Initializing Huntbot2 Manager...`);
+        log.info(`${accountPrefix(state)}⚙️ Initializing HuntBot Manager...`);
         const config = configManager.read() || {};
         
         // Memastikan loop menyala apapun kondisinya
@@ -478,7 +478,7 @@ if (huntbotState.autoMode) {
                              huntbotState.autoMode === true;
         
         if (isAutoModeOn) {
-            log.info(`${accountPrefix(state)}🤖 Huntbot2 Auto-start detected in config.`);
+            log.info(`${accountPrefix(state)}🤖 HuntBot Auto-start detected in config.`);
             huntbotState.autoMode = false; // Reset sementara agar startAutoMode bisa me-restart statusnya
             this.startAutoMode({
                 skipInitialCheck: options.skipInitialCheck,
@@ -490,19 +490,19 @@ if (huntbotState.autoMode) {
     },
 
     // ============== CUSTOM SENDER ==============
-// HUNTBOT2.JS
+// HUNTBOT.JS
 
-async sendHuntbot2Command(cmd) {
+async sendHuntBotCommand(cmd) {
     // 1. PERBAIKAN: Menggunakan state secara konsisten dan mengecek hasActiveCaptcha sebagai boolean.
     // Ditambahkan log agar kamu tahu persis kapan command ditahan.
-    if (this.shouldAbort(`sendHuntbot2Command(${cmd})`)) return;
+    if (this.shouldAbort(`sendHuntBotCommand(${cmd})`)) return;
 
     try {
         const huntbotChannelId = state.config.tiketandhb.channelId;
         const channel = state.client.channels.cache.get(huntbotChannelId);
 
         if (!channel) {
-            log.error(`${accountPrefix(state)}❌ Channel Huntbot2 (${huntbotChannelId}) belum ter-cache atau ID salah!`);
+            log.error(`${accountPrefix(state)}❌ Channel HuntBot (${huntbotChannelId}) belum ter-cache atau ID salah!`);
 
             return;
         }
@@ -512,14 +512,14 @@ async sendHuntbot2Command(cmd) {
         
         // 2. Re-check setelah sleep, biar pause yang dinyalakan saat nunggu tetap kepake
         // Asumsi: shouldAbort adalah metode valid dari class/objek ini yang mengecek status pause bot.
-        if (this.shouldAbort(`sendHuntbot2Command(${cmd}) post-sleep`)) return;
+        if (this.shouldAbort(`sendHuntBotCommand(${cmd}) post-sleep`)) return;
 
         const sentMessage = await channel.send(cmd);
         this.trackOutgoingCommand(sentMessage, cmd);
-        log.info(`${accountPrefix(state)}💬 [Huntbot2 Channel] Terkirim: ${cmd}`);
+        log.info(`${accountPrefix(state)}💬 [HuntBot Channel] Terkirim: ${cmd}`);
 
     } catch (error) {
-        log.error(`${accountPrefix(state)}❌ Gagal mengirim command Huntbot2: ${error.message}`);
+        log.error(`${accountPrefix(state)}❌ Gagal mengirim command HuntBot: ${error.message}`);
     }
 },
 
@@ -527,34 +527,34 @@ async sendHuntbot2Command(cmd) {
     // ============== COMMAND METHODS ==============
 async checkStatus() {
     if (this.shouldAbort('checkStatus')) return;
-    await this.sendHuntbot2Command(CONSTANTS.HUNTBOT2.COMMANDS.CHECK);
+    await this.sendHuntBotCommand(CONSTANTS.HUNTBOT.COMMANDS.CHECK);
 },
 
 
     async sellAll() {
-        await this.sendHuntbot2Command(CONSTANTS.HUNTBOT2.COMMANDS.SELL);
+        await this.sendHuntBotCommand(CONSTANTS.HUNTBOT.COMMANDS.SELL);
     },
 
     async sacrificeAll() {
-        await this.sendHuntbot2Command(CONSTANTS.HUNTBOT2.COMMANDS.SACRIFICE);
+        await this.sendHuntBotCommand(CONSTANTS.HUNTBOT.COMMANDS.SACRIFICE);
     },
 
-    async upgrade(type = CONSTANTS.HUNTBOT2.DEFAULT_UPGRADE, amount = "all") {
-        const cmd = `${CONSTANTS.HUNTBOT2.COMMANDS.UPGRADE} ${type} ${amount}`;
-        await this.sendHuntbot2Command(cmd);
+    async upgrade(type = CONSTANTS.HUNTBOT.DEFAULT_UPGRADE, amount = "all") {
+        const cmd = `${CONSTANTS.HUNTBOT.COMMANDS.UPGRADE} ${type} ${amount}`;
+        await this.sendHuntBotCommand(cmd);
     },
 
-    async startHunt(duration = CONSTANTS.HUNTBOT2.DEFAULT_DURATION, password = "") {
+    async startHunt(duration = CONSTANTS.HUNTBOT.DEFAULT_DURATION, password = "") {
         if (password) {
             huntbotState.activeHunt = null;
             huntbotState.notifiedSoon = false;
         }
 
         const cmd = password 
-            ? `${CONSTANTS.HUNTBOT2.COMMANDS.CHECK} ${duration} ${password}`
-            : `${CONSTANTS.HUNTBOT2.COMMANDS.CHECK} ${duration}`;
+            ? `${CONSTANTS.HUNTBOT.COMMANDS.CHECK} ${duration} ${password}`
+            : `${CONSTANTS.HUNTBOT.COMMANDS.CHECK} ${duration}`;
         
-        await this.sendHuntbot2Command(cmd);
+        await this.sendHuntBotCommand(cmd);
     },
 
     // ============== AUTO MODE & MONITORING ==============
@@ -564,14 +564,14 @@ async checkStatus() {
         
         if (huntbotState.autoMode) return;
         huntbotState.autoMode = true;
-        log.success(`${accountPrefix(state)}🤖 Huntbot2 Auto Mode ACTIVE`);
-        telegramService.send("🤖 <b>Huntbot2 Auto Mode</b>\nStarting auto loop...");
+        log.success(`${accountPrefix(state)}🤖 HuntBot Auto Mode ACTIVE`);
+        telegramService.send("🤖 <b>HuntBot Auto Mode</b>\nStarting auto loop...");
         
         this.startMonitoring();
         if (!options.skipInitialCheck) {
             this.checkStatus();
         } else {
-            log.info(`${accountPrefix(state)}🤖 Initial Huntbot2 check dilewati karena startup ready sequence yang mengirim whb.`);
+            log.info(`${accountPrefix(state)}🤖 Initial HuntBot check dilewati karena startup ready sequence yang mengirim whb.`);
         }
     },
 
@@ -586,9 +586,9 @@ async checkStatus() {
             clearInterval(huntbotState.loops.monitor);
             huntbotState.loops.monitor = null;
         }
-        log.info(`${accountPrefix(state)}🤖 Huntbot2 Auto Mode STOPPED`);
+        log.info(`${accountPrefix(state)}🤖 HuntBot Auto Mode STOPPED`);
         if (options.notify !== false) {
-            telegramService.send("🤖 <b>Huntbot2 Auto Mode</b>\nLoop stopped.");
+            telegramService.send("🤖 <b>HuntBot Auto Mode</b>\nLoop stopped.");
         }
     },
 
@@ -596,7 +596,7 @@ scheduleDelayedAction(fn, delayMs) {
     huntbotState.timeouts = huntbotState.timeouts || new Set();
     const timer = setTimeout(() => {
         huntbotState.timeouts.delete(timer);
-        if (!this.shouldAbort('delayed Huntbot2 action')) fn();
+        if (!this.shouldAbort('delayed HuntBot action')) fn();
     }, delayMs);
     huntbotState.timeouts.add(timer);
     return timer;
@@ -608,7 +608,7 @@ startMonitoring() {
     if (huntbotState.loops.monitor) {
         clearInterval(huntbotState.loops.monitor);
     }
-    log.info(`${accountPrefix(state)}⏱️ Mesin monitoring waktu Huntbot2 diaktifkan.`);
+    log.info(`${accountPrefix(state)}⏱️ Mesin monitoring waktu HuntBot diaktifkan.`);
 
     huntbotState.loops.monitor = setInterval(() => {
 
@@ -628,23 +628,23 @@ checkActiveHunt() {
         if (timeLeft > 0 && timeLeft <= 5 * 60 * 1000 && !huntbotState.notifiedSoon) {
             huntbotState.notifiedSoon = true;
             log.info(`${accountPrefix(state)}⏰ Waktu sisa < 5 menit. Mengirim notifikasi Telegram...`);
-            telegramService.send(`⏰ <b>Huntbot2 Returning Soon!</b>\nLess than 5 minutes remaining!`);
+            telegramService.send(`⏰ <b>HuntBot Returning Soon!</b>\nLess than 5 minutes remaining!`);
         }
         
         // Auto check saat waktu habis (Bot menjemput secara otomatis)
         if (timeLeft <= 0) {
-            log.info(`${accountPrefix(state)}⏰ Waktu Huntbot2 telah habis!`);
+            log.info(`${accountPrefix(state)}⏰ Waktu HuntBot telah habis!`);
             
             // Reset status agar tidak dikirim berulang kali
             huntbotState.notifiedSoon = false;
             huntbotState.activeHunt = null; 
             
             if (huntbotState.autoMode) {
-                log.info(`${accountPrefix(state)}🚀 Auto-Mode ON: Menjemput Huntbot2 dengan command whb...`);
+                log.info(`${accountPrefix(state)}🚀 Auto-Mode ON: Menjemput HuntBot dengan command whb...`);
                 this.checkStatus();
             } else {
                 log.warn(`${accountPrefix(state)}⚠️ Auto-Mode OFF: Huntbot Selesai, menunggu aksi manual.`);
-                telegramService.send(`⏰ <b>Huntbot2 Selesai!</b>\nSilakan kirim 'whb' secara manual untuk menjemput.`);
+                telegramService.send(`⏰ <b>HuntBot Selesai!</b>\nSilakan kirim 'whb' secara manual untuk menjemput.`);
             }
         }
     },

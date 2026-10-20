@@ -36,9 +36,15 @@ function extractImageUrl(msg) {
     const candidates = [];
     for (const attachment of (msg?.attachments?.values?.() || [])) if (attachment?.url) candidates.push(attachment.url);
     candidates.push(...collectStrings(msg?.components || []), ...collectStrings(msg?.embeds || []), String(msg?.content || ''));
+    const isImageUrl = url => /\.(png|jpe?g|webp)(?:\?|$)/i.test(url) || /cdn\.discordapp\.com\/attachments\//i.test(url);
+    // Prefer Markdown link destinations; the first URL may be only a displayed label without CDN query parameters.
+    for (const candidate of candidates) {
+        const targets = [...String(candidate).matchAll(/\]\((https?:\/\/[^)\s]+)\)/gi)].map(match => match[1].replace(/&amp;/g, '&'));
+        for (const url of targets.reverse()) if (isImageUrl(url)) return url;
+    }
     for (const candidate of candidates) for (const raw of (String(candidate).match(/https?:\/\/[^\s<>\])"']+/gi) || [])) {
         const url = raw.replace(/[),.;]+$/g, '').replace(/&amp;/g, '&');
-        if (/\.(png|jpe?g|webp)(?:\?|$)/i.test(url) || /cdn\.discordapp\.com\/attachments\//i.test(url)) return url;
+        if (isImageUrl(url)) return url;
     }
     return null;
 }

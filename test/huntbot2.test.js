@@ -2,11 +2,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Huntbot2 = require('../src/managers/Huntbot2');
 
-test('normalizes Huntbot2 settings and supported duration', () => {
-    assert.deepEqual(Huntbot2.normalizeSettings({ enabled: true, channelId: '123', duration: '5m', sellAnimals: true }), {
-        enabled: true, channelId: '123', duration: '5M', sellAnimals: true
+test('normalizes Huntbot2 settings, free-form duration, and upgrade options', () => {
+    assert.deepEqual(Huntbot2.normalizeSettings({ enabled: true, channelId: '123', duration: '5m', sellAnimals: true, upgradeEnabled: true, upgradeGain: '2D' }), {
+        enabled: true, channelId: '123', duration: '5M', sellAnimals: true, upgradeEnabled: true, upgradeGain: '2D'
     });
+    assert.equal(Huntbot2.normalizeSettings({ duration: '3D' }).duration, '3D');
     assert.equal(Huntbot2.normalizeSettings({ duration: 'not-a-duration' }).duration, '1D');
+    assert.equal(Huntbot2.normalizeSettings({ upgradeEnabled: true, upgradeGain: 'invalid gain' }).upgradeEnabled, false);
 });
 test('parses Lucy Huntbot return time', () => {
     assert.equal(Huntbot2.parseReturnTime('BEEP BOOP. dzula AKU AKAN KEMBALI DALAM 1M DENGAN 1 HEWAN'), '1M');

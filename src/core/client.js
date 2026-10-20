@@ -65,7 +65,7 @@ async function sendStartupCommand(state, channel, cmd, huntbotManager) {
     return true;
 }
 
-module.exports = (state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager) => ({
+module.exports = (state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager, huntbot2Manager) => ({
     initialize() {
         if (state.client) {
             log.warn(`${accountPrefix(state)}🔄 Merestart sesi Discord...`);
@@ -105,6 +105,9 @@ module.exports = (state, configManager, channelManager, messageHandler, telegram
                 // Startup ready sequence selalu mengirim whb sendiri setiap client ready/login,
                 // jadi initial check HuntBot otomatis dilewati agar tidak double-send.
                 huntbotManager.init({ skipInitialCheck: true });
+            }
+            if (huntbot2Manager && state.config.huntbot2?.enabled === true) {
+                huntbot2Manager.init({ skipInitialCheck: true });
             }
 
             // Startup command wajib dieksekusi setiap client ready/login, termasuk mode connect/prepare.

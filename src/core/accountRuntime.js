@@ -18,6 +18,7 @@ const createLoopManager = require('../managers/loop');
 const createEmergencyHandler = require('../managers/emergency');
 const createMessageHandler = require('../managers/message');
 const createHuntbotManager = require('../managers/huntbot');
+const createHuntbot2Manager = require('../managers/Huntbot2');
 const createDailyResetManager = require('../managers/dailyReset');
 const createVoiceManager = require('../managers/voice');
 const createClientManager = require('./client');
@@ -78,6 +79,11 @@ const ensureRuntimeShape = (config = {}) => {
     });
     config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false };
     config.huntbot.sellAllAfterReturn = config.huntbot.sellAllAfterReturn === true;
+    config.huntbot2 = config.huntbot2 || { enabled: false, autoMode: false, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false, messageTriggers: ['BEEP BOOP', 'I AM STILL HUNTING', 'I WILL BE BACK IN', 'BACK IN', '% DONE', 'ANIMALS CAPTURED'], staticVariables: { defaultDuration: '1D', defaultUpgrade: 'duration' } };
+    config.huntbot2.enabled = config.huntbot2.enabled === true;
+    config.huntbot2.autoMode = config.huntbot2.autoMode === true;
+    config.huntbot2.messageTriggers = Array.isArray(config.huntbot2.messageTriggers) ? config.huntbot2.messageTriggers : ['BEEP BOOP', 'I AM STILL HUNTING', 'I WILL BE BACK IN', 'BACK IN', '% DONE', 'ANIMALS CAPTURED'];
+    config.huntbot2.staticVariables = config.huntbot2.staticVariables && typeof config.huntbot2.staticVariables === 'object' ? config.huntbot2.staticVariables : { defaultDuration: '1D', defaultUpgrade: 'duration' };
     config.captcha = config.captcha || {};
     return config;
 };
@@ -261,6 +267,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const captchaHandler = createCaptchaHandler(state, configManager, loopManager, telegramService, channelManager, macrodroidService);
     const voiceManager = createVoiceManager(state, configManager);
     const huntbotManager = createHuntbotManager(state, createHuntbotState(), configManager, commandSender, telegramService, captchaSolver);
+    const huntbot2Manager = createHuntbot2Manager(state, createHuntbotState(), configManager, commandSender, telegramService, null);
     const messageHandler = createMessageHandler(
         state,
         configManager,
@@ -275,9 +282,10 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         voiceManager,
         adventureManager,
         boss2Manager,
-        gemsManager
+        gemsManager,
+        huntbot2Manager
     );
-    const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
+    const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager, huntbot2Manager);
 
     let readyLoopWatcher = null;
     const otherCommandReadyWatchers = new Map();

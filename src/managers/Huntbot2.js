@@ -45,7 +45,7 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
         const embedsText = (msg.embeds || []).map(collectEmbedText).join("\\n");
         const combinedText = removeInvisibleChars([content, embedsText].filter(Boolean).join("\\n"));
         const normalized = combinedText.toLowerCase();
-        const isDm = msg.channel?.type === 'DM' || msg.channel?.isDMBased?.();
+        const isDm = msg.channel?.type === 'DM' || msg.channel?.type === 'GROUP_DM';
 
         // DM trigger: results are ready to collect.
         if (isDm && /huntbot sudah selesai berburu hewan/i.test(combinedText)) {
@@ -67,8 +67,8 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
         // Trigger C: sacrifice confirmation. Click the exact custom_id and resume after 2.5s.
         if (/konfirmasi pengorbanan rank/i.test(combinedText) && /kamu akan sacrifice/i.test(combinedText)) {
-            await this.clickComponentByCustomId(msg, 'sac_confirm');
-            this.scheduleDelayedAction(() => this.startHunt(
+            const clicked = await this.clickComponentByCustomId(msg, 'sac_confirm');
+            if (clicked) this.scheduleDelayedAction(() => this.startHunt(
                 state.config?.huntbot2?.staticVariables?.defaultDuration ||
                 state.config?.huntbot2?.defaultDuration || '1D'
             ), 2500);
@@ -77,8 +77,8 @@ module.exports = (state, huntbotState, configManager, commandSender, telegramSer
 
         // Sell confirmation has priority when sell-after-return is enabled.
         if (/konfirmasi jual rank/i.test(combinedText)) {
-            await this.clickComponentByCustomId(msg, 'sell_confirm');
-            this.scheduleDelayedAction(() => this.startHunt(
+            const clicked = await this.clickComponentByCustomId(msg, 'sell_confirm');
+            if (clicked) this.scheduleDelayedAction(() => this.startHunt(
                 state.config?.huntbot2?.staticVariables?.defaultDuration ||
                 state.config?.huntbot2?.defaultDuration || '1D'
             ), 2500);
@@ -482,10 +482,9 @@ if (huntbotState.autoMode) {
 
     // ============== PROCESS PASSWORD (CAPTCHA) ==============
     async processPasswordMessage(msg) {
-        // Huntbot2 does not solve or submit verification challenges automatically.
-        state.hasActiveCaptcha = true;
-        log.warn(`${accountPrefix(state)}🛑 Huntbot2 detected a verification prompt. Pause for manual verification.`);
-        telegramService?.send?.('🛑 <b>Huntbot2 paused</b>\nVerification detected. Complete it manually before resuming automation.');
+        log.warn(`${accountPrefix(state)}🔐 Password/verification prompt detected. Manual verification is required; no automated solver will run.`);
+        this.stopAutoMode({ notify: false });
+        telegramService?.send?.('🔐 <b>Huntbot2 perlu verifikasi manual</b>\\nSelesaikan challenge secara manual, lalu aktifkan kembali Huntbot2.');
         return false;
     },
 

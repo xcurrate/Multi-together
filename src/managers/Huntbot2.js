@@ -3,25 +3,14 @@ const log = require('../../logger');
 const { accountPrefix, randomInt } = require('../utils');
 const TooEz = require('./TooEz');
 
-const DEFAULTS = { enabled: false, channelId: '', duration: '1D', sellAnimals: false, upgradeEnabled: false, upgradeGain: '' };
-const DURATION_PATTERN = /^\d+[MHD]$/i;
-const GAIN_PATTERN = /^[A-Za-z0-9_-]+$/;
+const DEFAULTS = { enabled: false, channelId: '', duration: '1D', sellAnimals: false };
+const VALID_DURATIONS = new Set(['1M','5M','10M','30M','1H','6H','12H','1D']);
 const RETURN_TIME_PATTERN = /AKU AKAN KEMBALI DALAM\s+(.+?)\s+DENGAN\b/i;
 const DM_DONE_TEXT = 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!';
 
 function normalizeSettings(raw = {}) {
-    const inputDuration = String(raw.duration || DEFAULTS.duration).trim().toUpperCase();
-    const duration = DURATION_PATTERN.test(inputDuration) ? inputDuration : DEFAULTS.duration;
-    const rawGain = String(raw.upgradeGain || '').trim();
-    const upgradeGain = GAIN_PATTERN.test(rawGain) ? rawGain : '';
-    return {
-        enabled: raw.enabled === true,
-        channelId: String(raw.channelId || '').trim(),
-        duration,
-        sellAnimals: raw.sellAnimals === true,
-        upgradeEnabled: raw.upgradeEnabled === true && !!upgradeGain,
-        upgradeGain
-    };
+    const duration = String(raw.duration || DEFAULTS.duration).trim().toUpperCase();
+    return { enabled: raw.enabled === true, channelId: String(raw.channelId || '').trim(), duration: VALID_DURATIONS.has(duration) ? duration : DEFAULTS.duration, sellAnimals: raw.sellAnimals === true };
 }
 function cleanText(value) {
     return String(value || '').replace(/[\u0000-\u001F\u007F\u200B-\u200D\uFEFF]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -86,27 +75,14 @@ module.exports = function createHuntbot2Manager(state) {
         try { await channel.send(command); log.info(prefix() + 'Terkirim: ' + command); return true; }
         catch (error) { log.error(prefix() + 'Gagal mengirim "' + command + '": ' + (error.message || error)); return false; }
     };
-    const schedule = (delayMs, callback) => {
+    const scheduleHunt = (delayMs = randomInt(2000, 3000)) => {
         const timer = setTimeout(async () => {
             timers.delete(timer);
             if (!settings().enabled) return;
-            try { await callback(); }
-            catch (error) { log.error(prefix() + 'Aksi terjadwal gagal: ' + (error.message || error)); }
+            await sendCommand('lhb ' + settings().duration);
+            pendingAction = null;
         }, delayMs);
         timers.add(timer);
-        return timer;
-    };
-    const scheduleRetryHunt = reason => {
-        log.warn(prefix() + reason + ' Coba ulang otomatis dalam 10 menit dengan "lhb 1D".');
-        schedule(10 * 60 * 1000, async () => {
-            await sendCommand('lhb 1D');
-        });
-    };
-    const scheduleHunt = (delayMs = randomInt(2000, 3000), fixedDuration = null) => {
-        schedule(delayMs, async () => {
-            await sendCommand('lhb ' + (fixedDuration || settings().duration));
-            pendingAction = null;
-        });
     };
     const clickConfirm = async (msg, customId, label) => {
         const button = findButton(msg?.components || [], customId);
@@ -114,19 +90,7 @@ module.exports = function createHuntbot2Manager(state) {
         try {
             await msg.clickButton(customId);
             log.success(prefix() + 'Konfirmasi ' + label + ' diklik (' + customId + ').');
-            const cfg = settings();
-            if (customId === 'sac_confirm' && cfg.upgradeEnabled && cfg.upgradeGain) {
-                schedule(2000, async () => {
-                    const sent = await sendCommand('lucy upgrade ' + settings().upgradeGain + ' all');
-                    if (sent) {
-                        scheduleHunt(2000, '1D');
-                    } else {
-                        pendingAction = null;
-                    }
-                });
-            } else {
-                scheduleHunt(randomInt(2000, 3000));
-            }
+            scheduleHunt(randomInt(2000, 3000));
             return true;
         } catch (error) { log.error(prefix() + 'Gagal klik tombol ' + customId + ': ' + (error.message || error)); return false; }
     };
@@ -137,33 +101,26 @@ module.exports = function createHuntbot2Manager(state) {
             const text = getMessageText(msg), lower = text.toLowerCase();
             if (!text) return false;
 
-            if (msg.channel?.type === 'DM' && lower.includes(DM_DONE_TEXT)) {
+            const myName = (msg.guild?.members?.me?.displayName || msg.client?.user?.displayName || msg.client?.user?.username || '').toLowerCase();
+
+            if ((!msg.guild || msg.channel?.type === 'DM' || msg.channel?.type === 1) && lower.includes('selesai berburu')) {
                 if (markHandled(msg)) return false;
                 await sendCommand('lucy hb');
                 log.success(prefix() + 'DM selesai berburu terdeteksi; perintah lucy hb dikirim.');
                 return true;
             }
-            if (lower.includes('dzula, ini passwordmu')) {
+            if (lower.includes(myName) && lower.includes('ini passwordmu')) {
                 if (markHandled(msg)) return false;
                 const imageUrl = extractImageUrl(msg);
-                if (!imageUrl) {
-                    scheduleRetryHunt('URL gambar password tidak ditemukan.');
-                    return false;
-                }
+                if (!imageUrl) { log.error(prefix() + 'Pesan password terdeteksi tetapi URL gambar tidak ditemukan.'); return false; }
                 try {
                     const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 20000, maxContentLength: 8 * 1024 * 1024 });
                     const password = TooEz.decodeBuffer(Buffer.from(response.data));
-                    if (!password) {
-                        scheduleRetryHunt('Password dari gambar gagal dikenali TooEz.');
-                        return false;
-                    }
+                    if (!password) { log.error(prefix() + 'Password dari gambar tidak berhasil dikenali oleh TooEz.'); return false; }
                     log.success(prefix() + 'Password gambar berhasil dibaca.');
                     await sendCommand('lhb ' + settings().duration + ' ' + password);
                     return true;
-                } catch (error) {
-                    scheduleRetryHunt('Gagal mengambil/membaca gambar password: ' + (error.message || error) + '.');
-                    return false;
-                }
+                } catch (error) { log.error(prefix() + 'Gagal mengambil/membaca gambar password: ' + (error.message || error)); return false; }
             }
             if (lower.includes('konfirmasi pengorbanan rank')) {
                 if (markHandled(msg)) return false;
@@ -193,12 +150,12 @@ module.exports = function createHuntbot2Manager(state) {
                 log.info(prefix() + 'Waktu kembali: ' + (parseReturnTime(text) || 'tidak terdeteksi'));
                 return true;
             }
-            if (lower.includes('## dzula - huntbot') && lower.includes('saya akan berburu untukmu tuan')) {
+            if (lower.includes(myName) && lower.includes('huntbot') && lower.includes('saya akan berburu untukmu tuan')) {
                 if (markHandled(msg)) return false;
                 log.info(prefix() + 'Lucy Huntbot siap berburu.');
                 return true;
             }
-            if (lower.includes('## dzula - huntbot') && lower.includes('huntbot sedang berburu')) {
+            if (lower.includes(myName) && lower.includes('huntbot') && lower.includes('huntbot sedang berburu')) {
                 if (markHandled(msg)) return false;
                 log.info(prefix() + 'Huntbot sedang berburu.');
                 return true;

@@ -477,7 +477,7 @@ ${renderRestSettings(config.settings?.rest)}
 
     function renderLucySettings({ config, boss2 = {}, gems = {}, adventure = {}, lucyControl = {} }) {
         const huntbot2 = config.huntbot2 || {};
-        const hb2Triggers = Array.isArray(huntbot2.messageTriggers) ? huntbot2.messageTriggers : [];
+        const hb2Triggers = huntbot2.messageTriggers && !Array.isArray(huntbot2.messageTriggers) && typeof huntbot2.messageTriggers === 'object' ? huntbot2.messageTriggers : null;
         const hb2Variables = huntbot2.staticVariables && typeof huntbot2.staticVariables === 'object' ? huntbot2.staticVariables : { defaultDuration: huntbot2.defaultDuration || '1D', defaultUpgrade: huntbot2.defaultUpgrade || 'duration' };
         return `
                     <div id="tab-lucy-commands" class="tab-content">

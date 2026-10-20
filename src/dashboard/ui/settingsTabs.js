@@ -475,7 +475,7 @@ ${renderRestSettings(config.settings?.rest)}
         `;
     }
 
-    function renderLucySettings({ config, boss2 = {}, gems = {}, adventure = {}, lucyControl = {} }) {
+    function renderLucySettings({ config, boss2 = {}, gems = {}, adventure = {}, huntbot2 = {}, lucyControl = {} }) {
         return `
                     <div id="tab-lucy-commands" class="tab-content">
                         <div class="category-heading">
@@ -604,6 +604,39 @@ ${renderRestSettings(config.settings?.rest)}
                         </div>
                     </div>
 
+                    <div id="tab-lucy-huntbot2" class="tab-content">
+                        <div class="category-heading">
+                            <div>
+                                <span class="section-label">Lucy</span>
+                                <h3>🤖 Huntbot2 (Lucy)</h3>
+                            </div>
+                        </div>
+                        <div class="card">
+                            <label>🤖 LUCY HUNTBOT2</label>
+                            <div class="input-hint">Huntbot2 terpisah dari Huntbot OwO. Memantau trigger komponen Lucy, melakukan sacrifice atau jual hewan, lalu memulai hunt sesuai durasi yang dipilih.</div>
+                            <div class="toggle-row">
+                                <span>Aktifkan Huntbot2</span>
+                                <input type="checkbox" name="hb2Enabled" value="true" ${huntbot2.enabled ? 'checked' : ''}>
+                            </div>
+                            <label>Channel ID Lucy</label>
+                            <input type="text" name="hb2ChannelId" value="${escapeHtml(huntbot2.channelId || '')}" placeholder="Channel ID tempat trigger dan command Lucy">
+                            <label>Durasi Hunt</label>
+                            <select name="hb2Duration" class="input-select">
+                                <option value="1M" ${String(huntbot2.duration || '1D').toUpperCase() === '1M' ? 'selected' : ''}>1 Minute (1M)</option>
+                                <option value="1D" ${String(huntbot2.duration || '1D').toUpperCase() === '1D' ? 'selected' : ''}>1 Day (1D)</option>
+                            </select>
+                            <div class="toggle-row">
+                                <span>Jual hewan, lewati sacrifice</span>
+                                <input type="checkbox" name="hb2SellAnimals" value="true" ${huntbot2.sellAnimals ? 'checked' : ''}>
+                            </div>
+                            <label>Jeda setelah konfirmasi (ms)</label>
+                            <div class="row">
+                                <div class="col"><input type="number" min="2000" name="hb2DelayMin" value="${huntbot2.delayMinMs ?? 2500}" placeholder="Min 2000"></div>
+                                <div class="col"><input type="number" min="2000" name="hb2DelayMax" value="${huntbot2.delayMaxMs ?? 3000}" placeholder="Max 3000"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="tab-lucy-adventure" class="tab-content">
                         <div class="category-heading">
                             <div>
@@ -686,6 +719,7 @@ ${renderRestSettings(config.settings?.rest)}
                                 <button type="button" class="settings-menu-item" data-menu-label="Custom Commands Lucy" onclick="switchTab(event, 'tab-lucy-commands')">🧩 Custom Commands Lucy</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Auto Boss2" onclick="switchTab(event, 'tab-lucy-boss2')">🐲 Auto Boss2</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Auto Use Gems" onclick="switchTab(event, 'tab-lucy-gems')">💎 Auto Use Gems</button>
+                                <button type="button" class="settings-menu-item" data-menu-label="Huntbot2 (Lucy)" onclick="switchTab(event, 'tab-lucy-huntbot2')">🤖 Huntbot2 (Lucy)</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Auto Adventure" onclick="switchTab(event, 'tab-lucy-adventure')">🗺️ Auto Adventure</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Kontrol Lucy" onclick="switchTab(event, 'tab-lucy-control')">🎮 Kontrol Lucy</button>
                             </div>

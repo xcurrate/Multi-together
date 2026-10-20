@@ -18,6 +18,7 @@ const createLoopManager = require('../managers/loop');
 const createEmergencyHandler = require('../managers/emergency');
 const createMessageHandler = require('../managers/message');
 const createHuntbotManager = require('../managers/huntbot');
+const createHuntbot2Manager = require('../managers/Huntbot2');
 const createDailyResetManager = require('../managers/dailyReset');
 const createVoiceManager = require('../managers/voice');
 const createClientManager = require('./client');
@@ -47,6 +48,7 @@ const ensureRuntimeShape = (config = {}) => {
     config.settings.boss = config.settings.boss || { enabled: true, allowedGuilds: [] };
     config.settings.boss2 = normalizeBoss2Settings(config.settings.boss2);
     config.settings.gems = normalizeGemsSettings(config.settings.gems);
+    config.settings.huntbot2 = createHuntbot2Manager.normalizeSettings(config.settings.huntbot2);
     config.settings.rest = normalizeRestSettings(config.settings.rest);
     config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
     config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
@@ -261,6 +263,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const captchaHandler = createCaptchaHandler(state, configManager, loopManager, telegramService, channelManager, macrodroidService);
     const voiceManager = createVoiceManager(state, configManager);
     const huntbotManager = createHuntbotManager(state, createHuntbotState(), configManager, commandSender, telegramService, captchaSolver);
+    const huntbot2Manager = createHuntbot2Manager(state);
     const messageHandler = createMessageHandler(
         state,
         configManager,
@@ -275,7 +278,8 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         voiceManager,
         adventureManager,
         boss2Manager,
-        gemsManager
+        gemsManager,
+        huntbot2Manager
     );
     const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
 
@@ -519,6 +523,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             if (huntbotManager && typeof huntbotManager.stop === 'function') {
                 huntbotManager.stop({ notify: false });
             }
+            huntbot2Manager?.stop?.();
             if (bossManager && typeof bossManager.stop === 'function') {
                 bossManager.stop();
             }

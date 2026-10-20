@@ -629,6 +629,25 @@ ${renderRestSettings(config.settings?.rest)}
                         </div>
                     </div>
 
+                    <div id="tab-lucy-huntbot2" class="tab-content">
+                        <div class="category-heading">
+                            <div><span class="section-label">Lucy</span><h3>🤖 Huntbot2</h3></div>
+                        </div>
+                        <div class="card">
+                            <label>🤖 HUNTBOT2 — LUCY</label>
+                            <div class="input-hint">Automasi Huntbot Lucy terpisah dari Huntbot OwO. Tidak memakai solver CAPTCHA/pause Huntbot lama.</div>
+                            <div class="toggle-row"><span>Aktifkan Huntbot2</span><input type="checkbox" name="hb2Enabled" ${config.settings?.huntbot2?.enabled ? 'checked' : ''}></div>
+                            <div class="toggle-row"><span>Jual hewan (lewati sacrifice)</span><input type="checkbox" name="hb2SellAnimals" ${config.settings?.huntbot2?.sellAnimals ? 'checked' : ''}></div>
+                            <label>Channel ID Lucy (command & notifikasi DM)</label>
+                            <input type="text" name="hb2ChannelId" value="${escapeHtml(config.settings?.huntbot2?.channelId || '')}" placeholder="Discord Channel ID">
+                            <label>Durasi Hunt</label>
+                            <select name="hb2Duration" class="input-select">
+                                ${['1M','5M','10M','30M','1H','6H','12H','1D'].map(duration => `<option value="${duration}" ${(config.settings?.huntbot2?.duration || '1D') === duration ? 'selected' : ''}>${duration}</option>`).join('')}
+                            </select>
+                            <div class="input-hint">Setelah konfirmasi sacrifice/jual, tunggu 2–3 detik lalu kirim <code>lhb DURASI</code>. Password dikirim sebagai <code>lhb DURASI PASSWORD</code>.</div>
+                        </div>
+                    </div>
+
                     <div id="tab-lucy-control" class="tab-content">
                         <div class="category-heading">
                             <div>
@@ -687,6 +706,7 @@ ${renderRestSettings(config.settings?.rest)}
                                 <button type="button" class="settings-menu-item" data-menu-label="Auto Boss2" onclick="switchTab(event, 'tab-lucy-boss2')">🐲 Auto Boss2</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Auto Use Gems" onclick="switchTab(event, 'tab-lucy-gems')">💎 Auto Use Gems</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Auto Adventure" onclick="switchTab(event, 'tab-lucy-adventure')">🗺️ Auto Adventure</button>
+                                <button type="button" class="settings-menu-item" data-menu-label="Huntbot2" onclick="switchTab(event, 'tab-lucy-huntbot2')">🤖 Huntbot2</button>
                                 <button type="button" class="settings-menu-item" data-menu-label="Kontrol Lucy" onclick="switchTab(event, 'tab-lucy-control')">🎮 Kontrol Lucy</button>
                             </div>
                         </div>

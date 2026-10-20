@@ -1,6 +1,7 @@
 const { normalizeBoss2Settings } = require('../../managers/boss2');
 const { normalizeGemsSettings } = require('../../managers/gems');
 const { normalizeRestSettings } = require('../../managers/rest');
+const { normalizeSettings: normalizeHuntbot2Settings } = require('../../managers/Huntbot2');
 const { normalizeSendCount } = require('../../utils');
 module.exports = function createConfigManager({ configPath, fileService, CONSTANTS }) {
     return {
@@ -37,6 +38,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.settings.boss = config.settings.boss || { enabled: true, allowedGuilds: [] };
         config.settings.boss2 = normalizeBoss2Settings(config.settings.boss2);
         config.settings.gems = normalizeGemsSettings(config.settings.gems);
+        config.settings.huntbot2 = normalizeHuntbot2Settings(config.settings.huntbot2);
         config.settings.rest = normalizeRestSettings(config.settings.rest);
         config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
         config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
@@ -219,6 +221,13 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.huntbot.sellAllAfterReturn = this.toBool(body.hbSellAllAfterReturn);
         config.huntbot.defaultUpgrade = body.hbUpgrade || 'duration';
         config.huntbot.defaultDuration = body.hbDuration || '1D';
+        config.settings.huntbot2 = normalizeHuntbot2Settings({
+            ...config.settings.huntbot2,
+            enabled: this.toBool(body.hb2Enabled),
+            channelId: String(body.hb2ChannelId || '').trim(),
+            duration: body.hb2Duration || config.settings.huntbot2.duration,
+            sellAnimals: this.toBool(body.hb2SellAnimals)
+        });
         config.tiketandhb.channelId = body.tiketandhbChannel || '';
         
         config.safety.cctv = this.toBool(body.cctvEnabled);

@@ -18,6 +18,7 @@ const createLoopManager = require('../managers/loop');
 const createEmergencyHandler = require('../managers/emergency');
 const createMessageHandler = require('../managers/message');
 const createHuntbotManager = require('../managers/huntbot');
+const createHuntbot2Manager = require('../managers/Huntbot2');
 const createDailyResetManager = require('../managers/dailyReset');
 const createVoiceManager = require('../managers/voice');
 const createClientManager = require('./client');
@@ -65,6 +66,7 @@ const ensureRuntimeShape = (config = {}) => {
         };
     });
     config.settings.huntbot = config.settings.huntbot || { enabled: true };
+    config.settings.huntbot2 = config.settings.huntbot2 || { enabled: false, channelId: '', duration: '1D', sellAnimals: false, delayMinMs: 2500, delayMaxMs: 3000 };
     config.botStatus = config.botStatus || { running: false, paused: true };
     config.channels = Array.isArray(config.channels) ? config.channels : [];
     config.tiketandhb = config.tiketandhb || { channelId: '' };
@@ -261,6 +263,7 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     const captchaHandler = createCaptchaHandler(state, configManager, loopManager, telegramService, channelManager, macrodroidService);
     const voiceManager = createVoiceManager(state, configManager);
     const huntbotManager = createHuntbotManager(state, createHuntbotState(), configManager, commandSender, telegramService, captchaSolver);
+    const huntbot2Manager = createHuntbot2Manager(state, configManager);
     const messageHandler = createMessageHandler(
         state,
         configManager,
@@ -275,7 +278,8 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
         voiceManager,
         adventureManager,
         boss2Manager,
-        gemsManager
+        gemsManager,
+        huntbot2Manager
     );
     const clientManager = createClientManager(state, configManager, channelManager, messageHandler, telegramService, huntbotManager, voiceManager);
 

@@ -220,6 +220,15 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.huntbot.defaultUpgrade = body.hbUpgrade || 'duration';
         config.huntbot.defaultDuration = body.hbDuration || '1D';
         config.tiketandhb.channelId = body.tiketandhbChannel || '';
+
+        config.settings.huntbot2 = {
+            enabled: this.toBool(body.hb2Enabled),
+            channelId: String(body.hb2ChannelId || '').trim(),
+            duration: String(body.hb2Duration || '1D').trim().toUpperCase(),
+            sellAnimals: this.toBool(body.hb2SellAnimals),
+            delayMinMs: Math.max(2000, this.toInt(body.hb2DelayMin, 2500)),
+            delayMaxMs: Math.max(2000, this.toInt(body.hb2DelayMax, 3000))
+        };
         
         config.safety.cctv = this.toBool(body.cctvEnabled);
 

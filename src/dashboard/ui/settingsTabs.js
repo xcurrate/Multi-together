@@ -477,7 +477,7 @@ ${renderRestSettings(config.settings?.rest)}
 
     function renderLucySettings({ config, boss2 = {}, gems = {}, adventure = {}, lucyControl = {} }) {
         const huntbot2 = config.huntbot2 || {};
-        const hb2Triggers = huntbot2.messageTriggers && !Array.isArray(huntbot2.messageTriggers) && typeof huntbot2.messageTriggers === 'object' ? huntbot2.messageTriggers : null;
+        const hb2Triggers = Array.isArray(huntbot2.messageTriggers) ? huntbot2.messageTriggers : [];
         const hb2Variables = huntbot2.staticVariables && typeof huntbot2.staticVariables === 'object' ? huntbot2.staticVariables : { defaultDuration: huntbot2.defaultDuration || '1D', defaultUpgrade: huntbot2.defaultUpgrade || 'duration' };
         return `
                     <div id="tab-lucy-commands" class="tab-content">
@@ -636,18 +636,17 @@ ${renderRestSettings(config.settings?.rest)}
                         <div class="category-heading"><div><span class="section-label">Lucy</span><h3>🧭 Huntbot2</h3></div></div>
                         <div class="card">
                             <label>🧭 HUNTBOT2 — KONFIGURASI TERPISAH</label>
-                            <div class="input-hint">Konfigurasi Huntbot2 terpisah. Semua trigger bertipe Component; ubah isi konten trigger di JSON jika format pesan berubah.</div>
+                            <div class="input-hint">Konfigurasi Huntbot2 terpisah dari Huntbot utama. Challenge verifikasi tidak diselesaikan otomatis; automasi berhenti agar dapat diverifikasi manual.</div>
                             <label><input type="checkbox" name="hb2Enabled" value="true" ${huntbot2.enabled ? 'checked' : ''}> Aktifkan Huntbot2</label>
                             <label><input type="checkbox" name="hb2AutoMode" value="true" ${huntbot2.autoMode ? 'checked' : ''}> Auto mode</label>
                             <label><input type="checkbox" name="hb2Notify" value="true" ${huntbot2.notifyProgress !== false ? 'checked' : ''}> Notifikasi progress</label>
                             <label><input type="checkbox" name="hb2SellAllAfterReturn" value="true" ${huntbot2.sellAllAfterReturn ? 'checked' : ''}> Sell all setelah kembali</label>
                             <div class="row"><div class="col"><label>Default Upgrade</label><input type="text" name="hb2Upgrade" value="${escapeHtml(huntbot2.defaultUpgrade || 'duration')}" placeholder="duration"></div><div class="col"><label>Default Duration</label><input type="text" name="hb2Duration" value="${escapeHtml(huntbot2.defaultDuration || '1D')}" placeholder="1D"></div></div>
-                            <label>Message Triggers (JSON object; type Component)</label>
-                            <textarea name="hb2MessageTriggers" rows="4" spellcheck="false">${escapeHtml(JSON.stringify(hb2Triggers && !Array.isArray(hb2Triggers) && typeof hb2Triggers === 'object' ? hb2Triggers : { A: { type: 'Component', content: '**<:rbot:1541929444334374942> | dzula**, ini passwordmu!' }, B: { type: 'Component', content: 'BEEP. BOOP. SAYA HUNTBOT. SAYA AKAN BERBURU UNTUKMU TUAN.' }, C: { type: 'Component', content: '## Konfirmasi Pengorbanan Rank\\nKamu akan sacrifice' }, D: { type: 'Component', content: '**HUNTBOT sedang berburu!**' }, E: { type: 'Component', content: 'BEEP BOOP. dzula AKU AKAN KEMBALI DALAM' }, F: { type: 'Component', content: 'BEEP BOOP. AKU KEMBALI' },
-SELL: { type: 'Component', content: '## Konfirmasi Jual Rank' }, DM: { type: 'Component', content: 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!' } }, null, 2))}</textarea>
+                            <label>Message Triggers (JSON array)</label>
+                            <textarea name="hb2MessageTriggers" rows="4" spellcheck="false">${escapeHtml(JSON.stringify(hb2Triggers.length ? hb2Triggers : ['BEEP BOOP','I AM STILL HUNTING','I WILL BE BACK IN','BACK IN','% DONE','ANIMALS CAPTURED'], null, 2))}</textarea>
                             <label>Static Variables (JSON object)</label>
                             <textarea name="hb2StaticVariables" rows="5" spellcheck="false">${escapeHtml(JSON.stringify(hb2Variables, null, 2))}</textarea>
-                            <div class="input-hint">Setiap trigger harus memiliki type Component dan content berupa teks pemicu. Static variables harus berupa JSON object; defaultDuration dipakai untuk perintah lhb.</div>
+                            <div class="input-hint">Trigger list accepts up to 50 strings. Static variables must be a JSON object; defaultDuration and defaultUpgrade are used as runtime defaults.</div>
                         </div>
                     </div>
                     <div id="tab-lucy-control" class="tab-content">

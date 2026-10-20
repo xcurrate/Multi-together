@@ -26,38 +26,10 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.tiketandhb = config.tiketandhb || { channelId: "" };
         config.huntbot = config.huntbot || { enabled: true, autoMode: true, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false };
         config.huntbot.sellAllAfterReturn = config.huntbot.sellAllAfterReturn === true;
-        config.huntbot2 = config.huntbot2 || { enabled: false, autoMode: false, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false, messageTriggers: {
-            A: { type: 'Component', content: '**<:rbot:1541929444334374942> | dzula**, ini passwordmu!' },
-            B: { type: 'Component', content: 'BEEP. BOOP. SAYA HUNTBOT. SAYA AKAN BERBURU UNTUKMU TUAN.' },
-            C: { type: 'Component', content: '## Konfirmasi Pengorbanan Rank\nKamu akan sacrifice' },
-            D: { type: 'Component', content: '**HUNTBOT sedang berburu!**' },
-            E: { type: 'Component', content: 'BEEP BOOP. dzula AKU AKAN KEMBALI DALAM' },
-            F: { type: 'Component', content: 'BEEP BOOP. AKU KEMBALI' },
-            SELL: { type: 'Component', content: '## Konfirmasi Jual Rank' },
-            DM: { type: 'Component', content: 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!' }
-        }, staticVariables: { defaultDuration: '1D', defaultUpgrade: 'duration' } };
+        config.huntbot2 = config.huntbot2 || { enabled: false, autoMode: false, defaultUpgrade: 'duration', defaultDuration: '1D', notifyProgress: true, sellAllAfterReturn: false, messageTriggers: ['BEEP BOOP', 'I AM STILL HUNTING', 'I WILL BE BACK IN', 'BACK IN', '% DONE', 'ANIMALS CAPTURED'], staticVariables: { defaultDuration: '1D', defaultUpgrade: 'duration' } };
         config.huntbot2.enabled = config.huntbot2.enabled === true;
         config.huntbot2.autoMode = config.huntbot2.autoMode === true;
-        const defaultHuntbot2Triggers = {
-            A: { type: 'Component', content: '**<:rbot:1541929444334374942> | dzula**, ini passwordmu!' },
-            B: { type: 'Component', content: 'BEEP. BOOP. SAYA HUNTBOT. SAYA AKAN BERBURU UNTUKMU TUAN.' },
-            C: { type: 'Component', content: '## Konfirmasi Pengorbanan Rank\nKamu akan sacrifice' },
-            D: { type: 'Component', content: '**HUNTBOT sedang berburu!**' },
-            E: { type: 'Component', content: 'BEEP BOOP. dzula AKU AKAN KEMBALI DALAM' },
-            F: { type: 'Component', content: 'BEEP BOOP. AKU KEMBALI' },
-            SELL: { type: 'Component', content: '## Konfirmasi Jual Rank' },
-            DM: { type: 'Component', content: 'huntbot sudah selesai berburu hewan silahkan gunakan command lucy autohunt untuk mengambil hasilnya!' }
-        };
-        if (!config.huntbot2.messageTriggers || Array.isArray(config.huntbot2.messageTriggers) || typeof config.huntbot2.messageTriggers !== 'object') {
-            config.huntbot2.messageTriggers = defaultHuntbot2Triggers;
-        } else {
-            config.huntbot2.messageTriggers = Object.fromEntries(
-                Object.entries(defaultHuntbot2Triggers).map(([key, fallback]) => {
-                    const current = config.huntbot2.messageTriggers[key] || {};
-                    return [key, { type: 'Component', content: String(current.content || fallback.content) }];
-                })
-            );
-        }
+        config.huntbot2.messageTriggers = Array.isArray(config.huntbot2.messageTriggers) ? config.huntbot2.messageTriggers.map(String).filter(Boolean).slice(0, 50) : ['BEEP BOOP', 'I AM STILL HUNTING', 'I WILL BE BACK IN', 'BACK IN', '% DONE', 'ANIMALS CAPTURED'];
         config.huntbot2.staticVariables = config.huntbot2.staticVariables && typeof config.huntbot2.staticVariables === 'object' && !Array.isArray(config.huntbot2.staticVariables) ? config.huntbot2.staticVariables : { defaultDuration: '1D', defaultUpgrade: 'duration' };
         config.multiAccount = config.multiAccount || { enabled: true, maxAccounts: 0 };
         config.multiAccount.enabled = config.multiAccount.enabled !== false;
@@ -259,18 +231,9 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.huntbot2.sellAllAfterReturn = this.toBool(body.hb2SellAllAfterReturn);
         config.huntbot2.defaultUpgrade = String(body.hb2Upgrade || 'duration').trim();
         config.huntbot2.defaultDuration = String(body.hb2Duration || '1D').trim();
-        config.huntbot2.staticVariables = config.huntbot2.staticVariables || {};
-        config.huntbot2.staticVariables.defaultDuration = config.huntbot2.defaultDuration;
         try {
-            const parsedTriggers = JSON.parse(String(body.hb2MessageTriggers || '{}'));
-            if (parsedTriggers && typeof parsedTriggers === 'object' && !Array.isArray(parsedTriggers)) {
-                config.huntbot2.messageTriggers = Object.fromEntries(
-                    Object.entries(parsedTriggers).map(([key, value]) => [
-                        key,
-                        { type: 'Component', content: String(value?.content || value || '').trim() }
-                    ]).filter(([, value]) => value.content)
-                );
-            }
+            const parsedTriggers = JSON.parse(String(body.hb2MessageTriggers || '[]'));
+            if (Array.isArray(parsedTriggers)) config.huntbot2.messageTriggers = parsedTriggers.map(v => String(v).trim()).filter(Boolean).slice(0, 50);
         } catch {}
         try {
             const parsedVariables = JSON.parse(String(body.hb2StaticVariables || '{}'));

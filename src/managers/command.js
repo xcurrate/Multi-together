@@ -47,6 +47,8 @@ module.exports = (state, channelManager, emergencyHandler) => ({
 
                 if (type === 'Battle' || type === 'Hunt') {
                     this.setResponseTimeout(type);
+                } else if (String(type).startsWith('Other Command')) {
+                    this.setLucyResponseTimeout(type);
                 }
                 return true;
             } catch (e) {
@@ -96,6 +98,39 @@ module.exports = (state, channelManager, emergencyHandler) => ({
             clearTimeout(state.responseTimeout);
             state.responseTimeout = null;
             log.info(`${accountPrefix(state)}✅ Response timeout cleared - OwO responded in time`);
+        }
+    },
+
+    setLucyResponseTimeout(type) {
+        if (state.lucyResponseTimeout) {
+            log.warn(`${accountPrefix(state)}⏳ Timeout Lucy masih aktif; timeout baru untuk ${type} dilewati.`);
+            return;
+        }
+
+        // Dengarkan hanya balasan dari bot Lucy; pesan OwO tidak boleh membatalkan timeout ini.
+        if (!state.lucyMessageTimeoutListener && state.client?.on) {
+            state.lucyMessageTimeoutListener = (msg) => {
+                if (String(msg?.author?.id || '') === CONSTANTS.LUCY_BOT_ID) {
+                    this.clearLucyResponseTimeout();
+                }
+            };
+            state.client.on('message', state.lucyMessageTimeoutListener);
+        }
+
+        state.lucyResponseTimeout = setTimeout(() => {
+            state.lucyResponseTimeout = null;
+            log.error(`${accountPrefix(state)}⛔ TIMEOUT ${CONSTANTS.RESPONSE_TIMEOUT_MS / 1000}s - Tidak ada respons dari Lucy untuk ${type}.`);
+            emergencyHandler.pause(`TIMEOUT ${CONSTANTS.RESPONSE_TIMEOUT_MS / 1000}s (Lucy No Response)`);
+        }, CONSTANTS.RESPONSE_TIMEOUT_MS);
+
+        log.info(`${accountPrefix(state)}⏲️ Lucy response timeout aktif untuk ${type}: ${CONSTANTS.RESPONSE_TIMEOUT_MS / 1000}s`);
+    },
+
+    clearLucyResponseTimeout() {
+        if (state.lucyResponseTimeout) {
+            clearTimeout(state.lucyResponseTimeout);
+            state.lucyResponseTimeout = null;
+            log.info(`${accountPrefix(state)}✅ Timeout Lucy dibatalkan: respons dari bot Lucy diterima.`);
         }
     }
 });

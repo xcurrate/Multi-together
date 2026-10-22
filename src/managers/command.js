@@ -108,13 +108,14 @@ module.exports = (state, channelManager, emergencyHandler) => ({
         }
 
         // Dengarkan hanya balasan dari bot Lucy; pesan OwO tidak boleh membatalkan timeout ini.
-        if (!state.lucyMessageTimeoutListener && state.client?.on) {
+        if (state.client?.on && state.lucyMessageTimeoutClient !== state.client) {
             state.lucyMessageTimeoutListener = (msg) => {
                 if (String(msg?.author?.id || '') === CONSTANTS.LUCY_BOT_ID) {
                     this.clearLucyResponseTimeout();
                 }
             };
             state.client.on('message', state.lucyMessageTimeoutListener);
+            state.lucyMessageTimeoutClient = state.client;
         }
 
         state.lucyResponseTimeout = setTimeout(() => {

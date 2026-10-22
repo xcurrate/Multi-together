@@ -38,6 +38,7 @@ module.exports = (state, configManager, loopManager, channelManager, telegramSer
     };
 
     const resumeAfterRecovery = () => {
+        state.emergencyRecoveryActive = false;
         clearRecoveryProbe();
         state.config.botStatus.paused = false;
         state.config.botStatus.running = true;
@@ -118,6 +119,12 @@ module.exports = (state, configManager, loopManager, channelManager, telegramSer
             ensureRecoveryListener();
             if (!state.emergencyRecoveryTimer) {
                 state.emergencyRecoveryTimer = setInterval(() => {
+                    // Jika pengguna sudah menyalakan bot secara manual, hentikan recovery otomatis.
+                    if (state.config.botStatus?.running === true && state.config.botStatus?.paused !== true) {
+                        state.emergencyRecoveryActive = false;
+                        clearRecoveryProbe();
+                        return;
+                    }
                     ensureRecoveryListener();
                     sendRecoveryProbe();
                 }, RECOVERY_PROBE_INTERVAL_MS);

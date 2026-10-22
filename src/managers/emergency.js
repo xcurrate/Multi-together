@@ -57,7 +57,7 @@ module.exports = (state, configManager, loopManager, channelManager, telegramSer
             return;
         }
 
-        const channelId = String(state.activeChannelId || '').trim();
+        const channelId = String(state.lastLucyCommandChannelId || state.activeChannelId || '').trim();
         const channel = channelId ? state.client.channels.cache.get(channelId) : null;
         if (!channel || typeof channel.send !== 'function') {
             log.warn(`${accountPrefix(state)}⚠️ Recovery check linv dilewati: channel aktif tidak tersedia.`);

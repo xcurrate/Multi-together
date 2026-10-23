@@ -50,7 +50,8 @@ const ensureRuntimeShape = (config = {}) => {
     config.settings.gems = normalizeGemsSettings(config.settings.gems);
     config.settings.huntbot2 = createHuntbot2Manager.normalizeSettings(config.settings.huntbot2);
     config.settings.rest = normalizeRestSettings(config.settings.rest);
-    config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
+    config.settings.adventure = config.settings.adventure || { enabled: false, channelId: '', guildId: '' };
+    delete config.settings.adventure.targetId;
     config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
     config.settings.messageDebug = config.settings.messageDebug || { enabled: false, targetId: '', channelId: '', guildId: '' };
     config.settings.telegram = config.settings.telegram || { token: '', chatId: '' };

@@ -142,6 +142,15 @@ module.exports = function createHuntbot2Manager(state) {
                 log.success(prefix() + 'DM selesai berburu terdeteksi; perintah lucy hb dikirim.');
                 return true;
             }
+
+            // Batasi semua proses di bawah ini hanya untuk channelId yang sudah diatur
+            if (!cfg.channelId || msg.channel?.id !== cfg.channelId) return false;
+
+            if (lower.includes(myName) && lower.includes('password salah')) {
+                if (markHandled(msg)) return false;
+                scheduleRetryHunt('Password salah terdeteksi.');
+                return true;
+            }
             if (lower.includes(myName) && lower.includes('ini passwordmu')) {
                 if (markHandled(msg)) return false;
                 const imageUrl = extractImageUrl(msg);

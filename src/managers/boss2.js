@@ -26,7 +26,6 @@ const normalizeBoss2Settings = (raw = {}) => {
         enabled: raw.enabled === true,
         allowedGuilds: toIdList(raw.allowedGuilds),
         channelIds: toIdList(raw.channelIds),
-        botIds: toIdList(raw.botIds),
         appearText: toText(raw.appearText, defaults.appearText),
         defeatedText: toText(raw.defeatedText, defaults.defeatedText),
         buttonId: toText(raw.buttonId, defaults.buttonId),
@@ -142,9 +141,9 @@ const createBoss2Manager = (state, configManager) => {
 
         isAllowed(msg, settings) {
             const myId = state.client?.user?.id;
-            const authorId = msg.author?.id;
+            const authorId = String(msg.author?.id || '');
             if (myId && authorId === myId) return false;
-            if (settings.botIds.length > 0 && !settings.botIds.includes(authorId)) return false;
+            if (authorId !== CONSTANTS.LUCY_BOT_ID) return false;
             if (settings.allowedGuilds.length > 0 && !settings.allowedGuilds.includes(msg.guildId)) return false;
             if (settings.channelIds.length > 0 && !settings.channelIds.includes(msg.channel?.id)) return false;
             return true;

@@ -1,4 +1,5 @@
 const axios = require('axios');
+const CONSTANTS = require('../constants');
 const log = require('../../logger');
 const { accountPrefix, randomInt } = require('../utils');
 const TooEz = require('./TooEz');
@@ -131,6 +132,7 @@ module.exports = function createHuntbot2Manager(state) {
         async handle(msg) {
             const cfg = settings();
             if (!cfg.enabled || !msg || !msg.author || msg.author.id === state.client?.user?.id) return false;
+            if (String(msg.author.id) !== CONSTANTS.LUCY_BOT_ID) return false;
             const text = getMessageText(msg), lower = text.toLowerCase();
             if (!text) return false;
 

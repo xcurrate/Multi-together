@@ -41,7 +41,6 @@ const normalizeGemsSettings = (raw = {}) => {
     return {
         enabled: raw.enabled === true,
         channelId: String(raw.channelId || '').trim(),
-        botIds: toIdList(raw.botIds),
         accountName: String(raw.accountName || '').trim(),
         triggerText: toText(raw.triggerText, defaults.triggerText),
         inventoryCommand: toText(raw.inventoryCommand, defaults.inventoryCommand),
@@ -164,7 +163,7 @@ const createGemsManager = (state, configManager, commandSender) => {
             const myId = state.client?.user?.id;
             const authorId = String(msg.author?.id || '');
             if (myId && authorId === myId) return false;
-            if (settings.botIds.length > 0 && !settings.botIds.includes(authorId)) return false;
+            if (authorId !== CONSTANTS.LUCY_BOT_ID) return false;
             if (settings.channelId && String(msg.channel?.id || msg.channelId || '') !== settings.channelId) return false;
             return true;
         },

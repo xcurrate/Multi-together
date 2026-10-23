@@ -9,7 +9,6 @@ module.exports = {
         enabled: false,
         allowedGuilds: [],
         channelIds: [],
-        botIds: [1438615298012872817],
         appearText: 'Boss Telah Muncul',
         defeatedText: 'Boss Telah Dikalahkan',
         buttonId: 'raid:fight',
@@ -30,7 +29,6 @@ module.exports = {
     GEMS_DEFAULTS: {
         enabled: false,
         channelId: '',
-        botIds: [],
         accountName: '',
         triggerText: 'menghabiskan 5 <:lucent:1523362382355759266>',
         inventoryCommand: 'linv',

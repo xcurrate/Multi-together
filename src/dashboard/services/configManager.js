@@ -40,7 +40,8 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.settings.gems = normalizeGemsSettings(config.settings.gems);
         config.settings.huntbot2 = normalizeHuntbot2Settings(config.settings.huntbot2);
         config.settings.rest = normalizeRestSettings(config.settings.rest);
-        config.settings.adventure = config.settings.adventure || { enabled: false, targetId: '', channelId: '', guildId: '' };
+        config.settings.adventure = config.settings.adventure || { enabled: false, channelId: '', guildId: '' };
+        delete config.settings.adventure.targetId;
         config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
         config.settings.messageDebug = config.settings.messageDebug || { enabled: false, targetId: '', channelId: '', guildId: '' };
         config.settings.telegram = config.settings.telegram || { token: "", chatId: "" };
@@ -150,7 +151,6 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
             enabled: this.toBool(body.boss2Enabled),
             allowedGuilds: this.toArray(body.boss2Guilds),
             channelIds: this.toArray(body.boss2ChannelIds),
-            botIds: this.toArray(body.boss2BotIds),
             appearText: body.boss2AppearText,
             defeatedText: body.boss2DefeatedText,
             buttonId: body.boss2ButtonId,
@@ -163,7 +163,6 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
             ...config.settings.gems,
             enabled: this.toBool(body.gemsEnabled),
             channelId: body.gemsChannelId,
-            botIds: this.toArray(body.gemsBotIds),
             accountName: body.gemsAccountName,
             triggerText: body.gemsTriggerText,
             inventoryCommand: body.gemsInventoryCommand,
@@ -197,7 +196,6 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
             }
         });
 
-        config.settings.adventure.targetId = String(body.adventureTargetId || '').trim();
         config.settings.adventure.channelId = String(body.adventureChannelId || '').trim();
         config.settings.adventure.guildId = String(body.adventureGuildId || '').trim();
 

@@ -197,7 +197,6 @@ const createRuntimeConfigManager = (state, filePath) => ({
         const adventure = state.config.settings?.adventure || {};
         return {
             enabled: adventure.enabled === true,
-            targetId: String(adventure.targetId || '').trim(),
             channelId: String(adventure.channelId || '').trim(),
             guildId: String(adventure.guildId || '').trim()
         };

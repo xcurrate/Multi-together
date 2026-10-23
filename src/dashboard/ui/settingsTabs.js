@@ -527,8 +527,6 @@ ${renderRestSettings(config.settings?.rest)}
                             <input type="text" name="boss2Guilds" value="${escapeHtml((boss2.allowedGuilds || []).join(','))}" placeholder="Guild ID">
                             <label>Allowed Channels</label>
                             <input type="text" name="boss2ChannelIds" value="${escapeHtml((boss2.channelIds || []).join(','))}" placeholder="Channel ID">
-                            <label>Bot Author IDs</label>
-                            <input type="text" name="boss2BotIds" value="${escapeHtml((boss2.botIds || []).join(','))}" placeholder="User ID bot boss">
                             <label>Teks Boss Muncul</label>
                             <input type="text" name="boss2AppearText" value="${escapeHtml(boss2.appearText || '')}" placeholder="Guild Boss Telah Muncul">
                             <label>Teks Boss Dikalahkan</label>
@@ -562,8 +560,6 @@ ${renderRestSettings(config.settings?.rest)}
                             </div>
                             <label>Channel ID (kosong = channel pesan trigger)</label>
                             <input type="text" name="gemsChannelId" value="${escapeHtml(gems.channelId || '')}" placeholder="Channel ID">
-                            <label>Bot Author IDs (kosong = semua)</label>
-                            <input type="text" name="gemsBotIds" value="${escapeHtml((gems.botIds || []).join(','))}" placeholder="User ID bot Lucy">
                             <label>Nama Akun (kosong = otomatis dari username/nickname)</label>
                             <input type="text" name="gemsAccountName" value="${escapeHtml(gems.accountName || '')}" placeholder="neozen">
                             <label>Teks Trigger Gems Habis</label>
@@ -615,8 +611,6 @@ ${renderRestSettings(config.settings?.rest)}
                         <div class="card">
                             <label>🗺️ AUTO ADVENTURE</label>
                             <div class="input-hint">Memproses response target hanya pada guild dan channel yang ditentukan.</div>
-                            <label>Target Author ID</label>
-                            <input type="text" name="adventureTargetId" value="${escapeHtml(adventure.targetId || '')}" placeholder="Discord User ID">
                             <label>Adventure Channel ID</label>
                             <input type="text" name="adventureChannelId" value="${escapeHtml(adventure.channelId || '')}" placeholder="Channel ID">
                             <label>Adventure Guild ID</label>

@@ -77,6 +77,11 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
     function reconcile() {
         const mainConfig = readMainConfig();
         const desired = discoverAccountConfigs(mainConfig);
+
+        // Each account's persisted botStatus is authoritative at startup.
+        // Global Start/Stop already writes every account config, so copying the
+        // main config status here would incorrectly resume profiles paused individually.
+
         const desiredIds = new Set(desired.map(item => item.accountId));
 
         for (const [accountId, runtime] of runtimes.entries()) {

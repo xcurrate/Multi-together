@@ -131,14 +131,17 @@ function createDashboardRoutes({ configManager, fileService, profileManager, pro
         const ids = new Set(profileManager.getSavedProfiles());
         const mainId = profileManager.getUserId(mainConfig.token);
         let saved = true;
+
+        // Always persist the primary environment's status, even when its token
+        // cannot be mapped to a Discord profile ID or saved profiles also exist.
+        mainConfig.botStatus = { running: !!shouldRun, paused: !shouldRun };
+        saved = configManager.save(mainConfig) && saved;
+
         if (mainId !== 'default') ids.add(mainId);
-        if (!ids.size) {
-            mainConfig.botStatus = { running: !!shouldRun, paused: !shouldRun };
-            saved = configManager.save(mainConfig);
-        }
         ids.forEach(id => {
             saved = setAccountStatus(id, shouldRun) && saved;
         });
+
         const manager = state?.multiAccountManager;
         if (manager && typeof manager.reconcile === 'function') manager.reconcile();
         return saved;

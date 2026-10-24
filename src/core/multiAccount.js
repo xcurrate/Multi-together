@@ -28,7 +28,6 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
     const configPath = path.join(baseDir, 'config.json');
     const profilesDir = path.join(baseDir, 'profiles');
     const runtimes = new Map();
-    let startupReconciled = false;
     rootState.accountRuntimes = runtimes;
     rootState.multiAccountManager = null;
 
@@ -79,18 +78,9 @@ module.exports = function createMultiAccountManager({ rootState, baseDir = proce
         const mainConfig = readMainConfig();
         const desired = discoverAccountConfigs(mainConfig);
 
-        // Treat a persisted global "running" state as the startup intent for
-        // every discovered Lucy environment on the first reconciliation only.
-        // Later reconciliations preserve per-account start/stop choices.
-        if (!startupReconciled) {
-            startupReconciled = true;
-            if (mainConfig.botStatus?.running && !mainConfig.botStatus?.paused) {
-                for (const item of desired) {
-                    item.config.botStatus = { running: true, paused: false };
-                    writeJson(item.filePath, item.config);
-                }
-            }
-        }
+        // Each account's persisted botStatus is authoritative at startup.
+        // Global Start/Stop already writes every account config, so copying the
+        // main config status here would incorrectly resume profiles paused individually.
 
         const desiredIds = new Set(desired.map(item => item.accountId));
 

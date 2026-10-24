@@ -289,6 +289,14 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
     let loopsActive = false;
     let loopConfigSignature = '';
 
+    const hasEnabledLucyFeatures = () => {
+        const settings = state.config.settings || {};
+        return settings.boss2?.enabled === true
+            || settings.gems?.enabled === true
+            || settings.adventure?.enabled === true
+            || (Array.isArray(state.config.otherCommands) && state.config.otherCommands.some(command => command?.enabled === true));
+    };
+
     const getLoopConfigSignature = (nextConfig = state.config) => safeJsonStringify({
         channels: nextConfig.channels || [],
         delays: nextConfig.delays || {},
@@ -451,6 +459,10 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             state.config.botStatus = { running: true, paused: false };
             if (statusChanged) configManager.save();
 
+            // The profile Start button controls both OwO loops and Lucy features.
+            // Only apply this transition once; reconcile() runs periodically.
+            if (!wasRuntimeRunning) messageHandler.setLucyFeatures(true);
+
             if (!state.client) {
                 log.info(`${accountPrefix(state)}🚀 Menjalankan akun paralel.`);
                 clientManager.initialize();
@@ -506,6 +518,10 @@ module.exports = function createAccountRuntime({ config, filePath, sharedStats }
             runtimeRunning = false;
             state.config.botStatus = { running: false, paused: true };
             if (statusChanged) configManager.save();
+
+            // Also stop Lucy when this profile was already paused at startup.
+            // Avoid repeatedly saving/logging while the periodic reconciler runs.
+            if (wasRuntimeRunning || hasEnabledLucyFeatures()) messageHandler.setLucyFeatures(false);
             if (!wasRuntimeRunning && !loopsActive) return;
             if (wasRuntimeRunning) log.info(`${accountPrefix(state)}⏸ Menjeda akun paralel.`);
             loopManager.stopAll();

@@ -73,7 +73,7 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             const regex = /[🔒🔓][ \t]*`([^`\r\n]+)`/g;
             const teams = [];
             let match;
-            while ((match = regex.exec(text)) !== null) teams.push(`${match[0][0]} \`${match[1]}\``);
+            while ((match = regex.exec(text)) !== null) teams.push(`${match[0].startsWith('🔒') ? '🔒' : '🔓'} \`${match[1]}\``);
             if (!teams.length) return;
             fs.writeFileSync(LUCY_TEAM_OUTPUT_PATH, teams.join('\n') + '\n', 'utf8');
             clearLucyTeamAwaiting();

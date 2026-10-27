@@ -44,6 +44,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         delete config.settings.adventure.targetId;
         config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
         config.settings.messageDebug = config.settings.messageDebug || { enabled: false, targetId: '', channelId: '', guildId: '' };
+        config.settings.debug2 = config.settings.debug2 === true;
         config.settings.telegram = config.settings.telegram || { token: "", chatId: "" };
         config.settings.voice = config.settings.voice || { enabled: false, channelId: "" };
         config.otherCommands = Array.isArray(config.otherCommands) ? config.otherCommands : [];
@@ -209,6 +210,7 @@ module.exports = function createConfigManager({ configPath, fileService, CONSTAN
         config.settings.messageDebug.targetId = String(body.messageDebugTargetId || '').trim();
         config.settings.messageDebug.channelId = String(body.messageDebugChannelId || '').trim();
         config.settings.messageDebug.guildId = String(body.messageDebugGuildId || '').trim();
+        config.settings.debug2 = this.toBool(body.debug2Enabled);
 
         config.settings.voice.enabled = this.toBool(body.voiceEnabled);
         config.settings.voice.channelId = body.voiceChannelId || '';

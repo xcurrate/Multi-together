@@ -262,6 +262,10 @@ ${renderRestSettings(config.settings?.rest)}
                         <div class="card">
                             <label>🔎 MESSAGE DEBUG</label>
                             <div class="toggle-row">
+                                <span>DEBUG2</span>
+                                <input type="checkbox" name="debug2Enabled" ${config.settings.debug2 === true ? 'checked' : ''}>
+                            </div>
+                            <div class="toggle-row">
                                 <span>Aktifkan ekstraksi pesan</span>
                                 <input type="checkbox" name="messageDebugEnabled" ${messageDebug.enabled ? 'checked' : ''}>
                             </div>

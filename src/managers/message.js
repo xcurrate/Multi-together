@@ -1,4 +1,9 @@
+const fs = require('fs');
+const path = require('path');
 const CONSTANTS = require('../constants');
+
+const LUCY_BOT_ID = '1438615298012872817';
+const LUCY_TEAM_OUTPUT_PATH = path.join(__dirname, '../../lucy-team-output.txt');
 const log = require('../../logger');
 const { accountPrefix } = require('../utils');
 const statsService = require('../services/stats');
@@ -15,7 +20,66 @@ const toJsonValue = (value) => {
     }
 };
 
-module.exports = (state, configManager, bossManager, captchaHandler, loopManager, channelManager, telegramService, macrodroidService, huntbotManager, commandSender, voiceManager, adventureManager, boss2Manager, gemsManager, huntbot2Manager) => ({
+module.exports = (state, configManager, bossManager, captchaHandler, loopManager, channelManager, telegramService, macrodroidService, huntbotManager, commandSender, voiceManager, adventureManager, boss2Manager, gemsManager, huntbot2Manager) => {
+    let lucyTeamAwaiting = false;
+    let lucyTeamTimeout = null;
+    const clearLucyTeamAwaiting = () => {
+        lucyTeamAwaiting = false;
+        if (lucyTeamTimeout) clearTimeout(lucyTeamTimeout);
+        lucyTeamTimeout = null;
+    };
+    const walkTextDisplays = (nodes, collected = []) => {
+        if (!Array.isArray(nodes)) return collected;
+        for (const node of nodes) {
+            if (!node || typeof node !== 'object') continue;
+            if (node.type === 10 && typeof node.content === 'string') collected.push(node.content);
+            if (Array.isArray(node.components)) walkTextDisplays(node.components, collected);
+        }
+        return collected;
+    };
+    const handleLucyTeamDebug = (msg) => {
+        try {
+            if (state.config.settings?.debug2 !== true) return;
+            const authorId = String(msg.author?.id || '');
+            const myId = String(state.client?.user?.id || '');
+            if (myId && authorId === myId) {
+                const command = String(msg.content || '').trim().toLowerCase();
+                if (command === 'ltm' || command === 'lteam' || command === 'lucy team') {
+                    if (lucyTeamTimeout) clearTimeout(lucyTeamTimeout);
+                    lucyTeamAwaiting = true;
+                    lucyTeamTimeout = setTimeout(() => {
+                        try { lucyTeamAwaiting = false; lucyTeamTimeout = null; } catch (_) {}
+                    }, 20000);
+                }
+                return;
+            }
+            if (!lucyTeamAwaiting) return;
+            const isLucy = authorId === LUCY_BOT_ID ||
+                (msg.author?.bot === true && String(msg.author?.username || '').toLowerCase().includes('lucy'));
+            if (!isLucy) return;
+            let components = [];
+            try {
+                const serialized = typeof msg.toJSON === 'function' ? msg.toJSON() : null;
+                if (Array.isArray(serialized?.components) && serialized.components.length) components = serialized.components;
+            } catch (_) {}
+            if (!components.length) {
+                try {
+                    components = Array.isArray(msg.components) ? msg.components.map(component => {
+                        try { return component?.toJSON?.() ?? component; } catch (_) { return component; }
+                    }) : [];
+                } catch (_) { components = []; }
+            }
+            const text = walkTextDisplays(components).join('\n');
+            const regex = /[🔒🔓][ \t]*`([^`\r\n]+)`/g;
+            const teams = [];
+            let match;
+            while ((match = regex.exec(text)) !== null) teams.push(`${match[0].startsWith('🔒') ? '🔒' : '🔓'} \`${match[1]}\``);
+            if (!teams.length) return;
+            fs.writeFileSync(LUCY_TEAM_OUTPUT_PATH, teams.join('\n') + '\n', 'utf8');
+            clearLucyTeamAwaiting();
+        } catch (_) {}
+    };
+    return ({
     async handleUpdate(msg) {
         if (!state.client?.isReady() || !boss2Manager) return;
         try {
@@ -29,6 +93,7 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
     async handle(msg) {
         if (!state.client?.isReady()) return;
 
+        handleLucyTeamDebug(msg);
         this.captureMessageDebug(msg);
         if (huntbot2Manager && typeof huntbot2Manager.handle === 'function') {
             await huntbot2Manager.handle(msg);
@@ -321,4 +386,5 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             return false;
         }
     }
-});
+    });
+};

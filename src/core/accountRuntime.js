@@ -54,6 +54,7 @@ const ensureRuntimeShape = (config = {}) => {
     delete config.settings.adventure.targetId;
     config.settings.messageFilter = config.settings.messageFilter || { enabled: true, channelIds: [], guildIds: [], debug: false, debugOnlyOwO: false };
     config.settings.messageDebug = config.settings.messageDebug || { enabled: false, targetId: '', channelId: '', guildId: '' };
+    config.settings.debug2 = config.settings.debug2 === true;
     config.settings.telegram = config.settings.telegram || { token: '', chatId: '' };
     config.otherCommands = Array.isArray(config.otherCommands) ? config.otherCommands : [];
     config.otherCommands = [0, 1, 2].map(index => {

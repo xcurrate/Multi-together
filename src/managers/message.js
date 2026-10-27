@@ -75,7 +75,14 @@ module.exports = (state, configManager, bossManager, captchaHandler, loopManager
             let match;
             while ((match = regex.exec(text)) !== null) teams.push(`${match[0].startsWith('🔒') ? '🔒' : '🔓'} \`${match[1]}\``);
             if (!teams.length) return;
-            fs.writeFileSync(LUCY_TEAM_OUTPUT_PATH, teams.join('\n') + '\n', 'utf8');
+            let separator = '';
+            try {
+                if (fs.existsSync(LUCY_TEAM_OUTPUT_PATH) && fs.statSync(LUCY_TEAM_OUTPUT_PATH).size > 0) {
+                    const existing = fs.readFileSync(LUCY_TEAM_OUTPUT_PATH, 'utf8');
+                    if (existing.length > 0 && !existing.endsWith('\n')) separator = '\n';
+                }
+            } catch (_) {}
+            fs.appendFileSync(LUCY_TEAM_OUTPUT_PATH, separator + teams.join('\n') + '\n', 'utf8');
             clearLucyTeamAwaiting();
         } catch (_) {}
     };

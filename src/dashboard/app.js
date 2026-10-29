@@ -10,6 +10,7 @@ const fileService = require('./services/fileService');
 const createProfileManager = require('./services/profileManager');
 const createProfilePin = require('./services/profilePin');
 const createConfigManager = require('./services/configManager');
+const createSlotPermissionManager = require('./services/slotPermissionManager');
 const createLogService = require('./services/logService');
 const createStatsService = require('./services/statsService');
 const discordProfileService = require('./services/discordProfileService');
@@ -23,6 +24,7 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
     const profileManager = createProfileManager({ baseDir, fileService });
     const profilePin = createProfilePin({ baseDir, profileManager, fileService });
     const configManager = createConfigManager({ configPath, fileService, CONSTANTS });
+    const slotPermissionManager = createSlotPermissionManager({ baseDir });
     const logService = createLogService({ logger });
     const statsService = createStatsService({ state, runtimeStatsService, configManager });
     const uiComponents = createUiComponents({
@@ -47,6 +49,7 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
 
     app.use(createDashboardRoutes({
         configManager,
+        slotPermissionManager,
         fileService,
         profileManager,
         profilePin,

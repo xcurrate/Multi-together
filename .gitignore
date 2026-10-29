@@ -1,0 +1,3 @@
+# Runtime state: do not commit granted slot access records.
+slot-permissions.json
+slot-permissions.json.tmp

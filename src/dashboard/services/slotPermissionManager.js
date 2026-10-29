@@ -14,6 +14,16 @@ module.exports = function createSlotPermissionManager({
     password = process.env.SLOT_OWNER_PASSWORD || ''
 } = {}) {
     const filePath = path.join(baseDir, 'slot-permissions.json');
+    const passwordFilePath = path.join(baseDir, 'slot-owner-password.txt');
+
+    function getOwnerPassword() {
+        if (typeof password === 'string' && password.trim()) return password.trim();
+        try {
+            return fs.readFileSync(passwordFilePath, 'utf8').trim();
+        } catch {
+            return '';
+        }
+    }
 
     function readStore() {
         try {
@@ -36,16 +46,16 @@ module.exports = function createSlotPermissionManager({
 
     function normalizeId(id) {
         const value = String(id || '').trim();
-        return /^\d{17,20}$/.test(value) ? value : '';
+        return /^\\d{17,20}$/.test(value) ? value : '';
     }
 
     return {
         isConfigured() {
-            return typeof password === 'string' && password.length >= 12;
+            return getOwnerPassword().length >= 12;
         },
 
         verifyOwnerPassword(candidate) {
-            return this.isConfigured() && safeEqual(candidate, password);
+            return this.isConfigured() && safeEqual(candidate, getOwnerPassword());
         },
 
         list() {

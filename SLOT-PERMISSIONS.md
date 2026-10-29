@@ -4,21 +4,15 @@ The dashboard can share access while keeping account creation under the owner's 
 
 ## Enable owner controls
 
-Set the environment variable `SLOT_OWNER_PASSWORD` to a private, randomly generated password of at least 12 characters, then restart the application. Do not reuse the dashboard login password and do not commit the value to source control.
+Choose one of these methods. The owner password must be private and at least 12 characters long. Do not reuse the dashboard login password.
 
-For example, in a shell before starting the bot:
+### Hosting panel with environment variables
 
-```sh
-export SLOT_OWNER_PASSWORD='replace-with-a-long-random-secret'
-npm start
-```
+Set `SLOT_OWNER_PASSWORD` to your private password in the hosting panel, then restart the application.
 
-On Windows PowerShell:
+### Hosting panel with File Manager only
 
-```powershell
-$env:SLOT_OWNER_PASSWORD = "replace-with-a-long-random-secret"
-npm start
-```
+Create a plain-text file named `slot-owner-password.txt` in the bot's project root (the same folder as `package.json`). Put only your private password in the file, save it, and restart the bot. Keep this file private; it is ignored by Git and must never be committed or shared. If both the environment variable and file are present, the environment variable takes precedence.
 
 Open the dashboard and choose **IZIN SLOT AKUN**, or visit `/owner/slots`.
 

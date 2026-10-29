@@ -77,6 +77,7 @@ function renderPage(config) {
                     ${viewingProfileId ? `<input type="hidden" name="viewingProfileId" value="${viewingProfileId}">` : ''}
                     <div class="action-group">
                         ${viewingProfileId ? '<a href="/" class="btn btn-home">⌂ MENU UTAMA</a>' : ''}
+                        ${!viewingProfileId ? '<a href="/owner/slots" class="btn btn-home">🔐 IZIN SLOT AKUN</a>' : ''}
                         ${viewingProfileId ? '<button type="submit" name="action" value="connectProfile" class="btn btn-connect">🔌 CONNECT / LOGIN</button>' : ''}
                         <button type="submit" name="action" value="${viewingProfileId ? 'startProfile' : 'start'}" class="btn btn-start">▶ ${viewingProfileId ? 'START / RESUME COMMANDS' : 'START ALL COMMANDS'}</button>
                         <button type="submit" name="action" value="${viewingProfileId ? 'pauseProfile' : 'pause'}" class="btn btn-pause">⏸ ${viewingProfileId ? 'PAUSE COMMANDS' : 'PAUSE ALL COMMANDS'}</button>

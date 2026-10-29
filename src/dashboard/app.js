@@ -10,6 +10,8 @@ const fileService = require('./services/fileService');
 const createProfileManager = require('./services/profileManager');
 const createProfilePin = require('./services/profilePin');
 const createConfigManager = require('./services/configManager');
+const createSlotPermissionManager = require('./services/slotPermissionManager');
+const { createSlotPermissionRoutes, createSlotPermissionGuard } = require('./slotPermissionRoutes');
 const createLogService = require('./services/logService');
 const createStatsService = require('./services/statsService');
 const discordProfileService = require('./services/discordProfileService');
@@ -23,6 +25,7 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
     const profileManager = createProfileManager({ baseDir, fileService });
     const profilePin = createProfilePin({ baseDir, profileManager, fileService });
     const configManager = createConfigManager({ configPath, fileService, CONSTANTS });
+    const slotPermissionManager = createSlotPermissionManager({ baseDir });
     const logService = createLogService({ logger });
     const statsService = createStatsService({ state, runtimeStatsService, configManager });
     const uiComponents = createUiComponents({
@@ -39,6 +42,8 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
     // Keep this parser in sync with that request format so POST /save receives req.body.
     app.use(express.urlencoded({ extended: true }));
     app.use(createDashboardAuth());
+    app.use(createSlotPermissionRoutes({ slotPermissionManager, configManager, profileManager, state }));
+    app.use(createSlotPermissionGuard({ slotPermissionManager, configManager, profileManager }));
 
     const initialConfig = configManager.ensureShape(configManager.get());
     const port = process.env.SERVER_PORT || process.env.PORT || initialConfig.port || CONSTANTS.DEFAULT_PORT;

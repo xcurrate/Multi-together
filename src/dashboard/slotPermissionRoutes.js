@@ -25,7 +25,7 @@ function createSlotPermissionRoutes({ slotPermissionManager, configManager, prof
         ).join('') : '<tr><td colspan="5">Belum ada izin.</td></tr>';
         const notice = slotPermissionManager.isConfigured()
             ? '<p class="good">Password pemilik aktif. Satu izin berlaku untuk satu Discord User ID dan hanya dapat dipakai sekali.</p>'
-            : '<p class="warning">Fitur belum aktif. Atur environment variable <code>SLOT_OWNER_PASSWORD</code> dengan password acak minimal 12 karakter, lalu restart bot.</p>';
+            : '<p class="warning">Fitur belum aktif. Atur SLOT_OWNER_PASSWORD di panel hosting, atau buat file <code>slot-owner-password.txt</code> di folder utama bot berisi password acak minimal 12 karakter, lalu restart bot.</p>';
 
         res.setHeader('Cache-Control', 'no-store');
         res.send('<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +

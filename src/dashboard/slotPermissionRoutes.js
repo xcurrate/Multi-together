@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 
 function escapeHtml(value) {
     return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -130,9 +131,34 @@ function createSlotPermissionGuard({ slotPermissionManager, configManager, profi
             return next();
         }
 
-        // Changing the main token to another Discord ID is another path to add an account.
-        if (!body.viewingProfileId && !body.profileAction && body.token) {
-            const oldId = profileManager.getUserId(currentConfig.token);
+        // The account-chip actions share the main dashboard form. Keep the target
+        // profile's token instead of accidentally copying the template token into it.
+        if (body.profileAction && !body.viewingProfileId) {
+            const targetId = String(body.profileAction).split(':')[1] || '';
+            if (/^\\d{17,20}$/.test(targetId)) {
+                try {
+                    const targetConfig = JSON.parse(fs.readFileSync(profileManager.getProfilePath(targetId), 'utf8'));
+                    body.token = targetConfig.token || '';
+                } catch {
+                    // The route below will return its usual not-found response.
+                }
+            }
+        }
+
+        // Changing a token to a different, not-yet-saved account is another way
+        // to create an account, so route it through the owner-grant flow.
+        if (body.token) {
+            let oldId = profileManager.getUserId(currentConfig.token);
+            if (body.viewingProfileId) {
+                try {
+                    const viewedConfig = JSON.parse(fs.readFileSync(
+                        profileManager.getProfilePath(String(body.viewingProfileId)), 'utf8'
+                    ));
+                    oldId = profileManager.getUserId(viewedConfig.token);
+                } catch {
+                    // The profile route below handles missing profiles.
+                }
+            }
             const newId = profileManager.getUserId(String(body.token));
             const existingProfiles = new Set(profileManager.getSavedProfiles());
             if (newId !== 'default' && newId !== oldId && !existingProfiles.has(newId)) {

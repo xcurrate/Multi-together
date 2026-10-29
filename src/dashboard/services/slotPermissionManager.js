@@ -46,7 +46,7 @@ module.exports = function createSlotPermissionManager({
 
     function normalizeId(id) {
         const value = String(id || '').trim();
-        return /^\\d{17,20}$/.test(value) ? value : '';
+        return /^\d{17,20}$/.test(value) ? value : '';
     }
 
     return {

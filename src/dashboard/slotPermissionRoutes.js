@@ -135,7 +135,7 @@ function createSlotPermissionGuard({ slotPermissionManager, configManager, profi
         // profile's token instead of accidentally copying the template token into it.
         if (body.profileAction && !body.viewingProfileId) {
             const targetId = String(body.profileAction).split(':')[1] || '';
-            if (/^\\d{17,20}$/.test(targetId)) {
+            if (/^\d{17,20}$/.test(targetId)) {
                 try {
                     const targetConfig = JSON.parse(fs.readFileSync(profileManager.getProfilePath(targetId), 'utf8'));
                     body.token = targetConfig.token || '';

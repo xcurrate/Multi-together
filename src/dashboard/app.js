@@ -52,7 +52,6 @@ function createDashboardApp({ baseDir = path.join(__dirname, '../..') } = {}) {
 
     app.use(createDashboardRoutes({
         configManager,
-        slotPermissionManager,
         fileService,
         profileManager,
         profilePin,

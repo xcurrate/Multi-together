@@ -214,7 +214,6 @@ const createBoss2Manager = (state, configManager) => {
             let fightsDone = info.fightsUsed !== null ? Math.max(raid.fightsDone, info.fightsUsed) : raid.fightsDone;
             const canContinue = () => raid.messageId === messageId &&
                 raid.status === 'active' &&
-                !state.hasActiveCaptcha &&
                 configManager.getBoss2Settings().enabled;
 
             try {

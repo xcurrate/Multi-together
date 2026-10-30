@@ -503,6 +503,11 @@ ${renderRestSettings(config.settings?.rest)}
                                     </div>
                                     <label>Target Channel</label>
                                     <input type="text" name="other${slot}Channel" value="${escapeHtml(command.channelId)}" placeholder="Discord Channel ID">
+                                    <div class="toggle-row">
+                                        <span>Deteksi CAPTCHA untuk slot ini</span>
+                                        <input type="checkbox" name="other${slot}CaptchaEnabled" value="true" ${command.captchaEnabled === true ? 'checked' : ''}>
+                                    </div>
+                                    <div class="input-hint">OFF: slot Lucy tidak menjalankan deteksi/jeda CAPTCHA. Boss2 selalu tidak menggunakan pemeriksaan CAPTCHA.</div>
                                     <div class="action-group" style="margin-top: 12px;">
                                         <button type="submit" name="action" value="otherCommandStart${slot}" class="btn btn-start">▶ START</button>
                                         <button type="submit" name="action" value="otherCommandStop${slot}" class="btn btn-pause">⏸ STOP</button>
